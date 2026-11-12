@@ -21,6 +21,8 @@
         Salas 3 a 8 = portas fechadas. As salas que abrem são mapas próprios (PROVISÓRIOS), porque, na
         visão isométrica, a parede alta do fundo esconderia quem estivesse atrás dela.
 
+   Alunos (bots): faculdade-alunos.js — estudando, conversando, entrando e saindo das salas, com mochila.
+
    Saída: a porta de vidro leva ao DataLab (PROVISÓRIO, até existir o mapa da rua, parte 3).
 
    Tudo é desenhado por código (sem imagens), no estilo do DataLab. Não muda o motor: usa só os
@@ -609,17 +611,26 @@
     K.box(g, x0, y0, x1, y1, Hd, Hw, front ? bat : par);
     return caixaTela(x0, y0, x1, y1, 0, Hw);
   }
-  // porta de madeira numa parede que corre no sentido y (os lados do corredor das salas), fechada.
+  // porta de madeira numa parede que corre no sentido y (os lados do corredor das salas).
   // lado 'o': na parede alta da esquerda (a porta fica pintada na face da parede, com a plaquinha azul);
   // lado 'l': na parede baixa da direita (batente em pé, como a porta de vidro da entrada).
+  // e.open (0 a 1): quando um aluno entra ou sai, a folha gira para o lado do corredor e mostra o vão escuro.
   function desenharPortaLado(g, sc, e) {
     const K = DL.isoKit, Hd = 28, Hb = 31, ya = e.py, yb = e.py + T, cor = e.to ? COR.porta : COR.portaEscura;
     const bat = { s: '#cfc8bb', e: '#a9a296', t: '#efe9df' };
+    const ab = clamp(e.open || 0, 0, 1) * 1.35, sx = e.lado === 'o' ? 1 : -1;
     const folha = (X) => {
-      K.poly(g, [[X, ya + 2, 0], [X, yb - 2, 0], [X, yb - 2, Hd], [X, ya + 2, Hd]], cor);
-      for (const k of [6, 10]) K.line(g, [X, ya + k, 1], [X, ya + k, Hd - 1], 'rgba(90,40,15,0.35)');
-      K.line(g, [X, ya + 2, Hd], [X, yb - 2, Hd], '#d98a52');
-      K.line(g, [X, yb - 4, 12], [X, yb - 4, 14], '#e3cf9a', 1);
+      if (ab > 0.02) K.poly(g, [[X, ya + 2, 0], [X, yb - 2, 0], [X, yb - 2, Hd], [X, ya + 2, Hd]], '#17120e'); // a sala lá dentro
+      // dobradiça: no lado 'o' fica no fundo do vão; no lado 'l', na frente (assim a folha aberta nunca
+      // é pintada por cima de quem está passando pela porta)
+      const sy = e.lado === 'o' ? 1 : -1, y0 = e.lado === 'o' ? ya + 2 : yb - 2;
+      const A = [X, y0], B = [X + sx * 12 * Math.sin(ab), y0 + sy * 12 * Math.cos(ab)];
+      const at = (k) => [A[0] + (B[0] - A[0]) * k, A[1] + (B[1] - A[1]) * k];
+      K.poly(g, [[A[0], A[1], 0], [B[0], B[1], 0], [B[0], B[1], Hd], [A[0], A[1], Hd]], ab > 0.7 ? shade(cor, -0.18) : cor);
+      for (const k of [4 / 12, 8 / 12]) { const p = at(k); K.line(g, [p[0], p[1], 1], [p[0], p[1], Hd - 1], 'rgba(90,40,15,0.35)'); }
+      K.line(g, [A[0], A[1], Hd], [B[0], B[1], Hd], '#d98a52');
+      const m = at(10 / 12);
+      K.line(g, [m[0], m[1], 12], [m[0], m[1], 14], '#e3cf9a', 1);
     };
     K.isoT(g, sc);
     if (e.lado === 'o') {
@@ -709,13 +720,20 @@
     K.line(g, [x0, y0 + 8, 9], [x1, y0 + 8, 9], 'rgba(255,255,255,0.18)');
     return caixaTela(x0, y0, x1, y1, 0, 12);
   }
-  // abre a porta quando o jogador chega perto, fecha quando ele se afasta
+  // abre a porta quando o jogador (ou um aluno) chega perto, fecha quando ele se afasta.
+  // As portas dos lados do corredor das salas só abrem para os alunos que entram e saem por elas
+  // (o jogador entra na sala de ADS com E; as outras salas ficam fechadas).
   function animarPortas(game, dt) {
-    const p = game.player;
+    const andando = DL.FacAlunos ? DL.FacAlunos.perto() : [], todos = [game.player].concat(andando);
+    const alguem = (lista, cx, cy, r) => lista.some((a) => Math.hypot(a.x - cx, a.y - cy) < r);
     for (const e of game.world.items) {
-      if ((e.kind !== 'porta' && e.kind !== 'porta-vidro') || e.lado) continue;
-      const v = e.axis === 'v', cx = v ? e.px + 2 : e.px + e.tw * 8, cy = v ? e.py + 16 : e.kind === 'porta-vidro' || e.front ? e.py + 2 : e.py + 14;
-      const alvo = Math.hypot(p.x - cx, p.y - cy) < 34 ? 1 : 0;
+      if (e.kind !== 'porta' && e.kind !== 'porta-vidro') continue;
+      let alvo;
+      if (e.lado) alvo = alguem(andando, e.lado === 'l' ? e.px - 2 : e.px + T + 2, e.py + 8, 16) ? 1 : 0;
+      else {
+        const v = e.axis === 'v', cx = v ? e.px + 2 : e.px + e.tw * 8, cy = v ? e.py + 16 : e.kind === 'porta-vidro' || e.front ? e.py + 2 : e.py + 14;
+        alvo = alguem(todos, cx, cy, 34) ? 1 : 0;
+      }
       e.open = (e.open || 0) + (alvo - (e.open || 0)) * Math.min(1, dt * 7);
     }
   }
@@ -742,6 +760,9 @@
     if (e.id === 'ENTRADA') return game.loadMap(SAIDA);
     if (e.kind === 'porta') return e.to ? game.loadMap(e.to, e.toSpawn) : game.toast('Sala ' + e.sala + ' · fechada');
   }
+
+  // os alunos (bots): faculdade-alunos.js, carregado antes deste arquivo
+  const alunos = DL.FacAlunos;
 
   // as salas escondem o painel de missão do DataLab (ele volta quando o jogador sai)
   const esconderMissao = (sim) => { const m = $('mission'); if (m) m.hidden = sim; };
@@ -813,7 +834,7 @@
   for (let x = 1; x <= 24; x++) add({ kind: 'glassH', tx: x, ty: 22, solid: false });
   //   ao lado da mesa comprida: bancos "pedra" com mesinhas brancas
   for (const x of [8, 12, 16]) {
-    add({ kind: 'table', variant: 'office', color: COR.branco, tx: x, ty: 21 });
+    add({ id: 'MESINHA-' + x, kind: 'table', variant: 'office', color: COR.branco, tx: x, ty: 21 });
     add({ kind: 'banco-pedra', tx: x - 1, ty: 21 });
     add({ kind: 'banco-pedra', tx: x + 1, ty: 21 });
   }
@@ -885,6 +906,16 @@
     if (o.isoRect) { o.isoRect[1] += DY * T; o.isoRect[3] += DY * T; }
   }
 
+  // (já nas linhas finais) o material dos alunos (faculdade-alunos.js): cadernos, livros e notebooks na
+  // mesa comprida e nas mesinhas, na frente de quem estuda; mochilas largadas no chão
+  for (const [kind, x, host, color] of [['caderno', 8, 'MESA-1', '#c4553c'], ['notebook', 9, 'MESA-1'], ['livro', 10, 'MESA-1', '#2f6a4a'],
+    ['caderno', 12, 'MESA-1', '#3a6ea5'], ['notebook', 13, 'MESA-1'], ['livro', 12, 'MESINHA-12', '#8e5cc4'], ['caderno', 16, 'MESINHA-16', '#e8a33a']]) {
+    add({ kind, host, tx: x, ty: host === 'MESA-1' ? 30 : 33, color, solid: false, glow: kind === 'notebook' ? 'rgba(120,170,240,0.035)' : undefined });
+  }
+  add({ kind: 'mochila', tx: 10, ty: 33, color: '#2d3e5c', solid: false });
+  add({ kind: 'mochila', tx: 18, ty: 31, color: '#c4553c', solid: false });
+  add({ kind: 'mochila', tx: 23.6, ty: 25.3, color: '#2f6a4a', solid: false });
+
   // 6. Corredor das salas (já nas linhas finais). Cada sala que abre é um mapa próprio.
   const NOME_SALA = { 1: 'Sala de ADS · laboratório de informática', 2: 'Laboratório da área da saúde' };
   const VOLTA = { 1: [14, 15], 2: [9, 17] }; // onde o jogador aparece ao sair da sala
@@ -943,9 +974,11 @@
       if (tx === VOLTA[1][0] && ty === VOLTA[1][1]) game.player.dir = 'left'; // voltou da sala de ADS
       else if (tx === VOLTA[2][0] && ty === VOLTA[2][1]) game.player.dir = 'down'; // voltou da Sala 2
       else game.toast('Faculdade Serra Dourada · em frente, as mesas; à direita, o logo, a secretaria e o corredor das salas');
+      alunos.iniciar(game, 'faculdade');
     },
     leave() { esconderMissao(false); },
-    update(game, dt) { animarPortas(game, dt); },
+    update(game, dt) { alunos.atualizar(game, dt); animarPortas(game, dt); },
+    overlay(g, sc) { alunos.desenharFalas(g, sc); },
     useLabel,
     use,
   });
@@ -1038,9 +1071,11 @@
         const porta = game.world.byId.PORTA;
         porta.iy = porta.py - 4;
         game.toast('Sala ' + n + ' · ' + S.nome);
+        alunos.iniciar(game, 'sala' + n);
       },
       leave() { esconderMissao(false); },
-      update(game, dt) { animarPortas(game, dt); },
+      update(game, dt) { alunos.atualizar(game, dt); animarPortas(game, dt); },
+      overlay(g, sc) { alunos.desenharFalas(g, sc); },
       useLabel,
       use,
     });

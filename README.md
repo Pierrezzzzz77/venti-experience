@@ -26,6 +26,8 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
    à direita, o saguão com o logo numa parede em diagonal, a secretaria (mesa redonda com 3 notebooks),
    a parede verde no fim e o corredor das salas (4 portas de cada lado) — **pronto** (`?mapa=faculdade`)
    (Sala 1: sala de ADS, laboratório de informática · Sala 2: laboratório da área da saúde · Salas 3 a 8: portas fechadas; provisório: a porta de vidro leva ao DataLab até a rua existir)
+   Alunos (bots) pela faculdade e nas 2 salas: estudando nas mesas, conversando em grupinhos (em pé e sentados),
+   entrando e saindo das salas e da faculdade (as portas abrem), com mochila; E perto deles = falar com o aluno
 3. Rua: faculdade de um lado, DataLab do outro — *a fazer*
 4. DataLab: colocar servidor e switch no rack, ligar o cabo e deixar o servidor online pelo terminal — **pronto**
    (`ip addr` → `sudo ip link set eth0 up` → `ping 10.0.1.1`)
@@ -52,6 +54,7 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 | `assets/js/maps/lago-som.js` | Parte 0: som de vento, água e pássaros (Web Audio), botão para silenciar. |
 | `assets/js/maps/lago.js` | Parte 0: o filme (câmera, legendas) e a parte jogável (entrar no carro). |
 | `assets/js/maps/abertura.js` | Parte 1: cena de abertura (desenhada por código; referências em `referencia/`). |
+| `assets/js/maps/faculdade-alunos.js` | Os alunos (bots) da faculdade: quem estuda, conversa e anda; mochila, caderno e livro. Carregado antes de `faculdade.js`. |
 | `assets/js/maps/faculdade.js` | Parte 2: a faculdade por dentro (mesas, saguão com o logo, secretaria, corredor) e as 2 salas (mapas `faculdade-sala1` e `faculdade-sala2`). |
 | `assets/js/maps/datalab.js` | Parte 4: a sala do DataLab e a missão. |
 
