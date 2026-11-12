@@ -712,7 +712,7 @@
 
     /* ---- entrada e saída em preto ---- */
     g.setTransform(1, 0, 0, 1, 0, 0);
-    let black = 1 - smooth(0, 1.2, t);
+    let black = 1 - smooth(S.t0, S.t0 + (S.t0 ? 0.7 : 1.2), t);
     black = Math.max(black, smooth(TL.fade, TL.end, t));
     if (S.skipAt != null) black = Math.max(black, smooth(S.skipAt, S.skipAt + 0.6, t));
     if (black > 0) { g.fillStyle = 'rgba(0,0,0,' + black.toFixed(3) + ')'; g.fillRect(0, 0, VW, VH); }
@@ -774,7 +774,9 @@
     spawn: [1, 1],
 
     enter(game) {
-      Object.assign(S, { t: 0, dt: 0, cam: null, done: false, skipAt: null, caption: '' });
+      Object.assign(S, { t: 0, t0: 0, dt: 0, cam: null, done: false, skipAt: null, caption: '' });
+      // (lago.js) vindo do Lago da Prefeitura o boneco já entrou no carro: começa com o carro saindo
+      if (DL.fromLake) { DL.fromLake = false; S.t = S.t0 = TL.inCar + 0.25; }
       if (!S.statics.length) build();
       game.locked = true; // o jogador só assiste
       document.body.classList.add('in-cutscene');

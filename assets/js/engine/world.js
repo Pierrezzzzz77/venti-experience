@@ -25,7 +25,8 @@
     ',': (g, px, py) => DL.floorTile(g, px, py, true),
     '_': (g, px, py, x, y) => DL.carpet(g, px, py, x, y),
   };
-  const SOLID_TILES = { '#': 1 };
+  // tiles que bloqueiam o passo; um mapa pode acrescentar os seus (ex.: lago.js: água, pista)
+  const SOLID_TILES = (DL.SOLID_TILES = { '#': 1 });
 
   // O piso do mapa inteiro, desenhado uma vez num canvas (a cena o deita no chão isométrico).
   DL.renderFloor = function (w) {

@@ -22,6 +22,12 @@
 
   // iso-pixel space (what all polygons below are drawn in)
   function isoT(g, sc) { g.setTransform(sc.S, 0, 0, sc.S, -sc.ox, -sc.oy); }
+  // (Venti) o retângulo do chão (px do mundo) que aparece na tela agora
+  function viewWorld(sc) {
+    const S = sc.S, X0 = sc.ox / S, X1 = (sc.ox + sc.canvas.width) / S, Y0 = sc.oy / S, Y1 = (sc.oy + sc.canvas.height) / S;
+    return { x0: Y0 + X0 / 2, x1: Y1 + X1 / 2, y0: Y0 - X1 / 2, y1: Y1 - X0 / 2 };
+  }
+  DL.viewWorld = viewWorld;
   // world ground plane (z = height)
   function groundT(g, sc, z) { const S = sc.S; g.setTransform(S, S / 2, -S, S / 2, -sc.ox, -sc.oy - S * (z || 0)); }
   // sprite space → world: point = O + sx·U + sy·V (3-vectors), then projected
@@ -629,7 +635,7 @@
     // rooms read lighter than the ground around them, with soft light from the ceiling
     g.globalCompositeOperation = 'lighter';
     g.fillStyle = 'rgb(15,16,24)';
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (open(x, y)) g.fillRect(x * T, y * T, T, T);
+    if (!sc.o.noBase) for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (open(x, y)) g.fillRect(x * T, y * T, T, T);
     for (const r of w.rooms || []) {
       const s = DL.roomStyle ? DL.roomStyle(r) : null, tone = s && s.light && s.light !== 'auto' ? s.light : null;
       const col = tone === 'warm' ? '255,200,150' : tone === 'dim' ? '120,110,170' : tone === 'bright' ? '235,240,255' : '170,190,255';
@@ -707,6 +713,8 @@
     // shift (css px): the same sideways, centred in the space right of a panel docked on the left
     const shift = ((sc.o.shift || 0) * sc.dpr) / S;
     let cx = sc.cam.x - sc.cam.y - shift, cy = (sc.cam.x + sc.cam.y) / 2 + lift;
+    // (Venti) câmera de cinema: sem limite nas bordas do mapa (sc.camFree)
+    if (sc.camFree) { sc.ox = Math.round(cx * S - cw / 2); sc.oy = Math.round(cy * S - ch / 2); return; }
     cx = vw - 2 * shift >= maxX - minX ? (minX + maxX) / 2 - shift : clamp(cx, minX + vw / 2 - 2 * shift, maxX - vw / 2);
     cy = vh - pt - pb >= maxY - minY ? (minY + maxY) / 2 - pt / 2 + pb / 2 : clamp(cy, minY + vh / 2 - pt, maxY - vh / 2 + pb);
     sc.ox = Math.round(cx * S - cw / 2);
@@ -887,12 +895,16 @@
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
-    const bg = g.createLinearGradient(0, 0, 0, ch);
-    bg.addColorStop(0, '#1e1a36');
-    bg.addColorStop(0.55, '#121427');
-    bg.addColorStop(1, '#07080d');
-    g.fillStyle = bg;
-    g.fillRect(0, 0, cw, ch);
+    // (Venti) um mapa ao ar livre pinta o próprio fundo (céu, morros): sc.background(g, sc)
+    if (sc.background) { g.save(); sc.background(g, sc); g.restore(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; }
+    else {
+      const bg = g.createLinearGradient(0, 0, 0, ch);
+      bg.addColorStop(0, '#1e1a36');
+      bg.addColorStop(0.55, '#121427');
+      bg.addColorStop(1, '#07080d');
+      g.fillStyle = bg;
+      g.fillRect(0, 0, cw, ch);
+    }
     g.imageSmoothingEnabled = false;
     g.lineWidth = 1 / S;
     g.lineJoin = 'round';
@@ -900,12 +912,19 @@
     // the plinth the whole map stands on
     const Wm = st.W * T, Hm = st.H * T;
     isoT(g, sc);
-    poly(g, [[0, Hm, 0], [Wm, Hm, 0], [Wm, Hm, -BASE], [0, Hm, -BASE]], '#1a1f2b');
-    poly(g, [[Wm, Hm, 0], [Wm, 0, 0], [Wm, 0, -BASE], [Wm, Hm, -BASE]], '#11141c');
-    line(g, [0, Hm, 0], [Wm, Hm, 0], 'rgba(255,255,255,0.08)');
-    line(g, [Wm, 0, 0], [Wm, Hm, 0], 'rgba(255,255,255,0.05)');
+    if (!sc.o.noBase) { // (Venti) mapas ao ar livre não têm a base de maquete
+      poly(g, [[0, Hm, 0], [Wm, Hm, 0], [Wm, Hm, -BASE], [0, Hm, -BASE]], '#1a1f2b');
+      poly(g, [[Wm, Hm, 0], [Wm, 0, 0], [Wm, 0, -BASE], [Wm, Hm, -BASE]], '#11141c');
+      line(g, [0, Hm, 0], [Wm, Hm, 0], 'rgba(255,255,255,0.08)');
+      line(g, [Wm, 0, 0], [Wm, Hm, 0], 'rgba(255,255,255,0.05)');
+    }
     groundT(g, sc);
-    g.drawImage(st.floor, 0, 0);
+    // (Venti) só o pedaço do chão que aparece na tela (num mapa grande, desenhar tudo pesa)
+    {
+      const v = viewWorld(sc), fx0 = Math.max(0, Math.floor(v.x0) - 16), fy0 = Math.max(0, Math.floor(v.y0) - 16);
+      const fx1 = Math.min(st.floor.width, Math.ceil(v.x1) + 16), fy1 = Math.min(st.floor.height, Math.ceil(v.y1) + 16);
+      if (fx1 > fx0 && fy1 > fy0) g.drawImage(st.floor, fx0, fy0, fx1 - fx0, fy1 - fy0, fx0, fy0, fx1 - fx0, fy1 - fy0);
+    }
 
     // what is on screen (iso pixels, with room for tall things)
     const vx0 = sc.ox / S - 16, vx1 = (sc.ox + cw) / S + 16, vy0 = sc.oy / S - 16, vy1 = (sc.oy + ch) / S + 80;
@@ -1002,14 +1021,25 @@
   SP.render = function () { if (this.drawInstead && this.drawInstead()) return; return renderIso(this); };
   SP.resize = function () {
     const r = this.canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    this.dpr = dpr;
-    this.canvas.width = Math.max(1, Math.round(r.width * dpr));
-    this.canvas.height = Math.max(1, Math.round(r.height * dpr));
+    if (this.o.pixelH) {
+      // (Venti) tela interna pequena (uns pixelH pixels de altura), ampliada pelo CSS com pixels nítidos:
+      // cada pixel do jogo vira k × k pixels da tela (k inteiro, para todos ficarem do mesmo tamanho)
+      const k = Math.max(1, Math.round(r.height / this.o.pixelH));
+      this.canvas.width = Math.max(1, Math.ceil(r.width / k));
+      this.canvas.height = Math.max(1, Math.ceil(r.height / k));
+      this.dpr = this.canvas.width / Math.max(1, r.width);
+      this.canvas.classList.add('is-pixel');
+    } else {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      this.dpr = dpr;
+      this.canvas.width = Math.max(1, Math.round(r.width * dpr));
+      this.canvas.height = Math.max(1, Math.round(r.height * dpr));
+      this.canvas.classList.remove('is-pixel');
+    }
     // a diagonal de um tile é duas vezes mais larga na tela: menos pixels por pixel do mundo
     const sW = Math.round(this.canvas.width / (this.o.tilesWide * T * 1.5));
     const sH = Math.floor(this.canvas.height / (this.o.minTilesHigh * T * 0.95));
-    this.autoS = Math.max(2, Math.min(sW, sH || sW));
+    this.autoS = Math.max(this.o.minS || 2, Math.min(sW, sH || sW));
     this.S = Math.max(this.o.minS || 2, this.autoS + (this.o.zoom || 0));
   };
   SP.screenToWorld = function (sx, sy, z) {

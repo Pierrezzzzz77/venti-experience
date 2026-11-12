@@ -10,12 +10,16 @@ npx serve .
 ```
 
 Depois abra `http://localhost:3000` (a porta aparece no terminal).
-O jogo começa na cena de abertura. Para abrir um mapa direto: `http://localhost:3000/?mapa=datalab`.
+O jogo começa no Lago da Prefeitura. Para abrir um mapa direto: `?mapa=lago`, `?mapa=abertura` ou `?mapa=datalab`
+(no lago, `?mapa=lago&t=20` começa o filme no segundo 20; `&fps=1` mostra os quadros por segundo;
+`&debug=1` põe a foto 13 (o lago visto de cima) deitada por cima do mapa, 50% transparente, para comparar — F2 liga/desliga; as formas ficam em `assets/js/maps/lago-forma.js`).
 
 Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o monitor, **Esc** fecha o painel.
 
 ## Partes do jogo
 
+0. Lago da Prefeitura ao fim da tarde: filme de ~37 s (cidade de cima → lago → calçada, botão Pular) e depois
+   a parte jogável: andar pela calçada até o carro e apertar E — **pronto**
 1. Abertura: do Lago da Prefeitura até a Faculdade Serra Dourada, de carro (cena de ~37 s, botão Pular) — **pronto**
    (provisório: no fim vai para o DataLab, até o mapa da faculdade existir)
 2. Faculdade por dentro — *a fazer*
@@ -36,6 +40,14 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 | `assets/js/ui/rack-panel.js` | Painel do rack para ligar o cabo (versão simples do cabling.js). |
 | `assets/js/ui/terminal.js` | Terminal do servidor com 3 comandos (versão simples do terminal.js do DataLab). |
 | `assets/js/ui/monitor.js` | Monitor (tecla M): gráficos de CPU, rede, disponibilidade e problemas (versão simples do monitor.js do DataLab). |
+| `assets/js/maps/lago-paleta.js` | Parte 0: a paleta fixa (39 cores de pôr do sol); tudo que é pintado uma vez passa por ela. |
+| `assets/js/maps/lago-cenario.js` | Parte 0: o mapa do lago (tiles, pisos, árvores, postes, prédios, carro do jogador). |
+| `assets/js/maps/lago-cidade.js` | Parte 0: a cidade em volta do mapa (bairros, mata, morros). |
+| `assets/js/maps/lago-ceu.js` | Parte 0: céu, água com reflexo e brilho do sol, sombras compridas, luz, nuvens do começo. |
+| `assets/js/maps/lago-preparo.js` | Parte 0: prepara uma vez (barra "Carregando") o chão, os prédios e a cidade vista do alto em 5 tamanhos — por isso roda leve. |
+| `assets/js/maps/lago-vida.js` | Parte 0: pedestres, carros, patos, garça, pássaros, folhas. |
+| `assets/js/maps/lago-som.js` | Parte 0: som de vento, água e pássaros (Web Audio), botão para silenciar. |
+| `assets/js/maps/lago.js` | Parte 0: o filme (câmera, legendas) e a parte jogável (entrar no carro). |
 | `assets/js/maps/abertura.js` | Parte 1: cena de abertura (desenhada por código; referências em `referencia/`). |
 | `assets/js/maps/datalab.js` | Parte 4: a sala do DataLab e a missão. |
 
