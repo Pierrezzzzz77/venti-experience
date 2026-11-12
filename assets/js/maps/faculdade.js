@@ -9,13 +9,17 @@
      parede-verde.jpg   parede verde-acinzentada com a frase e os veios de madeira, degrau de madeira,
                         poltronas, puffs cinza, mesa de centro e violão
 
-   Partes (para quem entra pela porta de vidro):
-     1. Em frente: o corredor, com a faixa tátil reta para dentro dele
-     2. À direita: o saguão, com o logo, o tapete e as poltronas; a faixa faz um ramo até ele
-     3. No canto mais à direita do saguão: a parede verde com a frase
-     4. Salas: 2 portas de madeira no fundo do saguão (como na faculdade de verdade); cada porta
-        leva a uma sala (mapa próprio, PROVISÓRIA) com placa de texto. As salas são mapas separados porque, na visão isométrica,
-        a parede alta do fundo esconderia quem estivesse atrás dela.
+   Partes (para quem entra pela porta de vidro), seguindo a planta real da faculdade:
+     1. Em frente: as mesas, com a faixa tátil reta para dentro delas
+     2. À direita: o saguão comprido. Primeiro o logo, numa parede em diagonal (canto cortado) virada
+        para a entrada, com o tapete e as poltronas na frente
+     3. Depois do logo: a secretaria, aberta para o saguão, com a mesa redonda e 3 notebooks
+     4. Depois da secretaria: o corredor, que passa atrás dela e cruza com o corredor das salas
+     5. No fim do saguão: a parede verde com a frase; atrás dela fica a sala de ADS
+     6. Corredor das salas: 4 salas de cada lado, cada porta logo depois da parede que separa as salas.
+        Sala 1 = sala de ADS (1ª à direita); Sala 2 = 1ª à esquerda, com a porta no corredor de baixo;
+        Salas 3 a 8 = portas fechadas. As salas que abrem são mapas próprios (PROVISÓRIOS), porque, na
+        visão isométrica, a parede alta do fundo esconderia quem estivesse atrás dela.
 
    Saída: a porta de vidro leva ao DataLab (PROVISÓRIO, até existir o mapa da rua, parte 3).
 
@@ -135,6 +139,12 @@
   DL.FLOORS.P = madeira;
   DL.FLOORS.G = faixa;
   DL.FLOORS.o = granito;
+  // 'D': canto cortado do logo. A parede passa na diagonal do tile: madeira na frente dela,
+  // chão escuro (o mesmo de fora, ver 'x') atrás.
+  DL.FLOORS.D = (g, px, py, x, y) => {
+    madeira(g, px, py, x, y);
+    for (let j = 0; j < 16; j++) R(g, px, py + j, 16 - j, 1, '#030504');
+  };
   // 'x': a faixa do lado de fora da parede da entrada. Fica "aberta" para o motor não levantar ali
   // uma parede alta ao lado da porta; a borda baixa é desenhada pelo item 'borda' (abaixo).
   // (o motor clareia o piso aberto em +15,+16,+24: esta cor vira o mesmo chão escuro de fora)
@@ -605,6 +615,33 @@
     K.box(g, x0, y0, x1, y1, Hd, Hw, front ? bat : par);
     return caixaTela(x0, y0, x1, y1, 0, Hw);
   }
+  // porta de madeira numa parede que corre no sentido y (os lados do corredor das salas), fechada.
+  // lado 'o': na parede alta da esquerda (a porta fica pintada na face da parede, com a plaquinha azul);
+  // lado 'l': na parede baixa da direita (batente em pé, como a porta de vidro da entrada).
+  function desenharPortaLado(g, sc, e) {
+    const K = DL.isoKit, Hd = 28, Hb = 31, ya = e.py, yb = e.py + T, cor = e.to ? COR.porta : COR.portaEscura;
+    const bat = { s: '#cfc8bb', e: '#a9a296', t: '#efe9df' };
+    const folha = (X) => {
+      K.poly(g, [[X, ya + 2, 0], [X, yb - 2, 0], [X, yb - 2, Hd], [X, ya + 2, Hd]], cor);
+      for (const k of [6, 10]) K.line(g, [X, ya + k, 1], [X, ya + k, Hd - 1], 'rgba(90,40,15,0.35)');
+      K.line(g, [X, ya + 2, Hd], [X, yb - 2, Hd], '#d98a52');
+      K.line(g, [X, yb - 4, 12], [X, yb - 4, 14], '#e3cf9a', 1);
+    };
+    K.isoT(g, sc);
+    if (e.lado === 'o') {
+      const X = e.px + T;
+      K.poly(g, [[X, ya, 0], [X, yb, 0], [X, yb, Hb], [X, ya, Hb]], bat.e);
+      folha(X);
+      K.poly(g, [[X, yb + 3, 15], [X, yb + 9, 15], [X, yb + 9, 22], [X, yb + 3, 22]], COR.placa);
+      return caixaTela(X, ya, X + 1, yb + 9, 0, Hb);
+    }
+    const x0 = e.px, x1 = e.px + 4;
+    K.box(g, x0, ya, x1, ya + 2, 0, Hb, bat);
+    folha(x0 + 2);
+    K.box(g, x0, yb - 2, x1, yb, 0, Hb, bat);
+    K.box(g, x0, ya, x1, yb, Hd, Hb, bat);
+    return caixaTela(x0, ya, x1, yb, 0, Hb);
+  }
   // porta de vidro de correr da entrada (entrada.jpg), com a placa verde de saída em cima.
   // axis 'v': a porta fica numa parede que corre no sentido y (a entrada, na ponta do corredor)
   function desenharVidro(g, sc, e) {
@@ -635,20 +672,40 @@
     K.box(g, e.px, e.py, e.px + 4, y1, 0, 5, { s: shade(c, 0.06), e: shade(c, -0.3), t: shade(c, 0.38) });
     return caixaTela(e.px, e.py, e.px + 4, y1, 0, 5);
   }
-  // a parede de ripas com o logo numa parede que corre no sentido y (lado esquerdo do saguão).
-  // Usa o mesmo desenho do logo, pintado uma vez numa imagem e "colado" na face da parede que dá
-  // para o saguão (x = e.px), lido da esquerda para a direita na tela.
+  // a parede de ripas com o logo, na parede em diagonal do canto cortado (2 × 2 tiles), virada para
+  // a entrada. A diagonal vai do canto de baixo-esquerda ao de cima-direita do quadrado: na tela ela
+  // fica de frente para a câmera, então o logo (o mesmo desenho, pintado uma vez) aparece sem deformar.
+  // É 8 px mais alta que as outras paredes, para cobrir as pontas das paredes retas que chegam por trás.
   let LOGO_IMG = null;
-  function desenharLogoLateral(g, sc, e) {
-    const W = e.th * T;
+  function desenharLogoDiagonal(g, sc, e) {
+    const K = DL.isoKit, EXTRA = 8, H = 44 + EXTRA, x0 = e.px, y0 = e.py, x1 = x0 + 2 * T, y1 = y0 + 2 * T;
     if (!LOGO_IMG) {
-      LOGO_IMG = DL.mk(W, 44);
-      logo(LOGO_IMG.getContext('2d'), { px: 0, py: 36, tw: e.th });
+      LOGO_IMG = DL.mk(4 * T, H);
+      const lg = LOGO_IMG.getContext('2d');
+      logo(lg, { px: 0, py: 36 + EXTRA, tw: 4 });
+      for (let i = 0; i < 4 * T; i++) R(lg, i, 0, 1, EXTRA + 1, COR.ripa[i % 3 === 2 ? 2 : i % 3]);
+      R(lg, 0, 0, 4 * T, 1, '#c97a4e');
     }
-    const y1 = e.py + W;
-    DL.isoKit.setMap(g, sc, [e.px, y1, 44], [0, -1, 0], [0, 0, -1]);
+    K.setMap(g, sc, [x0, y1, H], [0.5, -0.5, 0], [0, 0, -1]);
     g.drawImage(LOGO_IMG, 0, 0);
-    return caixaTela(e.px, e.py, e.px + 1, y1, 0, 44);
+    return caixaTela(x0, y0, x1, y1, 0, H);
+  }
+  // mesa redonda da secretaria (2 × 2 tiles): pé central e tampo branco redondo
+  function desenharMesaRedonda(g, sc, e) {
+    const K = DL.isoKit, cx = e.px + T, cy = e.py + T, Z = DL.isoSurfaceTop(e), r = 13;
+    const X = IX(cx, cy), Y = IY(cx, cy, 0);
+    const disco = (z, raio, cor) => { g.beginPath(); g.ellipse(X, Y - z, raio * 1.414, raio * 0.707, 0, 0, Math.PI * 2); g.fillStyle = cor; g.fill(); };
+    K.isoT(g, sc);
+    disco(0, 6, '#6c6e6d');
+    disco(1, 6, '#8c8e8d');
+    g.fillStyle = '#7d8590'; g.fillRect(X - 2, Y - Z + 1, 4, Z - 2);
+    g.fillStyle = '#9aa3b0'; g.fillRect(X - 2, Y - Z + 1, 1, Z - 2);
+    disco(Z - 2, r, shade(COR.branco, -0.32));
+    g.fillStyle = shade(COR.branco, -0.32); g.fillRect(X - r * 1.414, Y - Z, r * 2.828, 2);
+    disco(Z, r, COR.branco);
+    g.beginPath(); g.ellipse(X, Y - Z, r * 1.414 - 2, r * 0.707 - 1, 0, Math.PI * 1.05, Math.PI * 1.75);
+    g.strokeStyle = 'rgba(255,255,255,0.7)'; g.stroke();
+    return caixaTela(e.px, e.py, e.px + 2 * T, e.py + 2 * T, 0, Z);
   }
   // banco/degrau comprido de madeira na frente da parede verde
   function desenharDegrau(g, sc, e) {
@@ -665,7 +722,7 @@
   function animarPortas(game, dt) {
     const p = game.player;
     for (const e of game.world.items) {
-      if (e.kind !== 'porta' && e.kind !== 'porta-vidro') continue;
+      if ((e.kind !== 'porta' && e.kind !== 'porta-vidro') || e.lado) continue;
       const v = e.axis === 'v', cx = v ? e.px + 2 : e.px + e.tw * 8, cy = v ? e.py + 16 : e.kind === 'porta-vidro' || e.front ? e.py + 2 : e.py + 14;
       const alvo = Math.hypot(p.x - cx, p.y - cy) < 34 ? 1 : 0;
       e.open = (e.open || 0) + (alvo - (e.open || 0)) * Math.min(1, dt * 7);
@@ -682,7 +739,7 @@
     if (e.id === 'FRASE') return 'Ler a parede';
     if (e.kind === 'quadro') return 'Ler o quadro';
     if (e.id === 'ENTRADA') return 'Sair pela porta de vidro';
-    if (e.kind === 'porta') return e.front ? 'Voltar ao saguão' : 'Entrar na Sala ' + e.sala;
+    if (e.kind === 'porta') return e.front ? 'Voltar ao corredor' : !e.to ? 'Sala ' + e.sala : e.sala === 1 ? 'Entrar na sala de ADS' : 'Entrar na Sala ' + e.sala;
     return null;
   }
   function use(game, e) {
@@ -692,7 +749,7 @@
     if (e.id === 'FRASE') return game.toast('“Estudar aqui é dar um passo a mais rumo aos seus sonhos!”');
     if (e.kind === 'quadro') return game.toast('O quadro ainda está em branco (sala provisória).');
     if (e.id === 'ENTRADA') return game.loadMap(SAIDA);
-    if (e.kind === 'porta') return game.loadMap(e.to, e.toSpawn);
+    if (e.kind === 'porta') return e.to ? game.loadMap(e.to, e.toSpawn) : game.toast('Sala ' + e.sala + ' · fechada');
   }
 
   // as salas escondem o painel de missão do DataLab (ele volta quando o jogador sai)
@@ -702,117 +759,156 @@
   /* O mapa da faculdade                                                 */
   /* ------------------------------------------------------------------ */
   const SAIDA = 'datalab'; // PROVISÓRIO: a porta de vidro vai para a rua quando o mapa da rua existir
-  const PORTAS = [16, 18]; // x das portas das salas (só 2: no prédio real não há salas mais à direita)
+  const DY = 12; // linhas acrescentadas em cima do mapa para o corredor das salas (ver "desce" abaixo)
 
-  /* Planta (quem entra pela porta de vidro, na ponta direita, olha para a esquerda da tela):
-       em frente   o corredor (linhas 9 a 14), com a faixa tátil reta para dentro dele
+  /* Planta (igual às plantas desenhadas da faculdade de verdade, giradas: a entrada do desenho, embaixo
+     à esquerda, aqui é a porta de vidro na ponta direita; quem entra olha para a esquerda da tela):
+       em frente   as mesas (linhas 28 a 33), com a faixa tátil reta para dentro delas
          esquerda  a vidraça (parede da frente, de vidro), com os bancos "pedra" e mesinhas
-                   no fundo, ao lado da mesa comprida
          meio      a mesa comprida, cadeiras verdes e laranja, bolinhas de luz
-         direita   parede com portas de vidro de salas, ar-condicionado, extintor e avisos
+         direita   parede com portas de vidro de salas, ar-condicionado, extintor e avisos; essa
+                   parede acaba num canto cortado (parede na diagonal) com o logo, virado para a entrada
          fundo     uma sala de vidro (parede vermelha lá dentro, como na foto)
-       à direita   o saguão (linhas 1 a 8): logo, tapete, poltronas, portas das Salas 1 e 2;
-                   no canto mais à direita, a parede verde com a frase, o degrau e o violão */
+       à direita   o saguão (colunas 19 a 24), comprido, que passa por:
+                   o logo (tapete e poltronas vermelhas na frente),
+                   a secretaria (linhas 22 a 25), aberta para o saguão, com a mesa redonda e 3 notebooks,
+                   o corredor (linhas 17 a 20), que entra para a esquerda da tela
+                   e, no fim, a parede verde com a frase (atrás dela fica a sala de ADS)
+       corredor    passa atrás da secretaria e cruza com o corredor das salas (colunas 12 a 14, linhas
+                   1 a 16), que sobe à direita: 4 salas de cada lado, cada porta logo depois da parede
+                   que separa as salas. A 1ª do lado direito é a sala de ADS (Sala 1). O corredor de
+                   baixo continua um pouco para a esquerda; ali fica a porta da 1ª sala do outro lado
+                   (Sala 2). As outras 6 portas (Salas 3 a 8) estão fechadas: ainda não têm sala. */
   TILES_FAC = [
     // 'M' madeira · 'G' faixa tátil · 'P' porta de sala · 'o' porta de vidro · 'x' lado de fora · '#' parede
-    '################P#P#############',
-    '################MMMMMMMMMMMMMMMx',
-    '################MMMMMMMMGMMMMMMx',
-    '################MMMMMMMMGMMMMMMx',
-    '################MMMMMMMMGMMMMMMx',
-    '################MMMMMMMMGMMMMMMx',
-    '################MMMMMMMMGMMMMMMx',
-    '################MMMMMMMMGMMMMMMx',
-    '################MMMMMMMMGMMMMMMx',
-    '#MMMMMMMMMMMMMMMMMMMMMMMGMMMMMMx',
-    '#MMMMMMMMMMMMMMMMMMMMMMMGMMMMMMx',
-    '#MMMMMMMMMMMMMMMMMMMMMMMGMMMMMMx',
-    '#MMMMMMMMMMMMMMMMMMMMMMMGMMMMMMo',
-    '#MMMMMMMMMMMMMMMGGGGGGGGGGGGGGGo',
-    '#MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMx',
-    '################################',
+    // 'D' canto cortado do logo (metade piso, metade parede; a parede na diagonal é o item LOGO)
+    '##########################',
+    ...Array(15).fill('############MGM###########'),
+    '#########P##MGM###########',
+    '#######MMMMMMGMMMMMMMMMMMx',
+    '#######MMMMMMGGGGGGGGMMMMx',
+    '#######MMMMMMMMMMMMMGMMMMx',
+    '#######MMMMMMMMMMMMMGMMMMx',
+    '###################MGMMMMx',
+    '################MMMMGMMMMx',
+    '################MMMMGMMMMx',
+    '################MMMMGMMMMx',
+    '################MMMMGMMMMx',
+    '##################DMGMMMMx',
+    '#################DMMGMMMMx',
+    '#MMMMMMMMMMMMMMMMMMMGMMMMx',
+    '#MMMMMMMMMMMMMMMMMMMGMMMMx',
+    '#MMMMMMMMMMMMMMMMMMMGMMMMx',
+    '#MMMMMMMMMMMMMMMMMMMGMMMMo',
+    '#MMMMMMMMMMMMMMGGGGGGGGGGo',
+    '#MMMMMMMMMMMMMMMMMMMMMMMMx',
+    '##########################',
   ];
+  const CANTO = [[17, 27], [18, 26]]; // os 2 tiles 'D' (não dá para pisar)
 
   const itens = [];
   const add = (o) => itens.push(o);
   const naParede = (o) => add(Object.assign({ wall: true, solid: false }, o));
   const lustre = (host, tx, ty, variant) => add({ kind: 'pendente', host, tx, ty, variant, solid: false, glow: COR.ambar });
 
-  // 1. Entrada: porta de vidro na ponta direita do corredor, borda baixa da parede, plantas
-  const XE = 31; // coluna da porta de vidro (a ponta direita do mapa)
-  add({ id: 'ENTRADA', kind: 'porta-vidro', axis: 'v', tx: XE, ty: 12, th: 2, solid: false, drawIso: desenharVidro, isoRect: [XE * T, 12 * T, XE * T + 4, 14 * T], isoH: 44 });
-  add({ kind: 'borda', tx: XE, ty: 1, th: 11, drawIso: desenharBorda, isoRect: [XE * T, T, XE * T + 4, 12 * T], isoH: 8 });
-  add({ kind: 'borda', tx: XE, ty: 14, th: 1, drawIso: desenharBorda, isoRect: [XE * T, 14 * T, XE * T + 4, 15 * T], isoH: 8 });
-  add({ kind: 'planta-alta', tx: 30, ty: 10 });
-  add({ kind: 'planta-alta', tx: 30, ty: 9, variant: 'folhas' });
+  // 1. Entrada: porta de vidro na ponta direita, borda baixa da parede, plantas dos dois lados
+  const XE = 25; // coluna da porta de vidro (a ponta direita do mapa)
+  add({ id: 'ENTRADA', kind: 'porta-vidro', axis: 'v', tx: XE, ty: 19, th: 2, solid: false, drawIso: desenharVidro, isoRect: [XE * T, 19 * T, XE * T + 4, 21 * T], isoH: 44 });
+  add({ kind: 'borda', tx: XE, ty: 5, th: 14, drawIso: desenharBorda, isoRect: [XE * T, 5 * T, XE * T + 4, 19 * T], isoH: 8 });
+  add({ kind: 'borda', tx: XE, ty: 21, th: 1, drawIso: desenharBorda, isoRect: [XE * T, 21 * T, XE * T + 4, 22 * T], isoH: 8 });
+  add({ kind: 'planta-alta', tx: 24, ty: 18 });
+  add({ kind: 'planta-alta', tx: 24, ty: 21, variant: 'folhas' });
 
-  // 2. Corredor, em frente à porta
+  // 2. As mesas, em frente à porta
   // esquerda (sul): a vidraça é a parede da frente, de vidro
-  for (let x = 1; x <= 30; x++) add({ kind: 'glassH', tx: x, ty: 15, solid: false });
+  for (let x = 1; x <= 24; x++) add({ kind: 'glassH', tx: x, ty: 22, solid: false });
   //   ao lado da mesa comprida: bancos "pedra" com mesinhas brancas
   for (const x of [8, 12, 16]) {
-    add({ kind: 'table', variant: 'office', color: COR.branco, tx: x, ty: 14 });
-    add({ kind: 'banco-pedra', tx: x - 1, ty: 14 });
-    add({ kind: 'banco-pedra', tx: x + 1, ty: 14 });
+    add({ kind: 'table', variant: 'office', color: COR.branco, tx: x, ty: 21 });
+    add({ kind: 'banco-pedra', tx: x - 1, ty: 21 });
+    add({ kind: 'banco-pedra', tx: x + 1, ty: 21 });
   }
   // meio: a mesa comprida, cadeiras dos dois lados, bolinhas de luz em fila em cima
-  add({ id: 'MESA-1', kind: 'table', variant: 'office', color: COR.branco, tx: 7, ty: 11, tw: 8 });
+  add({ id: 'MESA-1', kind: 'table', variant: 'office', color: COR.branco, tx: 7, ty: 18, tw: 8 });
   for (let x = 7; x < 15; x++) {
-    add({ kind: 'cadeira', tx: x, ty: 10, rot: 0, color: (x + 1) % 4 === 0 ? COR.laranja : COR.verde });
-    add({ kind: 'cadeira', tx: x, ty: 12, rot: 1, color: x % 3 === 0 ? COR.laranja : COR.verde });
+    add({ kind: 'cadeira', tx: x, ty: 17, rot: 0, color: (x + 1) % 4 === 0 ? COR.laranja : COR.verde });
+    add({ kind: 'cadeira', tx: x, ty: 19, rot: 1, color: x % 3 === 0 ? COR.laranja : COR.verde });
   }
-  for (const gx of [8, 10.5, 13]) add({ kind: 'globos', host: 'MESA-1', tx: gx, ty: 11, solid: false, glow: COR.globo });
+  for (const gx of [8, 10.5, 13]) add({ kind: 'globos', host: 'MESA-1', tx: gx, ty: 18, solid: false, glow: COR.globo });
   // direita (norte): portas de vidro de salas, ar-condicionado, extintor e quadro de avisos
-  naParede({ kind: 'vidro-sala', tx: 5, ty: 9, tw: 2 });
-  naParede({ kind: 'ar-parede', tx: 8, ty: 9, tw: 2 });
-  naParede({ kind: 'extintor', tx: 10, ty: 9 });
-  naParede({ kind: 'avisos', tx: 11, ty: 9, tw: 2 });
-  naParede({ kind: 'vidro-sala', tx: 13, ty: 9, tw: 2 });
+  naParede({ kind: 'vidro-sala', tx: 5, ty: 16, tw: 2 });
+  naParede({ kind: 'ar-parede', tx: 8, ty: 16, tw: 2 });
+  naParede({ kind: 'extintor', tx: 10, ty: 16 });
+  naParede({ kind: 'avisos', tx: 11, ty: 16, tw: 2 });
+  naParede({ kind: 'vidro-sala', tx: 13, ty: 16, tw: 2 });
   // fundo: sala com parede de vidro (dá para ver dentro, não dá para entrar)
-  for (let y = 9; y <= 14; y++) add({ kind: 'glass', tx: 4, ty: y });
-  add({ kind: 'table', variant: 'meeting', tx: 2, ty: 11, tw: 1, th: 2 });
-  for (const y of [11, 12]) add({ kind: 'cadeira', tx: 1, ty: y, color: COR.verde });
-  add({ kind: 'planta-alta', tx: 3, ty: 9 });
+  for (let y = 16; y <= 21; y++) add({ kind: 'glass', tx: 4, ty: y });
+  add({ kind: 'table', variant: 'meeting', tx: 2, ty: 18, tw: 1, th: 2 });
+  for (const y of [18, 19]) add({ kind: 'cadeira', tx: 1, ty: y, color: COR.verde });
+  add({ kind: 'planta-alta', tx: 3, ty: 16 });
 
-  // 3. Saguão, à direita de quem entra: parede de ripas com o logo, tapete, poltronas, puffs, lustres
-  // a parede de ripas com o logo fica na parede esquerda do saguão (atrás do sofá), linhas 2 a 5
-  // isoRect: bem fino (só a face da parede) e comprido até a linha 8, para o motor sempre desenhar o
-  // logo DEPOIS da parede branca (senão, com o jogador perto, a parede era pintada por cima e o logo sumia)
-  add({ id: 'LOGO', kind: 'logo-lateral', tx: 16, ty: 2, th: 4, solid: false, drawIso: desenharLogoLateral, isoRect: [16 * T, 2 * T, 16 * T + 0.5, 8.2 * T], isoH: 50, glow: 'rgba(255,170,110,0.05)' });
-  add({ kind: 'tapete', rug: true, tx: 20, ty: 2, tw: 4, th: 4, solid: false });
-  add({ id: 'MESINHA', kind: 'table', variant: 'small', color: '#b07a45', tx: 21, ty: 3, tw: 2 });
-  add({ kind: 'poltrona-vermelha', tx: 20, ty: 4 });
-  add({ kind: 'poltrona-vermelha', tx: 23, ty: 4 });
-  add({ kind: 'puff', tx: 21, ty: 5 });
-  add({ kind: 'puff', tx: 22, ty: 5 });
-  lustre('MESINHA', 21.1, 3, 'a');
-  lustre('MESINHA', 21.6, 3, 'b');
-  lustre('MESINHA', 22.2, 3, 'c');
-  // poltronas de madeira com mesinha
-  add({ id: 'MESA-MADEIRA', kind: 'table', variant: 'small', color: '#b07a45', tx: 21, ty: 7 });
-  add({ kind: 'poltrona-madeira', tx: 20, ty: 7 });
-  add({ kind: 'poltrona-madeira', tx: 22, ty: 7 });
-  lustre('MESA-MADEIRA', 21, 7, 'b');
-  add({ kind: 'planta-alta', tx: 30, ty: 7, variant: 'folhas' });
-  // portas das Salas 1 e 2, com placa azul ao lado; extintor
-  PORTAS.forEach((x, i) => {
-    const n = i + 1;
-    add({ id: 'PORTA-' + n, kind: 'porta', sala: n, tx: x, ty: 0, solid: false, drawIso: desenharPorta, isoRect: [x * T, 12, x * T + 16, 16], isoH: 48, to: 'faculdade-sala' + n, toSpawn: [4, 4] });
-    naParede({ kind: 'placa', variant: String(n), tx: x + 1, ty: 1, text: 'Sala ' + n + ' · ' + (n === 1 ? 'Laboratório de informática' : 'Laboratório da área da saúde') });
-  });
-  naParede({ kind: 'extintor', tx: 23, ty: 1 });
-  // canto mais à direita: parede verde com a frase, degrau de madeira, poltronas, puffs, mesa e violão
-  naParede({ id: 'FRASE', kind: 'parede-verde', tx: 25, ty: 1, tw: 6 });
-  add({ kind: 'degrau', tx: 25, ty: 1, tw: 5, drawIso: desenharDegrau, isoRect: [25 * T, T, 30 * T, 2 * T], isoH: 20 });
-  add({ kind: 'violao', tx: 30, ty: 1 });
-  add({ kind: 'tapete', rug: true, tx: 25, ty: 3, tw: 4, th: 3, solid: false });
-  add({ id: 'MESA-VERDE', kind: 'table', variant: 'small', color: '#c49261', tx: 26, ty: 4, tw: 2 });
-  add({ kind: 'poltrona-vermelha', tx: 25, ty: 4 });
-  add({ kind: 'poltrona-madeira', tx: 28, ty: 4 });
-  add({ kind: 'puff', variant: 'cinza', tx: 26, ty: 5 });
-  add({ kind: 'puff', variant: 'cinza', tx: 27, ty: 5 });
-  add({ kind: 'poltrona-cinza', tx: 29, ty: 3 });
-  lustre('MESA-VERDE', 26.6, 4, 'a');
+  // 3. Saguão, à direita de quem entra
+  // o logo fica na parede em diagonal do canto cortado, virado para a entrada
+  add({ id: 'LOGO', kind: 'logo-diagonal', tx: 17, ty: 14, tw: 2, th: 2, solid: false, drawIso: desenharLogoDiagonal, isoH: 58, glow: 'rgba(255,170,110,0.05)' });
+  // na frente do logo: tapete, poltronas vermelhas, puffs, lustres
+  add({ kind: 'tapete', rug: true, tx: 21, ty: 14, tw: 4, th: 4, solid: false });
+  add({ id: 'MESINHA', kind: 'table', variant: 'small', color: '#b07a45', tx: 22, ty: 15, tw: 2 });
+  add({ kind: 'poltrona-vermelha', tx: 21, ty: 16 });
+  add({ kind: 'poltrona-vermelha', tx: 24, ty: 16 });
+  add({ kind: 'puff', tx: 22, ty: 17 });
+  add({ kind: 'puff', tx: 23, ty: 17 });
+  lustre('MESINHA', 22.1, 15, 'a');
+  lustre('MESINHA', 22.6, 15, 'b');
+  lustre('MESINHA', 23.2, 15, 'c');
+  // em frente à secretaria: poltronas de madeira com mesinha
+  add({ id: 'MESA-MADEIRA', kind: 'table', variant: 'small', color: '#b07a45', tx: 23, ty: 11 });
+  add({ kind: 'poltrona-madeira', tx: 22, ty: 11 });
+  add({ kind: 'poltrona-madeira', tx: 24, ty: 11 });
+  lustre('MESA-MADEIRA', 23, 11, 'b');
+  add({ kind: 'planta-alta', tx: 24, ty: 9, variant: 'folhas' });
+
+  // 4. Secretaria (aberta para o saguão): mesa redonda com 3 notebooks
+  add({ id: 'MESA-SEC', kind: 'table', tx: 17, ty: 10, tw: 2, th: 2, drawIso: desenharMesaRedonda, isoH: 30, dica: 'Ver a mesa da secretaria', texto: 'Secretaria · mesa redonda com 3 notebooks.' });
+  // (posição de cada notebook: um de cada lado e um na frente, em cima do tampo redondo)
+  for (const [nx, ny] of [[17.1, 10.8], [17.8, 10.1], [17.8, 10.8]]) add({ kind: 'notebook', host: 'MESA-SEC', tx: nx, ty: ny, solid: false, glow: 'rgba(120,170,240,0.035)' });
+
+  // 5. Fim do saguão: parede verde com a frase (a sala de ADS fica atrás dela), degrau de madeira,
+  //    poltronas, puffs, mesa e violão. O caminho para o corredor fica livre nas colunas 19 e 20.
+  naParede({ id: 'FRASE', kind: 'parede-verde', tx: 19, ty: 5, tw: 6 });
+  add({ kind: 'degrau', tx: 19, ty: 5, tw: 5, drawIso: desenharDegrau, isoRect: [19 * T, 5 * T, 24 * T, 6 * T], isoH: 20 });
+  add({ kind: 'violao', tx: 24, ty: 5 });
+  add({ kind: 'tapete', rug: true, tx: 21, ty: 6, tw: 4, th: 3, solid: false });
+  add({ id: 'MESA-VERDE', kind: 'table', variant: 'small', color: '#c49261', tx: 22, ty: 7, tw: 2 });
+  add({ kind: 'poltrona-vermelha', tx: 21, ty: 7 });
+  add({ kind: 'poltrona-madeira', tx: 24, ty: 7 });
+  add({ kind: 'puff', variant: 'cinza', tx: 22, ty: 8 });
+  add({ kind: 'puff', variant: 'cinza', tx: 23, ty: 8 });
+  add({ kind: 'poltrona-cinza', tx: 24, ty: 6 });
+  lustre('MESA-VERDE', 22.6, 7, 'a');
+
+  naParede({ kind: 'extintor', tx: 18, ty: 5 });
+
+  // "desce": tudo acima foi escrito com as linhas de antes do corredor das salas existir
+  for (const o of itens) {
+    o.ty += DY;
+    if (o.isoRect) { o.isoRect[1] += DY * T; o.isoRect[3] += DY * T; }
+  }
+
+  // 6. Corredor das salas (já nas linhas finais). Cada sala que abre é um mapa próprio.
+  const NOME_SALA = { 1: 'Sala de ADS · laboratório de informática', 2: 'Laboratório da área da saúde' };
+  const VOLTA = { 1: [14, 15], 2: [9, 17] }; // onde o jogador aparece ao sair da sala
+  // portas nas paredes dos lados do corredor: lado 'l' = direita de quem sobe (parede baixa, coluna 15),
+  // lado 'o' = esquerda (parede alta, coluna 11). Abrem com E (o tile continua sendo parede).
+  for (const [n, lado, y] of [[1, 'l', 15], [4, 'l', 11], [6, 'l', 7], [8, 'l', 3], [3, 'o', 11], [5, 'o', 7], [7, 'o', 3]]) {
+    const x = lado === 'l' ? 15 : 11, rx = lado === 'l' ? x * T : x * T + T;
+    add({ id: 'PORTA-' + n, kind: 'porta', lado, sala: n, tx: x, ty: y, solid: false, drawIso: desenharPortaLado,
+      // (lado 'o': retângulo fino e comprido até passar o fim da parede, para o motor sempre desenhar a
+      //  porta DEPOIS da parede — o mesmo truque que o logo usava)
+      isoRect: lado === 'l' ? [rx, y * T, rx + 4, y * T + T] : [rx, y * T, rx + 0.5, 17.2 * T], isoH: 36, to: n === 1 ? 'faculdade-sala1' : null, toSpawn: [4, 4] });
+  }
+  // Sala 2: porta na parede do fundo do corredor de baixo (dá para entrar andando)
+  add({ id: 'PORTA-2', kind: 'porta', sala: 2, tx: 9, ty: 16, solid: false, drawIso: desenharPorta, isoRect: [9 * T, 16 * T + 12, 9 * T + 16, 16 * T + 16], isoH: 48, to: 'faculdade-sala2', toSpawn: [4, 4] });
+  naParede({ kind: 'placa', variant: '2', tx: 10, ty: 17, text: 'Sala 2 · ' + NOME_SALA[2] });
 
   DL.registerMap({
     id: 'faculdade',
@@ -820,30 +916,43 @@
     tiles: TILES_FAC,
     items: itens,
     rooms: [
-      { x: 16, y: 1, w: 15, h: 8, style: ESTILO },                                           // saguão
-      { x: 5, y: 9, w: 26, h: 6, style: ESTILO_CORREDOR },                                   // corredor
-      { x: 1, y: 9, w: 4, h: 6, style: { wall: 'vermelha', wallColor: '#9e3a2e', light: 'warm' } }, // sala de vidro do fundo
+      { x: 17, y: 26, w: 2, h: 2, style: ESTILO },                                            // canto do logo
+      { x: 19, y: 17, w: 6, h: 17, style: ESTILO },                                           // saguão
+      { x: 16, y: 22, w: 3, h: 4, style: ESTILO },                                            // secretaria
+      { x: 7, y: 17, w: 12, h: 4, style: ESTILO_CORREDOR },                                   // corredor
+      { x: 12, y: 1, w: 3, h: 16, style: ESTILO_CORREDOR },                                   // corredor das salas
+      { x: 5, y: 28, w: 14, h: 6, style: ESTILO_CORREDOR },                                   // mesas
+      { x: 1, y: 28, w: 4, h: 6, style: { wall: 'vermelha', wallColor: '#9e3a2e', light: 'warm' } }, // sala de vidro do fundo
     ],
-    spawn: [29, 13], // logo depois da porta de vidro, em cima da faixa tátil, olhando o corredor
+    spawn: [23, 32], // logo depois da porta de vidro, em cima da faixa tátil, olhando as mesas
     spawnDir: 'left',
     portals: [
-      { tx: XE, ty: 12, to: SAIDA }, { tx: XE, ty: 13, to: SAIDA },
-      ...PORTAS.map((x, i) => ({ tx: x, ty: 0, to: 'faculdade-sala' + (i + 1), spawn: [4, 4] })),
+      { tx: XE, ty: 31, to: SAIDA }, { tx: XE, ty: 32, to: SAIDA },
+      { tx: 9, ty: 16, to: 'faculdade-sala2', spawn: [4, 4] },
     ],
     camera: { tilesWide: 15, minTilesHigh: 9 },
 
     enter(game) {
       prepararSalas(game);
       esconderMissao(true);
+      const w = game.world;
+      for (const [x, y] of CANTO) w.solid[y * w.W + x] = 1;
       // a dica de saída aparece na frente da porta de vidro (o padrão seria do lado de fora)
-      const ent = game.world.byId.ENTRADA;
+      const ent = w.byId.ENTRADA;
       ent.ix = ent.px - 8;
       ent.iy = ent.py + 16;
-      const logo = game.world.byId.LOGO;
-      logo.ix = logo.px + 6;
-      logo.iy = logo.py + 40;
-      if (game.player.y < 2 * T) game.player.dir = 'down'; // voltou de uma sala
-      else game.toast('Faculdade Serra Dourada · o corredor é em frente; o saguão, à direita');
+      const logo = w.byId.LOGO; // na frente da parede em diagonal
+      logo.ix = logo.px + 28;
+      logo.iy = logo.py + 28;
+      const mesa = w.byId['MESA-SEC']; // do lado do saguão
+      mesa.ix = mesa.px + 2 * T + 6;
+      mesa.iy = mesa.py + T + 4;
+      const tx = Math.floor(game.player.x / T), ty = Math.floor(game.player.y / T);
+      // portas dos lados do corredor das salas: a dica aparece do lado de dentro do corredor
+      for (const e of w.items) if (e.lado) { e.ix = e.lado === 'l' ? e.px - 7 : e.px + T + 7; e.iy = e.py + 10; }
+      if (tx === VOLTA[1][0] && ty === VOLTA[1][1]) game.player.dir = 'left'; // voltou da sala de ADS
+      else if (tx === VOLTA[2][0] && ty === VOLTA[2][1]) game.player.dir = 'down'; // voltou da Sala 2
+      else game.toast('Faculdade Serra Dourada · em frente, as mesas; à direita, o logo, a secretaria e o corredor das salas');
     },
     leave() { esconderMissao(false); },
     update(game, dt) { animarPortas(game, dt); },
@@ -853,7 +962,7 @@
 
   /* ------------------------------------------------------------------ */
   /* As 2 salas                                                          */
-  /*   Sala 1: laboratório de informática (mesas pretas e notebooks)      */
+  /*   Sala 1: sala de ADS, laboratório de informática (mesas e notebooks) */
   /*   Sala 2: laboratório da área da saúde (esqueleto, fóssil, órgãos)   */
   /* ------------------------------------------------------------------ */
   const PRETA = '#1e2126';
@@ -867,7 +976,7 @@
 
   const SALAS = {
     1: {
-      nome: 'Laboratório de informática',
+      nome: 'Sala de ADS · laboratório de informática',
       quadro: 'No quadro: "Aula de hoje: lógica de programação".',
       itens: () => {
         const out = [];
@@ -906,8 +1015,8 @@
     },
   };
 
-  PORTAS.forEach((portaX, i) => {
-    const n = i + 1, S = SALAS[n];
+  [1, 2].forEach((n) => {
+    const S = SALAS[n], volta = VOLTA[n];
     DL.registerMap({
       id: 'faculdade-sala' + n,
       name: 'Sala ' + n + ' · ' + S.nome,
@@ -926,12 +1035,12 @@
         { kind: 'placa', wall: true, solid: false, variant: String(n), tx: 1, ty: 1, text: 'Sala ' + n + ' · ' + S.nome },
         { kind: 'ar-parede', wall: true, solid: false, tx: 6, ty: 1, tw: 2 },
         ...S.itens(),
-        { id: 'PORTA', kind: 'porta', front: true, sala: n, tx: 4, ty: 7, solid: false, drawIso: desenharPorta, isoRect: [64, 112, 80, 116], isoH: 36, to: 'faculdade', toSpawn: [portaX, 1] },
+        { id: 'PORTA', kind: 'porta', front: true, sala: n, tx: 4, ty: 7, solid: false, drawIso: desenharPorta, isoRect: [64, 112, 80, 116], isoH: 36, to: 'faculdade', toSpawn: volta },
       ],
       rooms: [{ x: 1, y: 1, w: 7, h: 6, style: ESTILO }],
       spawn: [4, 4],
       spawnDir: 'up',
-      portals: [{ tx: 4, ty: 7, to: 'faculdade', spawn: [portaX, 1] }],
+      portals: [{ tx: 4, ty: 7, to: 'faculdade', spawn: volta }],
       camera: { tilesWide: 11, minTilesHigh: 8 },
       enter(game) {
         prepararSalas(game);
