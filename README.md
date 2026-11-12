@@ -21,8 +21,10 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 0. Lago da Prefeitura ao fim da tarde: filme de ~37 s (cidade de cima → lago → calçada, botão Pular) e depois
    a parte jogável: andar pela calçada até o carro e apertar E — **pronto**
 1. Abertura: do Lago da Prefeitura até a Faculdade Serra Dourada, de carro (cena de ~37 s, botão Pular) — **pronto**
-   (provisório: no fim vai para o DataLab, até o mapa da faculdade existir)
-2. Faculdade por dentro — *a fazer*
+   (no fim vai para a faculdade)
+2. Faculdade por dentro: entrada com porta de vidro e faixa tátil, saguão com o logo, corredor com mesas,
+   2 portas para salas — **pronto** (`?mapa=faculdade`)
+   (Sala 1: laboratório de informática · Sala 2: laboratório da área da saúde; provisório: a porta de vidro leva ao DataLab até a rua existir)
 3. Rua: faculdade de um lado, DataLab do outro — *a fazer*
 4. DataLab: colocar servidor e switch no rack, ligar o cabo e deixar o servidor online pelo terminal — **pronto**
    (`ip addr` → `sudo ip link set eth0 up` → `ping 10.0.1.1`)
@@ -49,6 +51,7 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 | `assets/js/maps/lago-som.js` | Parte 0: som de vento, água e pássaros (Web Audio), botão para silenciar. |
 | `assets/js/maps/lago.js` | Parte 0: o filme (câmera, legendas) e a parte jogável (entrar no carro). |
 | `assets/js/maps/abertura.js` | Parte 1: cena de abertura (desenhada por código; referências em `referencia/`). |
+| `assets/js/maps/faculdade.js` | Parte 2: a faculdade por dentro (saguão, corredor) e as 2 salas (mapas `faculdade-sala1` e `faculdade-sala2`). |
 | `assets/js/maps/datalab.js` | Parte 4: a sala do DataLab e a missão. |
 
 ### Como acrescentar um mapa novo (faculdade, rua, abertura)
