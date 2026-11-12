@@ -1,6 +1,7 @@
 /* Venti Experience — o jogo: carrega um mapa, move o jogador e cuida da interação (tecla E).
    Vale para todos os mapas. Cada mapa (assets/js/maps/*.js) pode ter:
      enter(game)          quando o jogador chega no mapa
+     leave(game)          quando o jogo troca para outro mapa
      update(game, dt)     a cada quadro (lógica da missão)
      useLabel(game, e)    texto da dica "E · ..." para o objeto e (ou null = sem interação)
      use(game, e)         o que acontece ao apertar E perto do objeto e
@@ -29,6 +30,8 @@
       const def = DL.MAPS[id];
       if (!def) throw new Error('Mapa não encontrado: ' + id);
       if (this.scene) this.scene.stop();
+      if (this.map && this.map.leave) this.map.leave(this); // o mapa que sai arruma a tela dele
+      this.locked = false;
       this.map = def;
       this.world = DL.buildMap(def);
       const canvas = $('game');

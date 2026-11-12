@@ -65,6 +65,12 @@
     </div>
   </div>
 
+  <!-- cena de abertura: legenda do lugar e botão Pular -->
+  <div id="cutscene" class="cutscene" hidden>
+    <div id="cutCaption" class="cutscene__caption"></div>
+    <button id="cutSkip" class="btn btn--ghost cutscene__skip" type="button">Pular <kbd>Esc</kbd></button>
+  </div>
+
   <!-- monitoramento (tecla M) -->
   <div id="monitor" class="panel" role="dialog" aria-label="Monitoramento">
     <div class="panel__box mon">
@@ -87,10 +93,12 @@
   <script src="assets/js/ui/terminal.js"></script>
   <script src="assets/js/ui/monitor.js"></script>
   <script src="assets/js/maps/datalab.js"></script>
-  <!-- próximas partes (mapas separados): maps/abertura.js, maps/faculdade.js, maps/rua.js -->
+  <script src="assets/js/maps/abertura.js"></script>
+  <!-- próximas partes (mapas separados): maps/faculdade.js, maps/rua.js -->
   <script>
-    // por enquanto o jogo abre direto no DataLab
-    DL.game.loadMap('datalab');
+    // o jogo começa na cena de abertura; para testar um mapa direto: index.html?mapa=datalab
+    const pedido = new URLSearchParams(location.search).get('mapa');
+    DL.game.loadMap(DL.MAPS[pedido] ? pedido : 'abertura');
   </script>
 </body>
 </html>

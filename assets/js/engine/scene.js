@@ -131,7 +131,8 @@
       let last = performance.now();
       const loop = (now) => {
         if (!this.running) return;
-        const dt = Math.min(0.05, (now - last) / 1000);
+        // (Venti) o 1º quadro pode chegar com um horário anterior ao do start(): nunca deixa dt negativo
+        const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
         last = now;
         if (step) step(dt);
         this.update(dt);

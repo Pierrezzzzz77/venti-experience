@@ -10,11 +10,14 @@ npx serve .
 ```
 
 Depois abra `http://localhost:3000` (a porta aparece no terminal).
+O jogo começa na cena de abertura. Para abrir um mapa direto: `http://localhost:3000/?mapa=datalab`.
+
 Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o monitor, **Esc** fecha o painel.
 
 ## Partes do jogo
 
-1. Abertura: sair do lago da prefeitura de Canaã dos Carajás e andar até a faculdade — *a fazer*
+1. Abertura: do Lago da Prefeitura até a Faculdade Serra Dourada, de carro (cena de ~37 s, botão Pular) — **pronto**
+   (provisório: no fim vai para o DataLab, até o mapa da faculdade existir)
 2. Faculdade por dentro — *a fazer*
 3. Rua: faculdade de um lado, DataLab do outro — *a fazer*
 4. DataLab: colocar servidor e switch no rack, ligar o cabo e deixar o servidor online pelo terminal — **pronto**
@@ -33,6 +36,7 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 | `assets/js/ui/rack-panel.js` | Painel do rack para ligar o cabo (versão simples do cabling.js). |
 | `assets/js/ui/terminal.js` | Terminal do servidor com 3 comandos (versão simples do terminal.js do DataLab). |
 | `assets/js/ui/monitor.js` | Monitor (tecla M): gráficos de CPU, rede, disponibilidade e problemas (versão simples do monitor.js do DataLab). |
+| `assets/js/maps/abertura.js` | Parte 1: cena de abertura (desenhada por código; referências em `referencia/`). |
 | `assets/js/maps/datalab.js` | Parte 4: a sala do DataLab e a missão. |
 
 ### Como acrescentar um mapa novo (faculdade, rua, abertura)
