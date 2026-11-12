@@ -11,7 +11,7 @@
 
    Partes (para quem entra pela porta de vidro), seguindo a planta real da faculdade:
      1. Em frente: as mesas, com a faixa tátil reta para dentro delas
-     2. À direita: o saguão comprido. Primeiro o logo, numa parede em diagonal (canto cortado) virada
+     2. À direita: o saguão comprido. Primeiro o logo, na parede reta à esquerda do saguão, virada
         para a entrada, com o tapete e as poltronas na frente
      3. Depois do logo: a secretaria, aberta para o saguão, com a mesa redonda e 3 notebooks
      4. Depois da secretaria: o corredor, que passa atrás dela e cruza com o corredor das salas
@@ -139,12 +139,6 @@
   DL.FLOORS.P = madeira;
   DL.FLOORS.G = faixa;
   DL.FLOORS.o = granito;
-  // 'D': canto cortado do logo. A parede passa na diagonal do tile: madeira na frente dela,
-  // chão escuro (o mesmo de fora, ver 'x') atrás.
-  DL.FLOORS.D = (g, px, py, x, y) => {
-    madeira(g, px, py, x, y);
-    for (let j = 0; j < 16; j++) R(g, px, py + j, 16 - j, 1, '#030504');
-  };
   // 'x': a faixa do lado de fora da parede da entrada. Fica "aberta" para o motor não levantar ali
   // uma parede alta ao lado da porta; a borda baixa é desenhada pelo item 'borda' (abaixo).
   // (o motor clareia o piso aberto em +15,+16,+24: esta cor vira o mesmo chão escuro de fora)
@@ -672,23 +666,20 @@
     K.box(g, e.px, e.py, e.px + 4, y1, 0, 5, { s: shade(c, 0.06), e: shade(c, -0.3), t: shade(c, 0.38) });
     return caixaTela(e.px, e.py, e.px + 4, y1, 0, 5);
   }
-  // a parede de ripas com o logo, na parede em diagonal do canto cortado (2 × 2 tiles), virada para
-  // a entrada. A diagonal vai do canto de baixo-esquerda ao de cima-direita do quadrado: na tela ela
-  // fica de frente para a câmera, então o logo (o mesmo desenho, pintado uma vez) aparece sem deformar.
-  // É 8 px mais alta que as outras paredes, para cobrir as pontas das paredes retas que chegam por trás.
+  // a parede de ripas com o logo, colada na parede reta à esquerda do saguão (ela corre no sentido y e
+  // dá para a entrada). O desenho do logo é pintado uma vez numa imagem e "colado" na face da parede
+  // (x = e.px), lido da esquerda para a direita na tela, acompanhando a parede como as outras coisas.
   let LOGO_IMG = null;
-  function desenharLogoDiagonal(g, sc, e) {
-    const K = DL.isoKit, EXTRA = 8, H = 44 + EXTRA, x0 = e.px, y0 = e.py, x1 = x0 + 2 * T, y1 = y0 + 2 * T;
+  function desenharLogoParede(g, sc, e) {
+    const W = e.th * T;
     if (!LOGO_IMG) {
-      LOGO_IMG = DL.mk(4 * T, H);
-      const lg = LOGO_IMG.getContext('2d');
-      logo(lg, { px: 0, py: 36 + EXTRA, tw: 4 });
-      for (let i = 0; i < 4 * T; i++) R(lg, i, 0, 1, EXTRA + 1, COR.ripa[i % 3 === 2 ? 2 : i % 3]);
-      R(lg, 0, 0, 4 * T, 1, '#c97a4e');
+      LOGO_IMG = DL.mk(W, 44);
+      logo(LOGO_IMG.getContext('2d'), { px: 0, py: 36, tw: e.th });
     }
-    K.setMap(g, sc, [x0, y1, H], [0.5, -0.5, 0], [0, 0, -1]);
+    const y1 = e.py + W;
+    DL.isoKit.setMap(g, sc, [e.px, y1, 44], [0, -1, 0], [0, 0, -1]);
     g.drawImage(LOGO_IMG, 0, 0);
-    return caixaTela(x0, y0, x1, y1, 0, H);
+    return caixaTela(e.px, e.py, e.px + 1, y1, 0, 44);
   }
   // mesa redonda da secretaria (2 × 2 tiles): pé central e tampo branco redondo
   function desenharMesaRedonda(g, sc, e) {
@@ -767,7 +758,7 @@
          esquerda  a vidraça (parede da frente, de vidro), com os bancos "pedra" e mesinhas
          meio      a mesa comprida, cadeiras verdes e laranja, bolinhas de luz
          direita   parede com portas de vidro de salas, ar-condicionado, extintor e avisos; essa
-                   parede acaba num canto cortado (parede na diagonal) com o logo, virado para a entrada
+                   parede acaba no canto do saguão; o logo fica na parede do saguão, virado para a entrada
          fundo     uma sala de vidro (parede vermelha lá dentro, como na foto)
        à direita   o saguão (colunas 19 a 24), comprido, que passa por:
                    o logo (tapete e poltronas vermelhas na frente),
@@ -781,7 +772,6 @@
                    (Sala 2). As outras 6 portas (Salas 3 a 8) estão fechadas: ainda não têm sala. */
   TILES_FAC = [
     // 'M' madeira · 'G' faixa tátil · 'P' porta de sala · 'o' porta de vidro · 'x' lado de fora · '#' parede
-    // 'D' canto cortado do logo (metade piso, metade parede; a parede na diagonal é o item LOGO)
     '##########################',
     ...Array(15).fill('############MGM###########'),
     '#########P##MGM###########',
@@ -794,8 +784,8 @@
     '################MMMMGMMMMx',
     '################MMMMGMMMMx',
     '################MMMMGMMMMx',
-    '##################DMGMMMMx',
-    '#################DMMGMMMMx',
+    '################MMMMGMMMMx',
+    '################MMMMGMMMMx',
     '#MMMMMMMMMMMMMMMMMMMGMMMMx',
     '#MMMMMMMMMMMMMMMMMMMGMMMMx',
     '#MMMMMMMMMMMMMMMMMMMGMMMMx',
@@ -804,7 +794,6 @@
     '#MMMMMMMMMMMMMMMMMMMMMMMMx',
     '##########################',
   ];
-  const CANTO = [[17, 27], [18, 26]]; // os 2 tiles 'D' (não dá para pisar)
 
   const itens = [];
   const add = (o) => itens.push(o);
@@ -848,8 +837,10 @@
   add({ kind: 'planta-alta', tx: 3, ty: 16 });
 
   // 3. Saguão, à direita de quem entra
-  // o logo fica na parede em diagonal do canto cortado, virado para a entrada
-  add({ id: 'LOGO', kind: 'logo-diagonal', tx: 17, ty: 14, tw: 2, th: 2, solid: false, drawIso: desenharLogoDiagonal, isoH: 58, glow: 'rgba(255,170,110,0.05)' });
+  // o logo fica na parede reta à esquerda do saguão (coluna 15, linhas 23 a 26), virado para a entrada.
+  // isoRect: bem fino (só a face da parede) e comprido até a linha 27½, para o motor sempre desenhar o
+  // logo DEPOIS da parede branca (senão, com o jogador perto, a parede era pintada por cima e o logo sumia)
+  add({ id: 'LOGO', kind: 'logo-parede', tx: 16, ty: 11, th: 4, solid: false, drawIso: desenharLogoParede, isoRect: [16 * T, 11 * T, 16 * T + 0.5, 15.5 * T], isoH: 50, glow: 'rgba(255,170,110,0.05)' });
   // na frente do logo: tapete, poltronas vermelhas, puffs, lustres
   add({ kind: 'tapete', rug: true, tx: 21, ty: 14, tw: 4, th: 4, solid: false });
   add({ id: 'MESINHA', kind: 'table', variant: 'small', color: '#b07a45', tx: 22, ty: 15, tw: 2 });
@@ -916,7 +907,7 @@
     tiles: TILES_FAC,
     items: itens,
     rooms: [
-      { x: 17, y: 26, w: 2, h: 2, style: ESTILO },                                            // canto do logo
+      { x: 16, y: 26, w: 3, h: 2, style: ESTILO },                                            // canto do logo
       { x: 19, y: 17, w: 6, h: 17, style: ESTILO },                                           // saguão
       { x: 16, y: 22, w: 3, h: 4, style: ESTILO },                                            // secretaria
       { x: 7, y: 17, w: 12, h: 4, style: ESTILO_CORREDOR },                                   // corredor
@@ -936,14 +927,13 @@
       prepararSalas(game);
       esconderMissao(true);
       const w = game.world;
-      for (const [x, y] of CANTO) w.solid[y * w.W + x] = 1;
       // a dica de saída aparece na frente da porta de vidro (o padrão seria do lado de fora)
       const ent = w.byId.ENTRADA;
       ent.ix = ent.px - 8;
       ent.iy = ent.py + 16;
-      const logo = w.byId.LOGO; // na frente da parede em diagonal
-      logo.ix = logo.px + 28;
-      logo.iy = logo.py + 28;
+      const logo = w.byId.LOGO; // na frente da parede
+      logo.ix = logo.px + 6;
+      logo.iy = logo.py + 2 * T;
       const mesa = w.byId['MESA-SEC']; // do lado do saguão
       mesa.ix = mesa.px + 2 * T + 6;
       mesa.iy = mesa.py + T + 4;
