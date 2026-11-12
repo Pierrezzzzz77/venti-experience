@@ -10,6 +10,7 @@ Av. São João → PA-160 → rotatória → Av. Carajás → faculdade.
 
 | Foto | Lugar | O que aproveitar no jogo |
 |---|---|---|
+| `08-prefeitura-centro-administrativo-lago.png` | Prefeitura / Centro Administrativo, de frente para o lago | Prédio comprido e baixo, cinza-claro com faixas de vidro verde e brises brancos, bandeiras na frente, totem com a bandeira de Canaã; caminho vermelho na beira do lago, pôr do sol dourado |
 | `01-lago-da-prefeitura-av-sao-joao.png` | Lago da Prefeitura, Av. São João | Início: lago comprido com margem de concreto, faixa amarela na beira, árvores grandes, postes altos, avenida de mão dupla, prédios baixos do outro lado |
 | `02-pa-160-skyfit.png` | PA-160 | Calçada de tijolinho vermelho, estacionamento com carros, lojas baixas (academia), árvores pequenas, morros ao fundo |
 | `03-pa-160-caminhao.png` | PA-160 | Avenida larga com faixa tracejada, ciclovia/calçada vermelha, caminhão, postes |

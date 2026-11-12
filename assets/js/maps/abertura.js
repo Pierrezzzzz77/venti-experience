@@ -6,6 +6,7 @@
 
    Ordem (referências em referencia/):
      1. Lago da Prefeitura ao pôr do sol, avenida com canteiro, árvores e pessoas  (01-lago...)
+        com o prédio da Prefeitura / Centro Administrativo do outro lado do lago     (08)
      2. O boneco entra no carro e o carro sai pela avenida
      3. Academia Sky Fit na PA-160 / Av. Weyne Cavalcante, só cenário            (02, 03)
      4. Rotatória com árvore no meio                                              (04)
@@ -35,6 +36,7 @@
   const FAR = 147, NEAR = 163;          // faixa de cá (ida) e faixa de lá (volta)
   const LAKE_END = 1000, PA_END = 1760, ROT_X = 1900, ROT_END = 2040, CAR_END = 3040, FAC_X = 3080, END_X = 3600;
   const DOOR_X = FAC_X + 75;            // meio da porta de vidro da faculdade
+  const PREF_X = 230;                   // Prefeitura do outro lado do lago (no plano do fundo, que anda pela metade)
 
   // linha do tempo (segundos)
   const TL = { walk0: 2.2, walk1: 5.6, inCar: 6.2, go: 7.0, stop: 32.5, out: 33.2, door: 34.5, inside: 35.4, fade: 35.8, end: 37.0 };
@@ -302,6 +304,54 @@
     lights.push({ x: X - 5, y: by + 14, r: 30, c: [255, 200, 130, 0.22 * on], flat: true });
   }
 
+  // Prefeitura de Canaã dos Carajás / Centro Administrativo (foto 08), vista de longe, do outro lado do
+  // lago: prédio comprido e baixo, claro, com faixas de vidro verde e brises brancos, a entrada no meio
+  // um pouco mais alta, a fileira de bandeiras na frente e o totem com a bandeira da cidade.
+  // Desenhado uma vez num sprite (128 × 34, chão na última linha); .lit = vidros que acendem à noite.
+  function makePrefeitura() {
+    const W = 128, H = 34, c = DL.mk(W, H), g = c.getContext('2d'), B = H, lit = [];
+    // bloco principal
+    R(g, 4, B - 20, 120, 20, '#d4d8de');
+    R(g, 4, B - 21, 120, 1, '#eef0f3');
+    R(g, 4, B - 20, 120, 1, '#b4bac2');
+    // duas faixas de vidro verde com brises brancos na frente
+    for (const y of [B - 17, B - 11]) {
+      R(g, 6, y, 116, 4, '#2f7a5a');
+      R(g, 6, y, 116, 1, '#5fb48a');
+      for (let x = 6; x < 122; x += 3) R(g, x, y, 1, 4, '#e9ecef');
+      for (let x = 8; x < 120; x += 6) if (hash(x * 7 + y) > 0.35) lit.push([x, y + 2]);
+    }
+    // térreo escuro (recuado)
+    R(g, 6, B - 6, 116, 5, '#5d6573');
+    R(g, 6, B - 6, 116, 1, '#7d8590');
+    // entrada no meio, mais alta, toda de vidro verde
+    R(g, 52, B - 26, 26, 26, '#c9ced5');
+    R(g, 52, B - 27, 26, 1, '#eef0f3');
+    R(g, 55, B - 24, 20, 18, '#2a6e50');
+    for (let x = 55; x < 75; x += 4) R(g, x, B - 24, 1, 18, '#a9d8bf');
+    R(g, 50, B - 7, 30, 2, '#eef0f3'); // marquise
+    for (let x = 57; x < 74; x += 5) lit.push([x, B - 20], [x, B - 14]);
+    // fileira de bandeiras na frente
+    const FLAGS = [['#2f9a4a', '#f2c14e'], ['#c8262e', '#e9ecef'], ['#1f3f8a', '#e9ecef'], ['#2f9a4a', '#f2c14e'], ['#e86a2a', '#1f3f8a'], ['#c8262e', '#f2c14e'], ['#2f9a4a', '#1f3f8a']];
+    FLAGS.forEach(([a, b], i) => {
+      const x = 30 + i * 11;
+      R(g, x, B - 14, 1, 14, '#c8ccd2');
+      R(g, x + 1, B - 14, 4, 3, a);
+      R(g, x + 1, B - 12, 4, 1, b);
+    });
+    // totem com a bandeira de Canaã (verde, amarelo, círculo azul) e o nome embaixo
+    R(g, 10, B - 22, 12, 22, '#eef0f3');
+    R(g, 10, B - 22, 1, 22, '#c9ced5');
+    R(g, 12, B - 20, 8, 6, '#2f9a4a');
+    R(g, 13, B - 19, 6, 4, '#f2c14e');
+    R(g, 15, B - 18, 2, 2, '#1f3f8a');
+    R(g, 12, B - 12, 8, 1, '#c8262e');
+    R(g, 12, B - 10, 8, 1, '#2a6e50');
+    R(g, 12, B - 8, 6, 1, '#2a6e50');
+    c.lit = lit;
+    return c;
+  }
+
   // torre de celular (foto 05)
   function tower(g, x, by, on, lights) {
     for (let i = 0; i < 84; i++) {
@@ -325,6 +375,7 @@
     { skin: '#e0ac7e', hair: '#2a1c16', hairStyle: 'curly', shirt: '#f2c14e', pants: '#1f2430', shoes: '#c8262e' },
     { skin: '#a86f4c', hair: '#1a1210', hairStyle: 'short', shirt: '#c8262e', pants: '#2a2f38', shoes: '#eceff3' },
   ];
+  let PREF = null; // sprite da Prefeitura (feito em build)
   const S = { t: 0, cam: 0, buf: null, bg: null, statics: [], people: [], done: false, skipAt: null, caption: '' };
 
   function build() {
@@ -357,6 +408,9 @@
     add({ k: 'fac', x: FAC_X, y: VERGE });
     for (const [x, col] of [[FAC_X + 270, '#b8333a'], [FAC_X + 292, '#2a2f38'], [FAC_X + 312, '#c8262e']]) add({ k: 'moto', x, y: 133, col });
     S.statics = st;
+    PREF = makePrefeitura();
+    S.pfBuf = DL.mk(PREF.width, PREF.height);
+    S.pfG = S.pfBuf.getContext('2d');
 
     // pessoas caminhando no canteiro do lago (vão e voltam)
     S.people = [
@@ -435,11 +489,30 @@
       R(g, x, Math.round(oy + HZ - h2), 1, Math.ceil(h2) + 2, hillNear);
     }
     const town = mix('#4a3456', '#121530', day), winLit = [];
+    // a Prefeitura (Centro Administrativo) do outro lado do lago, no começo da cena
+    const pfX = Math.round(PREF_X - cam * 0.5), pfB = oy + HZ + 3;
     for (let k = Math.floor((cam * 0.5) / 24) - 2, n = k + Math.ceil(VW / 24) + 4; k < n; k++) {
       if (hash(k * 11 + 3) < 0.22) continue;
       const bx = Math.round(k * 24 + hash(k) * 8 - cam * 0.5), w = 12 + Math.round(hash(k * 3) * 16), h = 4 + Math.round(hash(k * 7) * 12);
+      if (bx + w > pfX - 6 && bx < pfX + PREF.width + 6) continue; // ali fica a Prefeitura
       R(g, bx, oy + HZ + 2 - h, w, h, town);
       for (let wy = 2; wy < h - 1; wy += 3) for (let wx = 2; wx < w - 1; wx += 3) if (hash(k * 131 + wx * 7 + wy * 13) > 0.62) winLit.push([bx + wx, oy + HZ + 2 - h + wy]);
+    }
+    if (pfX < VW && pfX + PREF.width > 0) {
+      // a mesma luz do resto: dourada no pôr do sol, escura à noite (pintada só por cima do prédio)
+      const pg = S.pfG;
+      pg.globalCompositeOperation = 'source-over';
+      pg.clearRect(0, 0, PREF.width, PREF.height);
+      pg.drawImage(PREF, 0, 0);
+      pg.globalCompositeOperation = 'source-atop';
+      if (warm > 0.02) { pg.fillStyle = 'rgba(255,150,80,' + (0.22 * warm).toFixed(3) + ')'; pg.fillRect(0, 0, PREF.width, PREF.height); }
+      pg.fillStyle = 'rgba(110,70,130,0.2)'; // névoa da distância (fica do outro lado do lago)
+      pg.fillRect(0, 0, PREF.width, PREF.height);
+      pg.fillStyle = 'rgba(10,12,36,' + (0.62 * day).toFixed(3) + ')';
+      pg.fillRect(0, 0, PREF.width, PREF.height);
+      g.drawImage(S.pfBuf, pfX, pfB - PREF.height);
+      // à noite as faixas de vidro verde acendem
+      for (const [wx, wy] of PREF.lit) winLit.push([pfX + wx, pfB - PREF.height + wy]);
     }
 
     // luzes do fundo (ficam ATRÁS da rua e dos prédios): brilho do sol, estrelas, janelas da cidade
