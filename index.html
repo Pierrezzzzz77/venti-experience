@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Venti Experience</title>
+  <link rel="stylesheet" href="assets/css/game.css">
+</head>
+<body>
+  <canvas id="game" aria-label="Sala do DataLab em pixel art isométrica"></canvas>
+
+  <!-- missão (canto de cima) -->
+  <section id="mission" class="mission">
+    <h1>Missão</h1>
+    <p>Coloque um servidor e um switch no rack, ligue o cabo e deixe o servidor online</p>
+    <ol id="missionSteps"></ol>
+    <div id="carry" class="carry"></div>
+  </section>
+
+  <div class="keys"><kbd>WASD</kbd> / setas andar · <kbd>E</kbd> interagir · <kbd>M</kbd> monitor · <kbd>Esc</kbd> fechar</div>
+
+  <div id="hint" class="hint"></div>
+  <div id="toast" class="toast"></div>
+
+  <div id="missionDone" class="done">
+    <div class="done__box">
+      <strong>Missão concluída</strong>
+      <span>O servidor SRV-01 está online.</span>
+    </div>
+  </div>
+
+  <!-- painel do rack (abre com E perto do rack) -->
+  <div id="rackPanel" class="panel" role="dialog" aria-label="Rack">
+    <div class="panel__box">
+      <header class="panel__head">
+        <b>Rack · cabeamento</b>
+        <button id="rackClose" class="btn btn--ghost" type="button">Fechar <kbd>Esc</kbd></button>
+      </header>
+      <svg id="rackSvg" class="panel__svg"></svg>
+      <footer class="panel__foot">
+        <div id="rackMsg" class="panel__msg"></div>
+        <button id="rackPower" class="btn" type="button">Ligar servidor</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- terminal do servidor (abre pelo painel do rack, depois de ligar o cabo) -->
+  <div id="terminal" class="panel" role="dialog" aria-label="Terminal do servidor">
+    <div class="panel__box term">
+      <header class="panel__head">
+        <b>SRV-01 · terminal</b>
+        <button id="termClose" class="btn btn--ghost" type="button">Fechar <kbd>Esc</kbd></button>
+      </header>
+      <div class="term__body">
+        <div class="term__screen">
+          <div id="termOut" class="term__out"></div>
+          <label class="term__line"><span id="termPrompt" class="p">admin@srv-01:~$</span><input id="termIn" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Comando"></label>
+        </div>
+        <aside class="term__guide">
+          <b>Configure o servidor</b>
+          <ol id="termSteps"></ol>
+          <small><kbd>↑</kbd> repete o comando anterior</small>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <!-- monitoramento (tecla M) -->
+  <div id="monitor" class="panel" role="dialog" aria-label="Monitoramento">
+    <div class="panel__box mon">
+      <header class="panel__head mon__bar">
+        <span class="mon__logo"><i></i><b>Monitor</b> · DataLab</span>
+        <span class="mon__range">últimos 2 min</span>
+        <button id="monClose" class="btn btn--ghost" type="button">Fechar <kbd>M</kbd></button>
+      </header>
+      <div id="monBody" class="mon__body"></div>
+    </div>
+  </div>
+
+  <!-- A ordem importa (igual ao DataLab): motor → jogo → interface → mapas → início -->
+  <script src="assets/js/engine/sprites.js"></script>
+  <script src="assets/js/engine/scene.js"></script>
+  <script src="assets/js/engine/iso.js"></script>
+  <script src="assets/js/engine/world.js"></script>
+  <script src="assets/js/game.js"></script>
+  <script src="assets/js/ui/rack-panel.js"></script>
+  <script src="assets/js/ui/terminal.js"></script>
+  <script src="assets/js/ui/monitor.js"></script>
+  <script src="assets/js/maps/datalab.js"></script>
+  <!-- próximas partes (mapas separados): maps/abertura.js, maps/faculdade.js, maps/rua.js -->
+  <script>
+    // por enquanto o jogo abre direto no DataLab
+    DL.game.loadMap('datalab');
+  </script>
+</body>
+</html>
