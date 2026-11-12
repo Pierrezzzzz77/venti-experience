@@ -304,37 +304,27 @@
     faculdade(game) {
       // estudando na mesa comprida (cadeiras das linhas 29 e 31) e nos bancos "pedra"
       estudar(game, 1, 8, 29, 'down', 0.42);
-      estudar(game, 2, 12, 29, 'down', 0.2);
-      estudar(game, 3, 9, 31, 'up', 0.2);
-      estudar(game, 4, 10, 31, 'up', 0.45);
       estudar(game, 5, 13, 31, 'up', 0.22);
       estudar(game, 6, 11, 33, 'right', 0.4);
-      // conversando sentados: nos bancos da mesinha, nas poltronas e puffs do saguão
+      // conversando sentados: nos bancos da mesinha e nas poltronas/puffs do saguão
       grupo(game, 10, [[15, 33, 'right', true], [17, 33, 'left', true]]);
       grupo(game, 12, [[21, 28, 'down', true], [23, 29, 'up', true]]);
-      grupo(game, 14, [[21, 19, 'down', true], [24, 19, 'down', true], [22, 20, 'up', true]]);
-      // conversando em pé
-      grupo(game, 20, [[21.5, 24.6, 'right'], [22.9, 24.4, 'left'], [22.2, 25.5, 'up']]);
-      grupo(game, 23, [[16.4, 30.4, 'right'], [17.6, 30.6, 'left']]);
-      grupo(game, 25, [[12.5, 3.6, 'right'], [13.8, 3.4, 'left']]);
+      // conversando em pé, no saguão
+      grupo(game, 20, [[21.5, 24.6, 'right'], [22.9, 24.6, 'left']]);
       // entrando e saindo (das salas e da faculdade)
       andante(game, 30, { pts: [[25.5, 32], [24.3, 32], [19.5, 32], [19.5, 18.5], [13.5, 18.5], [13.5, 11.5], [14.65, 11.5]], a: 'porta', b: 'porta', inicio: 'b', espera0: 2 });
       andante(game, 31, { pts: [[9.5, 16.7], [9.5, 19.5], [20.5, 19.5], [20.5, 31.6], [24.3, 31.6], [25.5, 31.6]], a: 'porta', b: 'porta', espera0: 5 });
-      andante(game, 32, { pts: [[12.35, 11.5], [13.3, 11.5], [13.3, 7.5], [14.65, 7.5]], a: 'porta', b: 'porta', espera0: 1 });
       andante(game, 33, { pts: [[14.65, 15.5], [13.6, 15.5], [13.6, 19.4], [19.3, 19.4], [19.3, 24.6], [17.4, 24.6]], a: 'porta', b: 'parar', olhar: 'up', espera0: 9 });
     },
     sala1(game) {
       // laboratório de informática: digitando nos notebooks, de frente para o quadro
       estudar(game, 40, 1, 3, 'up', 0.16);
       estudar(game, 41, 6, 3, 'up', 0.2);
-      estudar(game, 42, 2, 5, 'up', 0.18);
       estudar(game, 43, 5, 5, 'up', 0.24);
-      estudar(game, 44, 6, 5, 'up', 0.17);
       andante(game, 45, { pts: [[4.5, 7.3], [4.5, 6.0], [3.6, 2.0]], a: 'porta', b: 'parar', olhar: 'up', espera0: 3 });
     },
     sala2(game) {
       // laboratório da saúde: anotando nas bancadas; dois conversando perto da vitrine
-      estudar(game, 50, 1, 5, 'up', 0.4);
       estudar(game, 51, 6, 4, 'up', 0.45);
       grupo(game, 52, [[5.0, 2.2, 'right'], [6.3, 2.2, 'left']]);
       andante(game, 54, { pts: [[4.5, 7.3], [4.5, 5.0], [3.5, 2.6]], a: 'porta', b: 'parar', olhar: 'left', espera0: 4 });
