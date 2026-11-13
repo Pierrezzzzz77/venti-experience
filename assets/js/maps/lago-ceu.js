@@ -477,7 +477,7 @@
     // a coluna de sol, embaixo do sol: estreita perto da margem de lá, larga perto de cá; as faixas
     // ondulam e piscam devagar (cada faixa ~3 pixels da TELA, qualquer que seja o zoom)
     const sx = (sunPos(sc, st).x + sc.ox) / S, top = Math.max(vy0, ISO_TOP);
-    const scroll = Math.floor(t * 5), step = Math.max(3, Math.ceil(3 / S));
+    const scroll = Math.floor(t * 5), step = Math.max(3, Math.ceil((3 * (sc.fino || 1)) / S)); // (sc.fino: a tela grande do filme)
     for (let y = Math.floor(top), i = 0; y < vy1; y += step, i++) {
       if (Math.sin(t * 1.3 + i * 1.7) < -0.55) continue; // pisca
       const sp2 = lakeSpan(y + step / 2);

@@ -1,372 +1,144 @@
-/* Venti Experience — Parte 1: cena de abertura (o jogador só assiste, ~37 s, botão "Pular").
+/* Venti Experience — a viagem (o jogador só assiste, botão "Pular").
    Do Lago da Prefeitura até a Faculdade Serra Dourada, em Canaã dos Carajás, de carro.
-   Vista de lado (como um filme): o carro anda da esquerda para a direita e a câmera acompanha.
    Tudo é pixel art desenhada por código num canvas pequeno e depois ampliada (sem imagens).
    O céu vai do pôr do sol (laranja e rosa) até a noite; as luzes acendem no caminho.
 
-   Ordem (referências em referencia/):
-     1. Lago da Prefeitura ao pôr do sol, avenida com canteiro, árvores e pessoas  (01-lago...)
-        com o prédio da Prefeitura / Centro Administrativo do outro lado do lago     (08)
-     2. O boneco entra no carro e o carro sai pela avenida
-     3. Academia Sky Fit na PA-160 / Av. Weyne Cavalcante, só cenário            (02, 03)
-     4. Rotatória com árvore no meio                                              (04)
-     5. Av. Carajás: avenida reta com canteiro e árvores                          (05)
-     6. Faculdade Serra Dourada: metal ondulado, letreiro, entrada de vidro       (06, 07)
-     7. O carro para, o boneco desce e o jogo troca de mapa
+   São dois planos:
+     LADO   (vista de lado) o carro sai do lago, passa pela PA-160 / Av. Weyne Cavalcante — SkyFit (foto 15),
+            casas e comércios, árvores grandes em camadas (as de trás andam mais devagar, as da frente mais
+            depressa) — e chega à rotatória. Lá ele NÃO segue reto: vira e entra na avenida que vai para o fundo.
+     FUNDO  (câmera atrás do carro) a Av. Carajás em perspectiva, com canteiro, árvores e casas passando,
+            até encostar no meio-fio em frente à Serra Dourada. Dali o jogo abre a rua (maps/rua.js),
+            onde o boneco desce do carro.
 
-   Usa só o que o motor já tem: o registro de mapas (world.js), a troca de mapa (game.loadMap)
-   e o desenho do personagem (sprites.js: DL.makeSheet). A cena desenha por cima do mundo com
-   scene.drawInstead (o mesmo gancho do iso.js que o DataLab usa para a rua). */
+   As peças (casas, árvores, SkyFit, carros) ficam em abertura-pecas.js, cada uma num sprite pronto;
+   aqui só se copia sprite. O que acende à noite (janelas, placas) é uma segunda camada somada no fim. */
 (function () {
   'use strict';
-  const DL = window.DL, R = DL.R, hash = DL.hash, CH = DL.CHAR;
+  const DL = window.DL, R = DL.R, hash = DL.hash, CH = DL.CHAR, P = DL.Pecas, A = DL.Arte, disc = A.disc, oval = A.oval;
   const $ = (id) => document.getElementById(id);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, k) => a + (b - a) * k;
   const smooth = (a, b, x) => { const k = clamp((x - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };
   const rgbOf = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
-  // mistura duas cores (k = 0 → a, 1 → b)
-  const mix = (a, b, k) => { const A = rgbOf(a), B = rgbOf(b); return '#' + A.map((v, i) => Math.round(lerp(v, B[i], clamp(k, 0, 1))).toString(16).padStart(2, '0')).join(''); };
+  const mix = (a, b, k) => { const X = rgbOf(a), Y = rgbOf(b); return '#' + X.map((v, i) => Math.round(lerp(v, Y[i], clamp(k, 0, 1))).toString(16).padStart(2, '0')).join(''); };
 
   /* ------------------------------------------------------------------ */
-  /* Layout (pixels do mundo). y cresce para baixo; o céu ocupa o resto  */
+  /* Layout do plano de lado (pixels do mundo; y cresce para baixo)       */
   /* ------------------------------------------------------------------ */
-  const H0 = 184;                       // altura do desenho; tela mais alta = mais céu
+  const H0 = 184;
   const HZ = 92, WATER = 96, MARGIN = 118, VERGE = 121, ROAD0 = 136, CENTER = 151, ROAD1 = 166, WALK = 168, FRONT = 177;
-  const FAR = 147, NEAR = 163;          // faixa de cá (ida) e faixa de lá (volta)
-  const LAKE_END = 1000, PA_END = 1760, ROT_X = 1900, ROT_END = 2040, CAR_END = 3040, FAC_X = 3080, END_X = 3600;
-  const DOOR_X = FAC_X + 75;            // meio da porta de vidro da faculdade
-  const PREF_X = 230;                   // Prefeitura do outro lado do lago (no plano do fundo, que anda pela metade)
+  const FAR = 147, NEAR = 163, LOTE = 122;      // as duas faixas e a linha da frente das casas
+  const LAKE_END = 1000, PA0 = 1030, PA_END = 2590, ROT_X = 2680, DX = 2790, END_X = 3200;
+  const VPX = DX + 40, VPY = HZ + 3;            // o ponto de fuga da avenida que vai para o fundo
+  const PREF_X = 230;
+  const SF_X = 1050, SF_W = 540;              // a SkyFit (em escala: 540 px = 10 carros)
+  const PS = 0.68;                             // as pessoas: ~20 px de altura (o carro tem 52 px de comprimento)
 
   // linha do tempo (segundos)
-  const TL = { walk0: 2.2, walk1: 5.6, inCar: 6.2, go: 7.0, stop: 32.5, out: 33.2, door: 34.5, inside: 35.4, fade: 35.8, end: 37.0 };
-  const X_START = 250, X_STOP = 3125, ACC = 2.5, DEC = 3.5;
+  const TL = { walk0: 2.2, walk1: 5.6, inCar: 6.2, go: 7.0, vira: 33.0, fundo: 35.4, para: 44.8, fim: 46.6 };
+  const X_START = 250, X_VIRA = DX - 54, ACC = 2.5, DEC = 3, V_FIM = 46, MIX = 0.8;
 
-  // posição do carro no tempo: arranca, anda constante, freia
+  // o carro no plano de lado: arranca, anda constante e reduz para fazer a curva
   function carX(t) {
     if (t <= TL.go) return X_START;
-    const D = X_STOP - X_START, Td = TL.stop - TL.go, v = D / (Td - ACC / 2 - DEC / 2), u = Math.min(t - TL.go, Td);
+    const D = X_VIRA - X_START, Td = TL.vira - TL.go, v = (D - (V_FIM * DEC) / 2) / (Td - ACC / 2 - DEC / 2), u = Math.min(t - TL.go, Td);
     if (u < ACC) return X_START + 0.5 * (v / ACC) * u * u;
     if (u < Td - DEC) return X_START + (v * ACC) / 2 + v * (u - ACC);
     const r = Td - u;
-    return X_STOP - 0.5 * (v / DEC) * r * r;
+    return X_VIRA - (V_FIM * r + (0.5 * (v - V_FIM) * r * r) / DEC);
   }
-  // faixa do carro: desvia da ilha da rotatória e, no fim, encosta do lado da faculdade
-  function carY(x) {
-    let y = lerp(NEAR, FAR, smooth(2880, 3060, x));
-    const d = Math.abs(x - ROT_X);
-    if (d < 70) y += 3 * Math.cos(((d / 70) * Math.PI) / 2);
-    return y;
+  // a avenida que vai para o fundo, linha a linha: o meio e a meia largura
+  function ruaFundo(y) {
+    const k = clamp((y - VPY) / (ROAD0 - VPY), 0, 1);
+    return { x: lerp(VPX, DX, k) + 12 * Math.sin(k * Math.PI), hw: 3 + 31 * k, k };
   }
-
-  /* ------------------------------------------------------------------ */
-  /* Pixels                                                              */
-  /* ------------------------------------------------------------------ */
-  function disc(g, cx, cy, r, col) {
-    for (let dy = -r; dy <= r; dy++) { const w = Math.round(Math.sqrt(r * r - dy * dy)); R(g, cx - w, cy + dy, 2 * w + 1, 1, col); }
-  }
-  function oval(g, cx, cy, rx, ry, col) {
-    for (let dy = -ry; dy <= ry; dy++) { const w = Math.round(rx * Math.sqrt(1 - (dy * dy) / (ry * ry))); R(g, cx - w, cy + dy, 2 * w + 1, 1, col); }
+  // a curva: [x, y, ângulo (0 = de lado, 90° = de costas), tamanho]
+  function curva(t) {
+    const u = clamp((t - TL.vira) / (TL.fundo - TL.vira), 0, 1);
+    let x, y, a;
+    if (u < 0.5) { a = (u / 0.5) * (Math.PI / 2); x = X_VIRA + (DX + 12 - X_VIRA) * Math.sin(a); y = NEAR - (NEAR - 142) * (1 - Math.cos(a)); }
+    else { const v = Math.pow((u - 0.5) / 0.5, 0.85); a = Math.PI / 2; y = lerp(142, 108, v); const r = ruaFundo(y); x = (y >= ROAD0 ? DX : r.x) + (y >= ROAD0 ? 12 : r.hw * 0.38); }
+    return [x, y, a, (y - VPY) / (NEAR - VPY)];
   }
 
-  // fonte de pixels 3 × 5 (só as letras dos letreiros)
-  const FONT = {
-    A: ['.#.', '#.#', '###', '#.#', '#.#'], C: ['.##', '#..', '#..', '#..', '.##'], D: ['##.', '#.#', '#.#', '#.#', '##.'],
-    E: ['###', '#..', '##.', '#..', '###'], F: ['###', '#..', '##.', '#..', '#..'], I: ['###', '.#.', '.#.', '.#.', '###'],
-    J: ['..#', '..#', '..#', '#.#', '.#.'], K: ['#.#', '#.#', '##.', '#.#', '#.#'], L: ['#..', '#..', '#..', '#..', '###'],
-    M: ['#.#', '###', '###', '#.#', '#.#'], N: ['#.#', '###', '###', '###', '#.#'], O: ['###', '#.#', '#.#', '#.#', '###'],
-    R: ['##.', '#.#', '##.', '#.#', '#.#'], S: ['.##', '#..', '.#.', '..#', '##.'], T: ['###', '.#.', '.#.', '.#.', '.#.'],
-    U: ['#.#', '#.#', '#.#', '#.#', '###'], Y: ['#.#', '#.#', '.#.', '.#.', '.#.'],
-  };
-  // escreve em pixels; k = tamanho do pixel; Ã e Á ganham o acento por cima
-  function text(g, str, x, y, k, col) {
-    for (const ch of str) {
-      const base = ch === 'Ã' || ch === 'Á' ? 'A' : ch, rows = FONT[base];
-      if (rows) rows.forEach((row, j) => { for (let i = 0; i < 3; i++) if (row[i] === '#') R(g, x + i * k, y + j * k, k, k, col); });
-      if (ch === 'Ã') { R(g, x, y - 2 * k, k, k, col); R(g, x + k, y - 2 * k - k, k, k, col); R(g, x + 2 * k, y - 2 * k, k, k, col); }
-      if (ch === 'Á') { R(g, x + k, y - 2 * k, k, k, col); R(g, x + 2 * k, y - 3 * k, k, k, col); }
-      x += 4 * k;
-    }
-  }
-  const textW = (str, k) => str.length * 4 * k - k;
-
   /* ------------------------------------------------------------------ */
-  /* Peças do cenário                                                    */
+  /* Peças pequenas desenhadas na hora                                   */
   /* ------------------------------------------------------------------ */
-  // árvore: tronco + copa em bolas; warm = luz do pôr do sol na copa
-  function tree(g, x, y, r, seed, warm) {
-    const h = Math.round(r * 0.9) + 4, cy = y - h - Math.round(r * 0.5);
-    R(g, x - 1, y - h, 3, h, '#3e2c20');
-    R(g, x, y - h, 1, h, '#5a4030');
-    disc(g, x, cy, r, '#2a4630');
-    disc(g, x - Math.round(r * 0.55), cy + 2, Math.round(r * 0.65), '#2a4630');
-    disc(g, x + Math.round(r * 0.55), cy + 1, Math.round(r * 0.65), '#2a4630');
-    disc(g, x - 1, cy - 1, Math.round(r * 0.7), '#3a6440');
-    disc(g, x - Math.round(r * 0.4), cy - Math.round(r * 0.3), Math.max(1, Math.round(r * 0.4)), '#4f8148');
-    for (let i = 0; i < r; i++) {
-      const a = hash(seed * 31 + i) * Math.PI * 2, d = hash(seed * 17 + i) * r * 0.8;
-      R(g, Math.round(x + Math.cos(a) * d), Math.round(cy + Math.sin(a) * d * 0.8), 1, 1, '#5f9450');
-    }
-    if (warm > 0.02) {
-      g.globalAlpha = warm * 0.5;
-      disc(g, x - Math.round(r * 0.35), cy - Math.round(r * 0.45), Math.max(1, Math.round(r * 0.5)), '#ffb36b');
-      g.globalAlpha = 1;
-    }
-  }
-  // poste de luz (on = 0..1: aceso)
-  function lamp(g, x, y, on, lights) {
-    R(g, x, y - 58, 1, 58, '#9aa3b0');
-    R(g, x + 1, y - 58, 1, 58, '#5d6573');
-    R(g, x, y - 58, 10, 1, '#9aa3b0');
-    R(g, x + 7, y - 57, 5, 2, on > 0.3 ? '#fff3d6' : '#c8ccd2');
-    R(g, x - 1, y - 1, 4, 1, '#3a3f4a');
+  // poste de concreto (~104 px = 6,5 carros), cruzetas, braço de luz e os fios até o próximo
+  function poste(g, o, on, lights) {
+    const x = o.x, y = o.y, H = 104;
+    R(g, x - 1, y - H, 3, H, '#9a958c'); R(g, x - 1, y - H, 1, H, '#b9b4ad'); R(g, x - 2, y - 3, 5, 3, '#7d7870');
+    R(g, x - 7, y - H + 4, 16, 2, '#6d6a64'); R(g, x - 7, y - H + 10, 16, 2, '#6d6a64');
+    for (const dx of [-6, 0, 7]) { R(g, x + dx, y - H + 2, 1, 2, '#e9ecef'); R(g, x + dx, y - H + 8, 1, 2, '#e9ecef'); }
+    R(g, x + 2, y - H + 22, 12, 1, '#9aa3b0'); R(g, x + 13, y - H + 21, 1, 2, '#9aa3b0'); R(g, x + 11, y - H + 23, 7, 2, on > 0.3 ? '#fff3d6' : '#c8ccd2');
+    if (o.trafo) { R(g, x - 9, y - H + 16, 7, 12, '#5d6573'); R(g, x - 9, y - H + 16, 7, 1, '#7d8590'); }
+    if (o.nx) g.drawImage(fios(o.nx - x), x, y - H + 4); // os 3 fios até o próximo poste (um sprite feito uma vez)
     if (on > 0.01) {
-      lights.push({ x: x + 9, y: y - 55, r: 10, c: [255, 214, 150, 0.9 * on] });
-      lights.push({ x: x + 9, y: Math.min(y + 16, ROAD1 - 4), r: 30, c: [255, 196, 120, 0.22 * on], flat: true });
+      lights.push({ x: x + 14, y: y - H + 25, r: 12, c: [255, 214, 150, 0.9 * on] });
+      lights.push({ x: x + 14, y: ROAD0 + 8, r: 46, c: [255, 196, 120, 0.2 * on], flat: true });
     }
   }
-  // galpão / loja baixa
-  function shed(g, x, by, w, h, col) {
-    R(g, x, by - h, w, h, col);
-    R(g, x, by - h, w, 2, DL.shade(col, 0.15));
-    R(g, x, by - h + 2, w, 1, DL.shade(col, -0.25));
-    R(g, x + Math.round(w * 0.3), by - Math.round(h * 0.55), Math.round(w * 0.3), Math.round(h * 0.55), DL.shade(col, -0.3));
-    for (let i = 0; i < Math.round(w * 0.3); i += 2) R(g, x + Math.round(w * 0.3) + i, by - Math.round(h * 0.55), 1, Math.round(h * 0.55), DL.shade(col, -0.38));
+  // os fios entre dois postes (vão de L px): 2 de energia e 1 de telefone, com a barriga no meio
+  const FIOS = {};
+  function fios(L) {
+    if (FIOS[L]) return FIOS[L];
+    const c = DL.mk(L + 1, 36), g = c.getContext('2d');
+    for (const [dy, sag] of [[0, 8], [6, 10], [26, 7]]) for (let xx = 0; xx <= L; xx++) { const u = xx / L; R(g, xx, dy + Math.round(sag * 4 * u * (1 - u)), 1, 1, '#2a2f38'); }
+    return (FIOS[L] = c);
   }
-
-  // carro de lado (sprite 52 × 22, virado para a direita; a esquerda é espelhada)
-  function makeCar(body) {
-    const c = DL.mk(52, 22), g = c.getContext('2d');
-    const d = DL.shade(body, -0.32), l = DL.shade(body, 0.25), glass = '#1c2733', x0 = 1, by = 21;
-    R(g, x0 + 2, by - 12, 46, 8, body);
-    R(g, x0, by - 10, 50, 6, body);
-    R(g, x0 + 2, by - 12, 46, 1, l);
-    R(g, x0, by - 5, 50, 1, d);
-    R(g, x0 + 1, by - 4, 48, 1, '#2a2f38');
-    R(g, x0 + 14, by - 19, 21, 1, l);
-    R(g, x0 + 12, by - 18, 25, 6, body);
-    R(g, x0 + 10, by - 14, 2, 2, body);
-    R(g, x0 + 37, by - 16, 4, 4, body);
-    R(g, x0 + 13, by - 18, 10, 5, glass);
-    R(g, x0 + 25, by - 18, 11, 5, glass);
-    R(g, x0 + 14, by - 18, 2, 1, '#5a7a9a');
-    R(g, x0 + 26, by - 18, 2, 1, '#5a7a9a');
-    R(g, x0 + 24, by - 18, 1, 13, d);
-    R(g, x0 + 30, by - 10, 3, 1, d);
-    R(g, x0 + 48, by - 10, 2, 2, '#fff1b0');
-    R(g, x0, by - 10, 2, 2, '#c8262e');
-    for (const wx of [x0 + 11, x0 + 39]) { disc(g, wx, by - 3, 4, '#121418'); disc(g, wx, by - 3, 2, '#6d7581'); R(g, wx, by - 3, 1, 1, '#c8ccd2'); }
-    const m = DL.mk(52, 22), mg = m.getContext('2d');
-    mg.translate(52, 0);
-    mg.scale(-1, 1);
-    mg.drawImage(c, 0, 0);
-    return { r: c, l: m };
+  // poste alto e fino do lago (~100 px)
+  function lamp(g, x, y, on, lights) {
+    const H = 100;
+    R(g, x, y - H, 2, H, '#9aa3b0'); R(g, x + 1, y - H, 1, H, '#5d6573'); R(g, x, y - H, 14, 1, '#9aa3b0'); R(g, x + 13, y - H, 1, 2, '#9aa3b0');
+    R(g, x + 10, y - H + 2, 7, 2, on > 0.3 ? '#fff3d6' : '#c8ccd2'); R(g, x - 1, y - 2, 4, 2, '#3a3f4a');
+    if (on > 0.01) {
+      lights.push({ x: x + 13, y: y - H + 4, r: 12, c: [255, 214, 150, 0.9 * on] });
+      lights.push({ x: x + 13, y: Math.min(y + 16, ROAD1 - 4), r: 40, c: [255, 196, 120, 0.22 * on], flat: true });
+    }
   }
-  function drawCar(g, spr, x, by, dir) { g.drawImage(dir > 0 ? spr.r : spr.l, Math.round(x) - 26, Math.round(by) - 21); }
-  // farol (luz do carro na rua)
   function beam(g, x, y, dir, len, a) {
     const gr = g.createLinearGradient(x, 0, x + dir * len, 0);
-    gr.addColorStop(0, 'rgba(255,240,190,' + a.toFixed(3) + ')');
-    gr.addColorStop(1, 'rgba(255,240,190,0)');
+    gr.addColorStop(0, 'rgba(255,240,190,' + a.toFixed(3) + ')'); gr.addColorStop(1, 'rgba(255,240,190,0)');
     g.fillStyle = gr;
-    g.beginPath();
-    g.moveTo(x, y - 1);
-    g.lineTo(x + dir * len, y - 6);
-    g.lineTo(x + dir * len, y + 7);
-    g.lineTo(x, y + 1);
-    g.closePath();
-    g.fill();
-  }
-  // moto parada (perto da faculdade, como na foto 07)
-  function moto(g, x, by, col) {
-    disc(g, x - 6, by - 3, 3, '#121418'); disc(g, x + 6, by - 3, 3, '#121418');
-    R(g, x - 5, by - 8, 10, 3, col);
-    R(g, x - 2, by - 10, 6, 2, '#16181d');
-    R(g, x + 5, by - 11, 1, 5, '#9aa3b0');
-    R(g, x + 4, by - 12, 3, 1, '#2a2f38');
+    g.beginPath(); g.moveTo(x, y - 1); g.lineTo(x + dir * len, y - 6); g.lineTo(x + dir * len, y + 7); g.lineTo(x, y + 1); g.closePath(); g.fill();
   }
   function dog(g, x, y, step) {
-    R(g, x - 4, y - 5, 8, 3, '#6b4a2a');
-    R(g, x + 3, y - 7, 3, 3, '#6b4a2a');
-    R(g, x + 5, y - 6, 1, 1, '#121418');
-    R(g, x - 5, y - 6, 1, 2, '#6b4a2a');
+    R(g, x - 4, y - 5, 8, 3, '#6b4a2a'); R(g, x + 3, y - 7, 3, 3, '#6b4a2a'); R(g, x + 5, y - 6, 1, 1, '#121418'); R(g, x - 5, y - 6, 1, 2, '#6b4a2a');
     const s = step % 2;
     R(g, x - 3 + s, y - 2, 1, 2, '#4a3220'); R(g, x + 2 - s, y - 2, 1, 2, '#4a3220');
   }
-
-  // Academia Sky Fit (foto 02): bloco vermelho, caixa preta com o letreiro, vidro e porta de enrolar
-  function skyfit(g, X, by, on, emit, lights) {
-    const top = by - 58;
-    R(g, X, top, 44, 58, '#b5222b');
-    for (let k = 0; k < 5; k++) R(g, X + 3 + k * 9, top + 4, 1, 52, '#8e1a22');
-    R(g, X, top, 44, 1, '#e04a4a');
-    R(g, X + 8, top + 8, 20, 12, '#1f3f8a');
-    R(g, X + 17, top + 11, 2, 5, '#e9ecef'); R(g, X + 15, top + 13, 6, 1, '#e9ecef');
-    R(g, X + 8, top + 20, 20, 3, '#e9ecef');
-    R(g, X + 44, top, 126, 30, '#141418');
-    R(g, X + 44, top, 126, 1, '#2a2a30');
-    R(g, X + 44, top + 30, 126, 28, '#4a4f5a');
-    R(g, X + 50, top + 34, 46, 24, '#2a3340');
-    for (let i = 0; i < 4; i++) R(g, X + 50 + i * 12, top + 34, 1, 24, '#14171c');
-    R(g, X + 56, top + 46, 8, 6, '#1a1f26'); R(g, X + 74, top + 44, 10, 8, '#1a1f26');
-    R(g, X + 104, top + 34, 60, 24, '#9aa3b0');
-    for (let i = 0; i < 24; i += 2) R(g, X + 104, top + 34 + i, 60, 1, '#7d8590');
-    const sx = X + 44 + Math.round((126 - textW('SKYFIT', 3)) / 2);
-    emit.push((g) => {
-      text(g, 'SKY', sx, top + 8, 3, '#f4f6fa');
-      text(g, 'FIT', sx + textW('SKY', 3) + 3, top + 8, 3, '#ff3b3b');
-      R(g, sx, top + 26, textW('SKYFIT', 3), 1, '#ff3b3b');
-    });
-    lights.push({ x: X + 107, y: top + 15, r: 46, c: [255, 60, 60, 0.32 * on] });
-    lights.push({ x: X + 73, y: top + 46, r: 26, c: [200, 225, 255, 0.35 * on] });
+  function glow(g, x, y, r, c) {
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + c[3].toFixed(3) + ')'); gr.addColorStop(1, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',0)');
+    g.fillStyle = gr;
+    g.fillRect(x - r, y - r, r * 2, r * 2);
   }
 
-  // logo da faculdade: escudo com montanhas e uma folha (foto 06)
-  function logo(g, x, y, c) {
-    R(g, x, y, 16, 1, c); R(g, x, y, 1, 14, c); R(g, x + 15, y, 1, 14, c);
-    for (let i = 0; i <= 7; i++) { const dy = Math.round((i * 6) / 7); R(g, x + i, y + 14 + dy, 1, 1, c); R(g, x + 15 - i, y + 14 + dy, 1, 1, c); }
-    for (const [a, b] of [[1, 6], [2, 5], [3, 4], [4, 3], [5, 2], [6, 3], [7, 4], [8, 5], [9, 4], [10, 3], [11, 2], [12, 3], [13, 4], [14, 5]]) R(g, x + a, y + b, 1, 1, c);
-    R(g, x + 8, y + 7, 1, 12, c);
-    for (let dy = 0; dy <= 11; dy++) { const w = Math.round(4 * Math.sin((Math.PI * dy) / 11)); R(g, x + 8 - w, y + 7 + dy, 1, 1, c); R(g, x + 8 + w, y + 7 + dy, 1, 1, c); }
-    R(g, x + 6, y + 11, 2, 1, c); R(g, x + 9, y + 11, 2, 1, c); R(g, x + 5, y + 14, 3, 1, c); R(g, x + 9, y + 14, 3, 1, c);
-  }
-
-  // Faculdade Serra Dourada (fotos 06 e 07): metal ondulado, letreiro branco, marquise de madeira,
-  // entrada de vidro com luz quente, lateral com vidraça, painéis iluminados e motos
-  function faculdade(g, X, by, on, emit, lights) {
-    const top = by - 82, W = 330, mid = 150;
-    for (let x = 0; x < W; x += 2) {
-      const front = x < mid;
-      R(g, X + x, top, 1, 54, front ? '#b4bcc7' : '#7d8590');
-      R(g, X + x + 1, top, 1, 54, front ? '#959ead' : '#666d78');
-    }
-    R(g, X, top, W, 1, '#e4e8ee');
-    R(g, X + mid, top, 1, 54, '#d9dde3');
-    // marquise de madeira
-    R(g, X - 6, by - 30, W + 6, 6, '#b8562c');
-    R(g, X - 6, by - 30, W + 6, 1, '#d9784a');
-    R(g, X - 6, by - 25, W + 6, 1, '#7a3a1e');
-    // térreo
-    R(g, X, by - 24, W, 24, '#c9ccd1');
-    R(g, X - 4, by - 24, 4, 24, '#b4b8be');
-    // entrada de vidro com luz quente lá dentro
-    const dx = X + 44, dw = 62;
-    R(g, dx, by - 23, dw, 23, '#f0c08a');
-    R(g, dx, by - 23, dw, 5, '#f8dcb0');
-    R(g, dx + 44, by - 21, 16, 21, '#b4602e');
-    for (let i = 0; i < 16; i += 2) R(g, dx + 44 + i, by - 21, 1, 21, '#9a4e24');
-    R(g, dx + 50, by - 17, 4, 4, '#f4f6fa');
-    for (let i = 0; i < 5; i++) R(g, dx + 8 + i * 7, by - 18 - (i % 2), 2, 2, '#fffbe8');
-    R(g, dx + 6, by - 8, 18, 1, '#5a4030'); R(g, dx + 8, by - 7, 1, 7, '#5a4030'); R(g, dx + 22, by - 7, 1, 7, '#5a4030');
-    R(g, dx + 28, by - 9, 7, 9, '#f4ece0');
-    R(g, dx, by - 24, dw, 1, '#3a3f4a');
-    R(g, dx, by - 23, 1, 23, '#3a3f4a'); R(g, dx + dw - 1, by - 23, 1, 23, '#3a3f4a'); R(g, dx + dw / 2, by - 23, 1, 23, '#3a3f4a');
-    R(g, dx + 18, by, 26, 1, '#2a2f38');
-    // lateral: vidraça iluminada, alguém estudando, plantas na frente
-    for (let i = 0; i < 3; i++) { const wx = X + mid + 6 + i * 32; R(g, wx, by - 22, 28, 20, '#f2d2a8'); R(g, wx, by - 22, 28, 3, '#fae6c8'); }
-    disc(g, X + mid + 26, by - 13, 2, '#3a2a24'); R(g, X + mid + 24, by - 11, 5, 6, '#e9e9e6'); R(g, X + mid + 20, by - 9, 3, 3, '#9aa3b0');
-    R(g, X + mid + 40, by - 14, 2, 10, '#3c6a42'); disc(g, X + mid + 41, by - 16, 3, '#4f8148');
-    for (let k = 0; k < 18; k++) { disc(g, X + mid + 4 + k * 6, by - 2, 3, k % 2 ? '#3c6a42' : '#2f5a38'); if (k % 3 === 0) R(g, X + mid + 5 + k * 6, by - 4, 1, 1, '#ff9a52'); }
-    // painéis de propaganda iluminados
-    const px = X + 250;
-    R(g, px, top + 8, 36, 44, '#e9ecef');
-    R(g, px + 2, top + 10, 16, 18, '#c8262e'); R(g, px + 18, top + 10, 16, 18, '#3c8a4a'); R(g, px + 10, top + 14, 10, 12, '#ff9a52');
-    R(g, px + 4, top + 32, 28, 2, '#2a2f38'); R(g, px + 4, top + 37, 20, 2, '#c8262e'); R(g, px + 4, top + 42, 24, 1, '#2a2f38');
-    R(g, px + 40, top + 8, 36, 44, '#e9ecef');
-    R(g, px + 42, top + 10, 32, 10, '#c8262e'); R(g, px + 42, top + 20, 32, 8, '#3c8a4a');
-    for (let i = 0; i < 6; i++) R(g, px + 44, top + 31 + i * 3, 12 + (i % 3) * 4, 1, '#5d6573');
-    R(g, px + 62, top + 40, 10, 8, '#2a2f38');
-    for (const fx of [px + 8, px + 28, px + 48, px + 68]) { R(g, fx, top + 3, 1, 5, '#3a3f4a'); R(g, fx - 2, top + 3, 5, 2, '#5d6573'); }
-    // poste com câmeras e luz azul (foto 06)
-    R(g, X - 16, by - 52, 2, 52, '#2a2f38');
-    R(g, X - 20, by - 44, 5, 3, '#e9ecef'); R(g, X - 13, by - 42, 5, 3, '#e9ecef'); R(g, X - 19, by - 38, 5, 3, '#e9ecef');
-    R(g, X - 16, by - 34, 2, 2, '#3a6bff');
-    R(g, X - 16, by - 52, 12, 1, '#5d6573'); R(g, X - 7, by - 51, 4, 2, '#fff3d6');
-    // o letreiro acende por cima de tudo (é luz)
-    emit.push((g) => {
-      const sc = '#f4f6fa';
-      g.globalAlpha = 0.55 * on;
-      for (let x = 0; x < mid; x += 2) { R(g, X + x, top, 1, 54, '#c8ced8'); R(g, X + x + 1, top, 1, 54, '#a9b0bb'); }
-      g.globalAlpha = 1;
-      logo(g, X + 14, top + 12, sc);
-      text(g, 'FACULDADE', X + 38, top + 10, 1, sc);
-      text(g, 'SERRA', X + 38, top + 18, 2, sc);
-      text(g, 'DOURADA', X + 38, top + 30, 2, sc);
-      text(g, 'CANAÃ DOS CARAJÁS', X + 38, top + 45, 1, sc);
-    });
-    lights.push({ x: X + 75, y: top + 20, r: 95, c: [225, 235, 255, 0.10 + 0.22 * on] });
-    lights.push({ x: dx + dw / 2, y: by - 10, r: 42, c: [255, 190, 120, 0.15 + 0.3 * on] });
-    lights.push({ x: dx + dw / 2, y: by + 8, r: 40, c: [255, 190, 120, 0.25 * on], flat: true });
-    lights.push({ x: X + mid + 50, y: by - 12, r: 50, c: [255, 200, 140, 0.25 * on] });
-    lights.push({ x: px + 38, y: top + 30, r: 50, c: [235, 240, 255, 0.25 * on] });
-    lights.push({ x: X - 15, y: by - 33, r: 9, c: [70, 120, 255, 0.4 + 0.5 * on * (0.6 + 0.4 * Math.sin(S.t * 4))] });
-    lights.push({ x: X - 5, y: by - 50, r: 10, c: [255, 220, 160, 0.9 * on] });
-    lights.push({ x: X - 5, y: by + 14, r: 30, c: [255, 200, 130, 0.22 * on], flat: true });
-  }
-
-  // Prefeitura de Canaã dos Carajás / Centro Administrativo (foto 08), vista de longe, do outro lado do
-  // lago: prédio comprido e baixo, claro, com faixas de vidro verde e brises brancos, a entrada no meio
-  // um pouco mais alta, a fileira de bandeiras na frente e o totem com a bandeira da cidade.
-  // Desenhado uma vez num sprite (128 × 34, chão na última linha); .lit = vidros que acendem à noite.
+  // Prefeitura / Centro Administrativo (foto 08), de longe, do outro lado do lago (não mudou)
   function makePrefeitura() {
     const W = 128, H = 34, c = DL.mk(W, H), g = c.getContext('2d'), B = H, lit = [];
-    // bloco principal
-    R(g, 4, B - 20, 120, 20, '#d4d8de');
-    R(g, 4, B - 21, 120, 1, '#eef0f3');
-    R(g, 4, B - 20, 120, 1, '#b4bac2');
-    // duas faixas de vidro verde com brises brancos na frente
+    R(g, 4, B - 20, 120, 20, '#d4d8de'); R(g, 4, B - 21, 120, 1, '#eef0f3'); R(g, 4, B - 20, 120, 1, '#b4bac2');
     for (const y of [B - 17, B - 11]) {
-      R(g, 6, y, 116, 4, '#2f7a5a');
-      R(g, 6, y, 116, 1, '#5fb48a');
+      R(g, 6, y, 116, 4, '#2f7a5a'); R(g, 6, y, 116, 1, '#5fb48a');
       for (let x = 6; x < 122; x += 3) R(g, x, y, 1, 4, '#e9ecef');
       for (let x = 8; x < 120; x += 6) if (hash(x * 7 + y) > 0.35) lit.push([x, y + 2]);
     }
-    // térreo escuro (recuado)
-    R(g, 6, B - 6, 116, 5, '#5d6573');
-    R(g, 6, B - 6, 116, 1, '#7d8590');
-    // entrada no meio, mais alta, toda de vidro verde
-    R(g, 52, B - 26, 26, 26, '#c9ced5');
-    R(g, 52, B - 27, 26, 1, '#eef0f3');
-    R(g, 55, B - 24, 20, 18, '#2a6e50');
+    R(g, 6, B - 6, 116, 5, '#5d6573'); R(g, 6, B - 6, 116, 1, '#7d8590');
+    R(g, 52, B - 26, 26, 26, '#c9ced5'); R(g, 52, B - 27, 26, 1, '#eef0f3'); R(g, 55, B - 24, 20, 18, '#2a6e50');
     for (let x = 55; x < 75; x += 4) R(g, x, B - 24, 1, 18, '#a9d8bf');
-    R(g, 50, B - 7, 30, 2, '#eef0f3'); // marquise
+    R(g, 50, B - 7, 30, 2, '#eef0f3');
     for (let x = 57; x < 74; x += 5) lit.push([x, B - 20], [x, B - 14]);
-    // fileira de bandeiras na frente
     const FLAGS = [['#2f9a4a', '#f2c14e'], ['#c8262e', '#e9ecef'], ['#1f3f8a', '#e9ecef'], ['#2f9a4a', '#f2c14e'], ['#e86a2a', '#1f3f8a'], ['#c8262e', '#f2c14e'], ['#2f9a4a', '#1f3f8a']];
-    FLAGS.forEach(([a, b], i) => {
-      const x = 30 + i * 11;
-      R(g, x, B - 14, 1, 14, '#c8ccd2');
-      R(g, x + 1, B - 14, 4, 3, a);
-      R(g, x + 1, B - 12, 4, 1, b);
-    });
-    // totem com a bandeira de Canaã (verde, amarelo, círculo azul) e o nome embaixo
-    R(g, 10, B - 22, 12, 22, '#eef0f3');
-    R(g, 10, B - 22, 1, 22, '#c9ced5');
-    R(g, 12, B - 20, 8, 6, '#2f9a4a');
-    R(g, 13, B - 19, 6, 4, '#f2c14e');
-    R(g, 15, B - 18, 2, 2, '#1f3f8a');
-    R(g, 12, B - 12, 8, 1, '#c8262e');
-    R(g, 12, B - 10, 8, 1, '#2a6e50');
-    R(g, 12, B - 8, 6, 1, '#2a6e50');
+    FLAGS.forEach(([a, b], i) => { const x = 30 + i * 11; R(g, x, B - 14, 1, 14, '#c8ccd2'); R(g, x + 1, B - 14, 4, 3, a); R(g, x + 1, B - 12, 4, 1, b); });
+    R(g, 10, B - 22, 12, 22, '#eef0f3'); R(g, 10, B - 22, 1, 22, '#c9ced5'); R(g, 12, B - 20, 8, 6, '#2f9a4a'); R(g, 13, B - 19, 6, 4, '#f2c14e'); R(g, 15, B - 18, 2, 2, '#1f3f8a');
+    R(g, 12, B - 12, 8, 1, '#c8262e'); R(g, 12, B - 10, 8, 1, '#2a6e50'); R(g, 12, B - 8, 6, 1, '#2a6e50');
     c.lit = lit;
     return c;
   }
 
-  // torre de celular (foto 05)
-  function tower(g, x, by, on, lights) {
-    for (let i = 0; i < 84; i++) {
-      const w = Math.round(6 * (1 - i / 96));
-      R(g, x - w, by - i, 1, 1, '#9aa3b0'); R(g, x + w, by - i, 1, 1, '#9aa3b0');
-      if (i % 7 === 0) R(g, x - w, by - i, 2 * w + 1, 1, '#7d8590');
-    }
-    R(g, x - 3, by - 80, 2, 5, '#c8ccd2'); R(g, x + 2, by - 79, 2, 5, '#c8ccd2');
-    const blink = Math.sin(S.t * 3) > 0 ? 1 : 0.2;
-    R(g, x, by - 86, 1, 2, '#ff3b3b');
-    lights.push({ x: x + 0.5, y: by - 85, r: 6, c: [255, 60, 60, 0.8 * on * blink] });
-  }
-
   /* ------------------------------------------------------------------ */
-  /* Montagem da cena (uma vez, ao entrar)                               */
+  /* Montagem (uma vez)                                                  */
   /* ------------------------------------------------------------------ */
   const WALKERS = [
     { skin: '#c98e66', hair: '#1a1210', hairStyle: 'ponytail', shirt: '#e86a5a', pants: '#2b2f3a', shoes: '#eceff3' },
@@ -375,372 +147,594 @@
     { skin: '#e0ac7e', hair: '#2a1c16', hairStyle: 'curly', shirt: '#f2c14e', pants: '#1f2430', shoes: '#c8262e' },
     { skin: '#a86f4c', hair: '#1a1210', hairStyle: 'short', shirt: '#c8262e', pants: '#2a2f38', shoes: '#eceff3' },
   ];
-  let PREF = null; // sprite da Prefeitura (feito em build)
-  const S = { t: 0, cam: 0, buf: null, bg: null, statics: [], people: [], done: false, skipAt: null, caption: '' };
+  let PREF = null;
+  const S = { t: 0, cam: null, buf: null, statics: [], people: [], done: false, skipAt: null, caption: '' };
+  // a fila de prédios da PA-160 (modelos de abertura-pecas.js) e o vão depois de cada um (vão ≥ 30 ganha uma árvore)
+  const ORDEM = [0, 7, 2, 1, 4, 3, 6, 5, 10, 9, 13, 8, 15, 11, 16, 21, 18, 12, 14, 17, 19, 20, 22], VAO = [8, 34, 6, 10, 40, 12, 6, 34, 10, 8, 36, 6, 12, 30, 8, 40, 6, 10, 34, 8, 6, 12, 36];
+  // as camadas do meio e do fundo usam mais os prédios altos (aparecem por cima dos telhados da frente)
+  const ORDEM_LONGE = [8, 4, 13, 19, 22, 1, 0, 14, 10, 5, 2, 7, 6, 17, 3, 21, 12, 9, 16, 11, 18, 20];
+  // o plano de fundo (câmera atrás do carro)
+  const FV = 150, FDEC = 2.6, F_T0 = TL.fundo - MIX, F_DUR = TL.para - F_T0, F_TOTAL = FV * (F_DUR - FDEC) + (FV * FDEC) / 2, F_SERRA = F_TOTAL + 108;
+  function fDist(tt) {
+    tt = clamp(tt, 0, F_DUR);
+    if (tt < F_DUR - FDEC) return FV * tt;
+    const r = tt - (F_DUR - FDEC);
+    return FV * (F_DUR - FDEC) + FV * (r - (r * r) / (2 * FDEC));
+  }
 
+  // A montagem é um gerador: cada "yield" é um ponto onde ela pode parar e continuar depois.
+  // preparar() (chamada pelo lago, na parte jogável) monta aos poucos no tempo livre de cada quadro;
+  // build() termina de uma vez o que faltar (ou tudo, se ?mapa=abertura).
   function build() {
-    const st = [];
-    const add = (o) => st.push(o);
-    // 1. lago: árvores e postes no canteiro entre o lago e a avenida
-    for (let x = 30, i = 0; x < LAKE_END - 20; x += 52 + Math.round(hash(i * 5) * 30), i++) add({ k: 'tree', x, y: 131 + Math.round(hash(i * 9) * 3), r: 8 + Math.round(hash(i * 13) * 5), seed: i, lake: true });
-    add({ k: 'tree', x: 330, y: 133, r: 15, seed: 99, lake: true });
-    for (let x = 90; x < LAKE_END; x += 150) add({ k: 'lamp', x, y: 134, lake: true });
-    // 3. PA-160: academia, estacionamento, lojas, postes e arvorezinhas
-    add({ k: 'skyfit', x: 1110, y: 112 });
-    add({ k: 'shed', x: 1300, y: 112, w: 70, h: 26, col: '#c9c2b5' });
-    add({ k: 'shed', x: 1390, y: 112, w: 90, h: 32, col: '#8e96a3' });
-    add({ k: 'shed', x: 1500, y: 112, w: 60, h: 22, col: '#d9d2c5' });
-    add({ k: 'shed', x: 1580, y: 112, w: 110, h: 30, col: '#b4b8be' });
-    for (const [x, col, dir] of [[1135, '#c8ccd2', 1], [1180, '#7d8590', -1], [1232, '#b8333a', 1], [1275, '#e9ecef', -1]]) add({ k: 'parked', x, y: 123, col, dir });
-    for (let x = 1050, i = 0; x < PA_END - 20; x += 120, i++) add({ k: 'lamp', x, y: 134 });
-    for (let x = 1100, i = 0; x < PA_END; x += 95, i++) add({ k: 'tree', x: x + 40, y: 135, r: 5 + Math.round(hash(i + 50) * 2), seed: i + 50 });
-    // 4. rotatória: galpões atrás, ilha com árvore
-    add({ k: 'shed', x: 1780, y: 116, w: 80, h: 22, col: '#e0d9cc' });
-    add({ k: 'shed', x: 1880, y: 116, w: 120, h: 28, col: '#c9c2b5' });
+    if (S.pronto) return;
+    const g = S.gen || montar();
+    S.gen = null;
+    while (!g.next().done);
+  }
+  function preparar() {
+    if (S.pronto || S.gen) return;
+    S.gen = montar();
+    const ric = window.requestIdleCallback || ((f) => setTimeout(() => f({ timeRemaining: () => 8 }), 40));
+    const passo = (dl) => {
+      if (!S.gen) return;
+      const t0 = performance.now(), max = Math.max(3, Math.min(10, dl.timeRemaining()));
+      do { if (S.gen.next().done) { S.gen = null; return; } } while (performance.now() - t0 < max);
+      ric(passo, { timeout: 400 });
+    };
+    ric(passo, { timeout: 400 });
+  }
+  function* montar() {
+    const st = [], add = (o) => { st.push(o); return o; };
+    const spr = (c, x, y, extra) => add(Object.assign({ k: 'spr', spr: c, x, y }, extra));
+    const A_ = (seed, H, x, y, extra) => spr(P.arvoreG(seed, H), x, y, extra);
+    /* 1. lago: árvores grandes no canteiro (com espaço para ver o sol na água) e postes altos */
+    for (let x = 40, i = 0; x < LAKE_END - 40; x += 130 + Math.round(hash(i * 5) * 70), i++) { A_(i + 1, 72 + Math.round(hash(i * 13) * 26), x, 131 + Math.round(hash(i * 9) * 3), { lake: true, r: 28 }); yield; }
+    for (let x = 90; x < LAKE_END; x += 170) add({ k: 'lamp', x, y: 134, lake: true });
+    /* 2. PA-160: a SkyFit (foto 15) em escala, carros parados na frente, a bandeira-faixa */
+    const sf = P.skyfit();
+    yield;
+    spr(sf.c, SF_X + sf.w / 2, LOTE, { luz: sf.luz, lights: [[-218, -68, 50, [255, 70, 70, 0.3]], [-203, -18, 44, [190, 220, 255, 0.3]], [-83, -16, 32, [200, 225, 255, 0.35]]] });
+    spr(P.bandeirola(), SF_X + sf.w - 34, 128);
+    for (const [x, col, dir] of [[SF_X + 40, '#c8ccd2', 1], [SF_X + 170, '#b8333a', -1], [SF_X + 236, '#e9ecef', 1], [SF_X + 430, '#7d8590', 1]]) add({ k: 'parked', x, y: 136, col, dir });
+    A_(61, 112, SF_X - 22, LOTE - 2);
+    /* 3. casas e comércios em escala: uma fila contínua; árvores grandes nos vãos e atrás dos telhados */
+    let x = SF_X + sf.w + 14, n = 0;
+    function* casas(ate) {
+      for (; ; n++) {
+        const m = ORDEM[n % ORDEM.length], p = P.predio(m, n * 5 + 2, n % 3 === 1), vao = VAO[n % VAO.length];
+        if (x + p.w > ate) break;
+        spr(p.c, x + p.w / 2, LOTE, { luz: p.luz, lights: p.brilhos });
+        if (vao >= 30) A_(n + 20, 84 + Math.round(hash(n * 3) * 26), x + p.w + vao / 2, LOTE + 1);
+        if (n % 2 === 0) A_(n + 40, 104 + Math.round(hash(n * 7) * 20), x + p.w * (0.25 + hash(n) * 0.5), LOTE - 5);
+        if (hash(n * 11) > 0.5) spr(P.capim(n, 14 + Math.round(hash(n) * 10)), x + p.w + vao / 2 + 8, LOTE + 1);
+        x += p.w + vao;
+        yield;
+      }
+    }
+    yield* casas(PA_END - 6);
+    /* canteiro da calçada: postes altos com fios, árvores de calçada (nunca menores que uma casa), placas, ponto de ônibus */
+    let ant = null;
+    for (let px = 1040, i = 0; px < PA_END; px += 170, i++) { const o = add({ k: 'poste', x: px, y: 134, trafo: i % 4 === 2 }); if (ant) ant.nx = px; ant = o; }
+    for (let tx = 1330, i = 0; tx < PA_END - 20; tx += 240 + Math.round(hash(i * 7 + 2) * 90), i++) {
+      A_(i + 70, 70 + Math.round(hash(i + 5) * 18), tx, 134);
+      spr(P.arbusto(i + 3, 16 + Math.round(hash(i) * 12)), tx + 92, 135);
+      yield;
+    }
+    spr(P.placaVel('40'), 1210, 133); spr(P.placaAzul('PA-160'), 1720, 133); spr(P.placaVel('40'), 2230, 133); spr(P.placaDir('CENTRO >', 'AV. CARAJAS >'), PA_END - 44, 133);
+    spr(P.pontoOnibus(), 1960, 129);
+    /* canteiro central: palmeiras de verdade (6–8 m) e arbustos */
+    for (let mx = 1090, i = 0; mx < PA_END - 30; mx += 200, i++) { spr(P.palmeira(i + 1, 54 + Math.round(hash(i * 3) * 14), 1.8), mx, 153); spr(P.arbusto(i + 30, 16 + Math.round(hash(i * 5) * 10)), mx + 100, 153); yield; }
+    /* 4. rotatória: pracinha atrás com árvores grandes, ilha com árvore */
+    for (const [tx, h, y] of [[PA_END + 22, 96, 126], [PA_END + 80, 118, 123], [PA_END + 132, 90, 128], [DX - 54, 104, 125]]) { A_(tx, h, tx, y); yield; }
+    spr(P.arbusto(5, 26), PA_END + 46, 131); spr(P.arbusto(8, 20), PA_END + 104, 132);
     add({ k: 'island', x: ROT_X, y: CENTER });
-    // 5. Av. Carajás: muros, mato, torre, fileira de árvores e postes no canteiro
-    for (const [x, w] of [[2060, 140], [2240, 90], [2380, 60], [2640, 160], [2860, 120]]) add({ k: 'wall', x, y: 121, w });
-    add({ k: 'shed', x: 2470, y: 121, w: 90, h: 24, col: '#d9d2c5' });
-    add({ k: 'tower', x: 2560, y: 112 });
-    for (let x = 2070, i = 0; x < CAR_END - 30; x += 44, i++) add({ k: 'tree', x, y: 133, r: 6 + Math.round(hash(i + 70) * 3), seed: i + 70 });
-    for (let x = 2120; x < CAR_END; x += 160) add({ k: 'lamp', x, y: 134 });
-    // 6. faculdade e motos
-    add({ k: 'fac', x: FAC_X, y: VERGE });
-    for (const [x, col] of [[FAC_X + 270, '#b8333a'], [FAC_X + 292, '#2a2f38'], [FAC_X + 312, '#c8262e']]) add({ k: 'moto', x, y: 133, col });
+    /* a avenida que vai para o fundo: árvores e postes diminuindo dos dois lados */
+    for (const k of [0.16, 0.26, 0.4, 0.58, 0.8]) {
+      const y = lerp(VPY, ROAD0, k), r = ruaFundo(y);
+      for (const lado of [-1, 1]) add({ k: 'sprS', spr: P.arvoreG(600 + (lado > 0 ? 1 : 0), 100), x: r.x + lado * (r.hw + 14 * k + 3), y, s: k * 0.55 });
+    }
+    /* depois da avenida: mais casas (o carro não chega lá) */
+    x = DX + 62; yield* casas(END_X + 300);
+    for (let px = DX + 60; px < END_X + 300; px += 170) add({ k: 'poste', x: px, y: 134, nx: px + 170 });
     S.statics = st;
+
+    /* camadas com paralaxe atrás da fila da frente: MEIO (prédios a 0,62, árvores) e LONGE (prédios a 0,4).
+       lx = posição na camada; na tela fica em lx - cam × par. Perto da avenida que vai para o fundo
+       (na hora da curva) a camada fica vazia, para não ficar em cima dela. */
+    function* camada(par, esc, nevoa, cor, base, semente, arvH) {
+      const out = [], camV = DX + 14 - 210;
+      let lx = (LAKE_END - 500) * par, i = 0;
+      while (lx < END_X * par + 700) {
+        const p = P.predioSil(i * 7 + semente * 100, esc, nevoa, cor);
+        const perto = (a, b) => { const wa = a + camV * (1 - par), wb = b + camV * (1 - par); return wb > DX - 80 && wa < DX + 100; };
+        if (!perto(lx, lx + p.w)) out.push({ lx: lx + p.w / 2, y: base, spr: p.c, luz: p.luz });
+        const ar = P.arvoreLonge((i % 6) + semente * 50, Math.round(arvH * (0.8 + Math.floor(hash(i * 5 + semente) * 3) * 0.2)), nevoa, cor);
+        if (hash(i * 13 + semente) > 0.4 && !perto(lx + p.w - ar.width / 2, lx + p.w + ar.width / 2)) out.push({ lx: lx + p.w + 2, y: base + 1, spr: ar });
+        lx += p.w + 3 + Math.round(hash(i * 3 + semente) * 10 * esc);
+        i++;
+        yield;
+      }
+      return out;
+    }
+    S.longe = yield* camada(0.6, 0.35, 0.6, '#6a5a8a', 104, 3, 34);
+    S.meio = yield* camada(0.82, 0.55, 0.42, '#7a5a8a', 113, 11, 56);
+
+    /* camadas com paralaxe: mata ao fundo (2) e arbustos/capim na frente (1) */
+    S.mata = [P.mata(1, 480, 30, ['#4a6a62', '#5a7c6c']), P.mata(2, 420, 34, ['#33583c', '#447046'])];
+    S.frente = [];
+    for (let wx = PA0 + 30, i = 0; wx < ROT_X - 60; wx += 60 + Math.round(hash(i * 9 + 1) * 90), i++) {
+      const tipo = hash(i * 5 + 2);
+      S.frente.push({ wx, spr: tipo < 0.5 ? P.arbusto(i + 50, 22 + Math.round(hash(i) * 16)) : tipo < 0.8 ? P.capim(i + 9, 18 + Math.round(hash(i) * 14)) : P.palmeira(i + 20, 70, 2) });
+    }
+
     PREF = makePrefeitura();
     S.pfBuf = DL.mk(PREF.width, PREF.height);
     S.pfG = S.pfBuf.getContext('2d');
-
-    // pessoas caminhando no canteiro do lago (vão e voltam)
-    S.people = [
-      { look: 0, a: 60, b: 520, y: 129, sp: 15, ph: 40 },
-      { look: 1, a: 120, b: 640, y: 132, sp: 18, ph: 300 },
-      { look: 2, a: 380, b: 900, y: 128, sp: 13, ph: 120 },
-      { look: 3, a: 200, b: 820, y: 131, sp: 17, ph: 610 },
-    ].map((p) => Object.assign(p, { sheet: DL.makeSheet(WALKERS[p.look]) }));
-    S.dogWalker = DL.makeSheet(WALKERS[4]);
+    const gente = [
+      { look: 0, a: 60, b: 520, y: 129, sp: 15, ph: 40 }, { look: 1, a: 120, b: 640, y: 132, sp: 18, ph: 300 },
+      { look: 2, a: 380, b: 900, y: 128, sp: 13, ph: 120 }, { look: 3, a: 200, b: 820, y: 131, sp: 17, ph: 610 },
+      // esperando no ponto de ônibus
+      { look: 2, a: 1956, y: 128.6, parado: 'down' }, { look: 3, a: 1974, y: 128.4, parado: 'left' }, { look: 1, a: 1940, y: 129, parado: 'right' },
+      // na calçada da frente (do lado da câmera)
+      { look: 4, a: 1150, b: 2550, y: 174, sp: 15, ph: 200 }, { look: 0, a: 1400, b: 2550, y: 175, sp: 12, ph: 900 },
+    ];
+    // a calçada das lojas sempre com alguém andando
+    for (let i = 0; i < 14; i++) gente.push({ look: i % 5, a: 1080 + i * 110, b: 1080 + i * 110 + 240, y: 123.5 + (i % 4) * 1.6, sp: 10 + hash(i * 3) * 9, ph: hash(i * 7) * 480 });
+    const folhas = []; // uma folha de sprites por visual (fazer uma por pessoa custava segundos)
+    for (const L of WALKERS) { folhas.push(DL.makeSheet(L)); yield; }
+    S.people = gente.map((p) => Object.assign(p, { sheet: folhas[p.look] }));
+    S.dogWalker = folhas[4];
     S.hero = DL.makeSheet(DL.LOOKS.player);
-    S.cars = { hero: makeCar('#3a6ea5'), silver: makeCar('#c8ccd2'), gray: makeCar('#7d8590'), red: makeCar('#b8333a'), white: makeCar('#e9ecef') };
+    yield;
+    const azul = (DL.Lago && DL.Lago.PAL && DL.Lago.PAL.wa3) || '#3a6ea5'; // a mesma cor do carro do lago
+    S.cars = { hero: P.carro(azul), silver: P.carro('#c8ccd2'), gray: P.carro('#7d8590'), red: P.carro('#b8333a'), white: P.carro('#e9ecef') };
+    S.heroTras = P.carroPonta(azul, false);
+    S.frenteCar = [P.carroPonta('#c8ccd2', true), P.carroPonta('#b8333a', true), P.carroPonta('#e9ecef', true)];
     S.parkedSpr = { '#c8ccd2': S.cars.silver, '#7d8590': S.cars.gray, '#b8333a': S.cars.red, '#e9ecef': S.cars.white };
-    // carros na contramão (faixa de lá)
-    S.traffic = [{ t0: 9.5, x0: 1500, spr: S.cars.silver }, { t0: 17, x0: 2350, spr: S.cars.red }, { t0: 24, x0: 3200, spr: S.cars.white }];
+    // o trânsito no sentido contrário (faixa de lá): carros, motos e um caminhão, um atrás do outro
+    const motos = [P.moto('#c8262e', '#3c6aa5', '#f4f6fa'), P.moto('#2a2f38', '#e86a5a', '#c8262e'), P.moto('#1f3f8a', '#f2c14e', '#2a2f38')], truck = P.caminhao('#2f7a4a');
+    const fila = [S.cars.silver, motos[0], S.cars.red, S.cars.white, truck, motos[1], S.cars.gray, S.cars.silver, motos[2], S.cars.white, S.cars.red, motos[0], S.cars.gray];
+    S.traffic = fila.map((spr, i) => {
+      const t0 = 8 + i * 1.95 + hash(i * 5) * 0.8, v = spr === truck ? 80 : spr.r.width < 40 ? 120 : 105;
+      return { t0, x0: carX(t0) + 280 + Math.round(hash(i * 9) * 140), spr, v };
+    });
+
+    /* o plano de fundo: o que passa dos dois lados da avenida, [X (larguras de pista), D (distância)] */
+    const fo = [], fadd = (o) => fo.push(o);
+    const poste2 = DL.mk(18, 106), pg = poste2.getContext('2d');
+    R(pg, 2, 2, 3, 104, '#9aa3b0'); R(pg, 2, 2, 1, 104, '#c8ccd2'); R(pg, 2, 2, 14, 1, '#9aa3b0'); R(pg, 11, 3, 6, 2, '#fff3d6');
+    const serra = A.serra();
+    fadd({ X: 3.35, D: F_SERRA, spr: serra.base, luz: serra.luz, serra: true });
+    const longe = (D) => D < F_SERRA - 170 || D > F_SERRA + 260; // em volta da faculdade nada tapa a fachada
+    for (let D = 150, i = 0; D < F_TOTAL + 900; D += 96, i++) {
+      const pr = P.predio(ORDEM[(i * 3 + 5) % ORDEM.length], i * 7 + 1, i % 2 === 0), pl = P.predio(ORDEM[(i * 5 + 2) % ORDEM.length], i * 3 + 4, i % 2 === 1);
+      if (longe(D)) {
+        fadd({ X: 1.64 + pr.w / 130, D, spr: pr.c, luz: pr.luz });
+        fadd({ X: 2.2 + pr.w / 65 + 0.5, D: D + 6, spr: P.arvoreG((i % 5) + 200, 96 + 12 * Math.floor(hash(i * 3) * 3)) });
+        fadd({ X: 2 + hash(i * 9) * 1.2, D: D + 60, spr: i % 2 ? P.capim(i, 26) : P.arbusto(i + 9, 26) });
+      }
+      fadd({ X: -(3.85 + pl.w / 130), D: D + 59, spr: pl.c, luz: pl.luz });
+      fadd({ X: -(4.9 + pl.w / 65), D: D + 64, spr: P.arvoreG((i % 5) + 300, 96 + 12 * Math.floor(hash(i * 5) * 3)) });
+      fadd({ X: -(4.2 + hash(i * 7) * 1.5), D: D + 2, spr: i % 2 ? P.arbusto(i + 40, 28) : P.capim(i + 3, 26) });
+      yield;
+    }
+    for (let D = 110, i = 0; D < F_TOTAL + 900; D += 92, i++) {
+      if (longe(D + 60)) fadd({ X: 1.29, D, spr: P.arvoreG((i % 4) + 400, 72 + 8 * Math.floor(hash(i * 3) * 3)) });
+      fadd({ X: -3.47, D: D + 40, spr: P.arvoreG((i % 4) + 500, 72 + 8 * Math.floor(hash(i * 7) * 3)) });
+    }
+    for (let D = 150, i = 0; D < F_TOTAL + 1100; D += 110, i++) fadd({ X: -1.12, D, spr: i % 2 ? P.palmeira(i + 9, 56 + Math.round(hash(i) * 12), 1.8) : P.arbusto(i + 80, 18 + Math.round(hash(i) * 8)) });
+    for (let D = 240, i = 0; D < F_TOTAL + 1100; D += 300, i++) { fadd({ X: 1.08, D, spr: poste2, lamp: -1 }); fadd({ X: -1.12, D: D + 150, spr: poste2, lamp: 1 }); }
+    S.fundo = fo;
+    S.pronto = true;
   }
 
   /* ------------------------------------------------------------------ */
-  /* Desenho de um quadro                                                */
+  /* Desenho                                                             */
   /* ------------------------------------------------------------------ */
   function walkFrame(sheet, dir, dist) { return sheet[dir].walk[Math.floor(dist / 6.5) % 4]; }
-  function person(g, frame, x, y) {
-    R(g, Math.round(x) - 4, Math.round(y) - 1, 8, 1, 'rgba(0,0,0,0.3)');
-    g.drawImage(frame, Math.round(x) - CH.AX, Math.round(y) - CH.AY);
+  // o mundo é desenhado em duas camadas ao mesmo tempo: G (as cores de dia) e LG (só o que acende).
+  // Tudo o que entra em G "apaga" o que estiver atrás em LG: assim uma árvore na frente tapa a janela acesa.
+  let G = null, LG = null, LON = false;
+  function put(c, x, y, w, h) {
+    x = Math.round(x); y = Math.round(y);
+    if (w == null) { G.drawImage(c, x, y); if (LON) LG.drawImage(c, x, y); }
+    else { w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h)); G.drawImage(c, x, y, w, h); if (LON) LG.drawImage(c, x, y, w, h); }
   }
-
-  function render(sc) {
-    const t = S.t, cv = sc.canvas, cw = cv.width, ch = cv.height;
-    const P = Math.max(1, Math.round(ch / 190)); // tamanho de cada pixel do mundo na tela
-    const VW = Math.ceil(cw / P), VH = Math.ceil(ch / P), oy = VH - H0 - Math.round(VH * 0.06); // sobe acima da faixa de cinema
-    if (!S.buf || S.buf.width !== VW || S.buf.height !== VH) { S.buf = DL.mk(VW, VH); S.g = S.buf.getContext('2d'); }
-    if (!S.wbuf || S.wbuf.width !== VW || S.wbuf.height !== VH) { S.wbuf = DL.mk(VW, VH); S.wg = S.wbuf.getContext('2d'); }
-    let g = S.g;
-    const day = smooth(6, 31, t);                    // 0 = pôr do sol, 1 = noite
-    const on = smooth(0.3, 0.65, day);               // luzes acesas
-    const warm = 1 - smooth(0.05, 0.45, day);        // luz quente do pôr do sol
-
-    // câmera: segue o carro; no fim, enquadra a faculdade
-    const cx = carX(t), cy = carY(cx);
-    let target = t < TL.go ? X_START - VW * 0.45 : cx - VW * 0.4;
-    target = lerp(target, DOOR_X + 30 - VW / 2, smooth(TL.stop - 3, TL.stop, t));
-    S.cam = S.cam == null ? target : S.cam + (target - S.cam) * Math.min(1, S.dt * 4);
-    S.cam = clamp(S.cam, 0, END_X - VW);
-    const cam = Math.round(S.cam);
-
+  function putLuz(c, x, y, w, h) {
+    if (!LON) return;
+    LG.globalCompositeOperation = 'source-over';
+    if (w == null) LG.drawImage(c, Math.round(x), Math.round(y)); else LG.drawImage(c, Math.round(x), Math.round(y), Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+    LG.globalCompositeOperation = 'destination-out';
+  }
+  // uma pessoa na escala da viagem (PS: ~20 px de altura), com a sombra
+  function person(frame, x, y) {
+    R(G, Math.round(x) - 3, Math.round(y) - 1, 7, 1, 'rgba(0,0,0,0.3)');
+    put(frame, x - CH.AX * PS, y - CH.AY * PS, frame.width * PS, frame.height * PS);
+  }
+  function camadas(VW, VH) {
+    for (const n of ['buf', 'buf2', 'wbuf', 'lbuf']) if (!S[n] || S[n].width !== VW || S[n].height !== VH) { S[n] = DL.mk(VW, VH); S[n + 'G'] = S[n].getContext('2d'); S[n + 'G'].imageSmoothingEnabled = false; }
+  }
+  function mundoIni(VW, VH, on, tx, ty) {
+    G = S.wbufG; LG = S.lbufG; LON = on > 0.03;
+    for (const g of [G, LG]) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.imageSmoothingEnabled = false; g.clearRect(0, 0, VW, VH); g.setTransform(1, 0, 0, 1, tx, ty); }
+    LG.globalCompositeOperation = 'destination-out';
+    return G;
+  }
+  // fecha o mundo: escurece conforme a hora e cola na imagem; depois soma o que está aceso
+  function mundoFim(g, VW, VH, day, warm, on) {
+    G.setTransform(1, 0, 0, 1, 0, 0);
+    G.globalCompositeOperation = 'source-atop';
+    if (warm > 0.02) { G.fillStyle = 'rgba(255,140,70,' + (0.14 * warm).toFixed(3) + ')'; G.fillRect(0, 0, VW, VH); }
+    G.fillStyle = 'rgba(8,10,34,' + (0.66 * day).toFixed(3) + ')';
+    G.fillRect(0, 0, VW, VH);
+    G.globalCompositeOperation = 'source-over';
     g.setTransform(1, 0, 0, 1, 0, 0);
-    g.globalAlpha = 1;
-    g.globalCompositeOperation = 'source-over';
-    g.imageSmoothingEnabled = false;
-
-    /* ---- céu: laranja e rosa no pôr do sol, azul-escuro à noite ---- */
-    const sky = g.createLinearGradient(0, 0, 0, oy + HZ);
-    sky.addColorStop(0, mix('#4b2f7a', '#060918', day));
-    sky.addColorStop(0.6, mix('#e0607e', '#141734', day));
-    sky.addColorStop(1, mix('#ffa152', '#2b2250', day));
+    g.drawImage(S.wbuf, 0, 0);
+    if (LON) { g.globalAlpha = on; g.drawImage(S.lbuf, 0, 0); g.globalAlpha = 1; }
+  }
+  function luzes(g, lights) {
+    for (const L of lights) {
+      if (L.beam) { beam(g, L.x, L.y, L.dir, L.len || 70, L.a); continue; }
+      if (L.c[3] <= 0.005) continue;
+      if (L.flat) { g.save(); g.translate(L.x, L.y); g.scale(1, 0.35); glow(g, 0, 0, L.r, L.c); g.restore(); }
+      else glow(g, L.x, L.y, L.r, L.c);
+    }
+  }
+  // céu: laranja e rosa no pôr do sol, azul-escuro à noite; sol, nuvens e os morros
+  function ceu(g, VW, base, day, warm, par, t) {
+    const sky = g.createLinearGradient(0, 0, 0, base);
+    sky.addColorStop(0, mix('#4b2f7a', '#060918', day)); sky.addColorStop(0.6, mix('#e0607e', '#141734', day)); sky.addColorStop(1, mix('#ffa152', '#2b2250', day));
     g.fillStyle = sky;
-    g.fillRect(0, 0, VW, oy + HZ + 4);
-    const sunX = Math.round(120 - cam * 0.04), sunY = Math.round(oy + HZ - 16 + day * 50);
+    g.fillRect(0, 0, VW, base + 6);
+    const sunX = Math.round(120 - par * 0.04), sunY = Math.round(base - 16 + day * 50);
     if (day < 0.7) { disc(g, sunX, sunY, 10, mix('#ffc06a', '#ff7a4a', day * 1.4)); disc(g, sunX, sunY, 7, '#ffe6a0'); }
     const cloudA = 1 - smooth(0.3, 0.8, day);
     if (cloudA > 0) {
       g.globalAlpha = cloudA * 0.8;
       for (let i = 0; i < 7; i++) {
-        const w = 26 + Math.round(hash(i * 3) * 40), x = ((i * 97 + 40 - cam * 0.06) % (VW + 160) + VW + 160) % (VW + 160) - 80;
-        const y = oy + 18 + Math.round(hash(i * 7) * 46);
-        R(g, Math.round(x), y, w, 2, i % 2 ? '#ff9fb0' : '#ffb98a');
-        R(g, Math.round(x) + 6, y - 1, w - 14, 1, '#ffd0b0');
+        const w = 26 + Math.round(hash(i * 3) * 40), x = ((i * 97 + 40 - par * 0.06) % (VW + 160) + VW + 160) % (VW + 160) - 80, y = base - 74 + Math.round(hash(i * 7) * 46);
+        R(g, Math.round(x), y, w, 2, i % 2 ? '#ff9fb0' : '#ffb98a'); R(g, Math.round(x) + 6, y - 1, w - 14, 1, '#ffd0b0');
       }
       g.globalAlpha = 1;
     }
-    /* ---- morros ao fundo (devagar) e a cidade do outro lado do lago ---- */
     const hillFar = mix('#8a4f86', '#141433', day), hillNear = mix('#5e3a6e', '#0e1028', day);
-    for (let x = 0; x < VW; x++) {
-      const w1 = x + cam * 0.12, h1 = 14 + 7 * Math.sin(w1 * 0.012) + 4 * Math.sin(w1 * 0.033 + 1.3);
-      R(g, x, Math.round(oy + HZ - h1), 1, Math.ceil(h1) + 2, hillFar);
-      const w2 = x + cam * 0.25, h2 = 7 + 4 * Math.sin(w2 * 0.02 + 2) + 3 * Math.sin(w2 * 0.05);
-      R(g, x, Math.round(oy + HZ - h2), 1, Math.ceil(h2) + 2, hillNear);
+    // (os morros: uma coluna de 1 px por x, mas tudo num caminho só e um fill por cor — bem mais leve que 2 × VW fillRect)
+    for (const [col, fn] of [[hillFar, (x) => { const w1 = x + par * 0.12; return 14 + 7 * Math.sin(w1 * 0.012) + 4 * Math.sin(w1 * 0.033 + 1.3); }], [hillNear, (x) => { const w2 = x + par * 0.25; return 7 + 4 * Math.sin(w2 * 0.02 + 2) + 3 * Math.sin(w2 * 0.05); }]]) {
+      g.beginPath();
+      for (let x = 0; x < VW; x++) { const h = fn(x); g.rect(x, Math.round(base - h), 1, Math.ceil(h) + 2); }
+      g.fillStyle = col; g.fill();
     }
+    return [sunX, sunY];
+  }
+  function estrelas(g, VW, base, day, t) {
+    if (day <= 0.5) return;
+    for (let i = 0; i < 60; i++) { const a = (day - 0.5) * 2 * (0.5 + 0.5 * Math.sin(t * 2 + i)); R(g, Math.round(hash(i * 3) * VW), Math.round(hash(i * 7) * (base - 30)), 1, 1, 'rgba(230,235,255,' + a.toFixed(3) + ')'); }
+  }
+
+  /* ---------------- plano 1: de lado ---------------- */
+  function lado(g, VW, VH, oy, t, day, on, warm) {
+    const cx = carX(t), virando = t > TL.vira;
+    const pas = S.pas, kp = pas ? smooth(0, 2.6, t - S.t0) : 1;
+    let target = t < TL.go ? X_START - VW * 0.45 : cx - VW * lerp(pas ? clamp(pas.fx, 0.2, 0.8) : 0.4, 0.4, kp);
+    target = lerp(target, DX + 14 - VW / 2, smooth(TL.vira - 2.6, TL.vira + 0.9, t));
+    S.cam = S.cam == null ? target : S.cam + (target - S.cam) * Math.min(1, S.dt * 4);
+    S.cam = clamp(S.cam, 0, END_X - VW);
+    const cam = Math.round(S.cam);
+
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    const [sunX, sunY] = ceu(g, VW, oy + HZ, day, warm, cam, t);
+    /* a cidade do outro lado do lago e a Prefeitura */
     const town = mix('#4a3456', '#121530', day), winLit = [];
-    // a Prefeitura (Centro Administrativo) do outro lado do lago, no começo da cena
     const pfX = Math.round(PREF_X - cam * 0.5), pfB = oy + HZ + 3;
     for (let k = Math.floor((cam * 0.5) / 24) - 2, n = k + Math.ceil(VW / 24) + 4; k < n; k++) {
       if (hash(k * 11 + 3) < 0.22) continue;
       const bx = Math.round(k * 24 + hash(k) * 8 - cam * 0.5), w = 12 + Math.round(hash(k * 3) * 16), h = 4 + Math.round(hash(k * 7) * 12);
-      if (bx + w > pfX - 6 && bx < pfX + PREF.width + 6) continue; // ali fica a Prefeitura
+      if (bx + w > pfX - 6 && bx < pfX + PREF.width + 6) continue;
       R(g, bx, oy + HZ + 2 - h, w, h, town);
       for (let wy = 2; wy < h - 1; wy += 3) for (let wx = 2; wx < w - 1; wx += 3) if (hash(k * 131 + wx * 7 + wy * 13) > 0.62) winLit.push([bx + wx, oy + HZ + 2 - h + wy]);
     }
     if (pfX < VW && pfX + PREF.width > 0) {
-      // a mesma luz do resto: dourada no pôr do sol, escura à noite (pintada só por cima do prédio)
       const pg = S.pfG;
-      pg.globalCompositeOperation = 'source-over';
-      pg.clearRect(0, 0, PREF.width, PREF.height);
-      pg.drawImage(PREF, 0, 0);
+      pg.globalCompositeOperation = 'source-over'; pg.clearRect(0, 0, PREF.width, PREF.height); pg.drawImage(PREF, 0, 0);
       pg.globalCompositeOperation = 'source-atop';
       if (warm > 0.02) { pg.fillStyle = 'rgba(255,150,80,' + (0.22 * warm).toFixed(3) + ')'; pg.fillRect(0, 0, PREF.width, PREF.height); }
-      pg.fillStyle = 'rgba(110,70,130,0.2)'; // névoa da distância (fica do outro lado do lago)
-      pg.fillRect(0, 0, PREF.width, PREF.height);
-      pg.fillStyle = 'rgba(10,12,36,' + (0.62 * day).toFixed(3) + ')';
-      pg.fillRect(0, 0, PREF.width, PREF.height);
+      pg.fillStyle = 'rgba(110,70,130,0.2)'; pg.fillRect(0, 0, PREF.width, PREF.height);
+      pg.fillStyle = 'rgba(10,12,36,' + (0.62 * day).toFixed(3) + ')'; pg.fillRect(0, 0, PREF.width, PREF.height);
       g.drawImage(S.pfBuf, pfX, pfB - PREF.height);
-      // à noite as faixas de vidro verde acendem
       for (const [wx, wy] of PREF.lit) winLit.push([pfX + wx, pfB - PREF.height + wy]);
     }
-
-    // luzes do fundo (ficam ATRÁS da rua e dos prédios): brilho do sol, estrelas, janelas da cidade
     g.globalCompositeOperation = 'lighter';
     if (warm > 0.02) glow(g, sunX, sunY, 80, [255, 160, 90, 0.45 * warm]);
-    if (day > 0.5) {
-      for (let i = 0; i < 60; i++) {
-        const a = (day - 0.5) * 2 * (0.5 + 0.5 * Math.sin(t * 2 + i));
-        R(g, Math.round(hash(i * 3) * VW), Math.round(hash(i * 7) * (oy + HZ - 30)), 1, 1, 'rgba(230,235,255,' + a.toFixed(3) + ')');
-      }
-    }
+    estrelas(g, VW, oy + HZ, day, t);
     if (on > 0.05) for (const [wx, wy] of winLit) R(g, wx, wy, 1, 1, 'rgba(255,200,120,' + (0.8 * on).toFixed(3) + ')');
     g.globalCompositeOperation = 'source-over';
 
-    /* ---- mundo (câmera em x; mesmo plano da avenida), numa camada só dele ---- */
-    g = S.wg;
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.globalAlpha = 1;
-    g.globalCompositeOperation = 'source-over';
-    g.imageSmoothingEnabled = false;
-    g.clearRect(0, 0, VW, VH);
-    g.setTransform(1, 0, 0, 1, -cam, oy);
+    /* ---- o mundo ---- */
+    const w = mundoIni(VW, VH, on, -cam, oy);
     const x0 = cam, x1 = cam + VW;
-    const span = (a, b, y0, y1, col) => { const A = Math.max(a, x0 - 2), B = Math.min(b, x1 + 2); if (B > A) R(g, A, y0, B - A, y1 - y0, col); };
+    const span = (a, b, y0, y1, col) => { const X = Math.max(a, x0 - 2), Y = Math.min(b, x1 + 2); if (Y > X) R(w, X, y0, Y - X, y1 - y0, col); };
     span(-1e4, 1e5, HZ, WATER, mix('#4a3048', '#0e1022', day));
-    // o lago: reflete o céu; a luz do sol desenha uma faixa quente na água
-    const water = g.createLinearGradient(0, WATER, 0, MARGIN);
-    water.addColorStop(0, mix('#f0a08a', '#1b2142', day));
-    water.addColorStop(1, mix('#9a5a7e', '#0f1328', day));
+    const water = w.createLinearGradient(0, WATER, 0, MARGIN);
+    water.addColorStop(0, mix('#f0a08a', '#1b2142', day)); water.addColorStop(1, mix('#9a5a7e', '#0f1328', day));
     span(-400, LAKE_END, WATER, MARGIN, water);
-    for (let y = WATER + 2; y < MARGIN - 1; y += 3) {
-      for (let k = 0; k < 10; k++) {
-        const wx = Math.round(((hash(y * 17 + k) * 1400 + t * (y % 2 ? 6 : -6)) % 1400) - 200);
-        if (wx < LAKE_END - 8 && wx > x0 - 10 && wx < x1) R(g, wx, y, 4 + (k % 3) * 2, 1, mix('#ffc8a8', '#2c3460', day));
-      }
+    for (let y = WATER + 2; y < MARGIN - 1; y += 3) for (let k = 0; k < 10; k++) {
+      const wx = Math.round(((hash(y * 17 + k) * 1400 + t * (y % 2 ? 6 : -6)) % 1400) - 200);
+      if (wx < LAKE_END - 8 && wx > x0 - 10 && wx < x1) R(w, wx, y, 4 + (k % 3) * 2, 1, mix('#ffc8a8', '#2c3460', day));
     }
     if (warm > 0.02) {
       const rx = cam + sunX;
-      g.globalAlpha = warm;
-      for (let y = WATER; y < MARGIN; y++) {
-        const w = 2 + Math.round((y - WATER) * 0.4 + 2 * Math.sin(t * 3 + y * 1.7)), off = Math.round(2 * Math.sin(t * 2 + y));
-        if (rx < LAKE_END) R(g, rx - w + off, y, 2 * w, 1, y % 2 ? '#ffd38a' : '#ffb36b');
-      }
-      g.globalAlpha = 1;
+      w.globalAlpha = warm;
+      for (let y = WATER; y < MARGIN; y++) { const ww = 2 + Math.round((y - WATER) * 0.4 + 2 * Math.sin(t * 3 + y * 1.7)), off = Math.round(2 * Math.sin(t * 2 + y)); if (rx < LAKE_END) R(w, rx - ww + off, y, 2 * ww, 1, y % 2 ? '#ffd38a' : '#ffb36b'); }
+      w.globalAlpha = 1;
     }
-    // terrenos depois do lago
-    span(LAKE_END, 1e5, WATER, ROAD0, '#8a7254');
-    // beira do lago: concreto e faixa amarela (foto 01), canteiro de grama
-    span(-400, LAKE_END, MARGIN, MARGIN + 2, '#c9c2b5');
-    span(-400, LAKE_END, MARGIN + 2, MARGIN + 3, '#e8c15a');
-    span(-400, LAKE_END + 30, MARGIN + 3, ROAD0, '#4f8a4a');
-    span(LAKE_END - 3, LAKE_END, WATER, MARGIN + 3, '#c9c2b5');
-    // PA-160: estacionamento, calçada de tijolinho vermelho (fotos 02 e 03)
-    span(LAKE_END + 30, PA_END, WATER, 112, '#7a6a4e');
-    span(LAKE_END + 30, PA_END, 112, 124, '#4f7a44');
-    span(1100, 1320, 112, 124, '#55595f');
-    for (let x = 1110; x < 1320; x += 22) span(x, x + 1, 113, 123, '#c9ccd1');
-    span(LAKE_END + 30, PA_END, 124, 130, '#a8564a');
-    for (let y = 124; y < 130; y += 2) { span(LAKE_END + 30, PA_END, y, y + 1, '#8a4038'); }
-    span(LAKE_END + 30, PA_END, 130, ROAD0, '#4f8a4a');
-    // rotatória: terra e calçada (foto 04)
-    span(PA_END, ROT_END, WATER, 128, '#9a7a5a');
-    span(PA_END, ROT_END, 128, ROAD0, '#b9b4ad');
-    // Av. Carajás: mato e canteiro de grama (foto 05)
-    span(ROT_END, CAR_END, WATER, 121, '#6a7a44');
-    for (let x = Math.max(ROT_END, x0 - (x0 % 5)); x < Math.min(CAR_END, x1); x += 5) R(g, x, 116 + Math.round(hash(x) * 4), 1, 3, '#8a9a54');
-    span(ROT_END, CAR_END, 121, ROAD0, '#4f8a4a');
-    // faculdade: terreno, calçada de concreto, grama
-    span(CAR_END, 1e5, WATER, 121, '#5d5a55');
-    span(CAR_END, 1e5, 121, 130, '#b9b4ad');
-    span(CAR_END, 1e5, 130, ROAD0, '#4f8a4a');
-    // avenida
+    // beira do lago e canteiro
+    span(-400, LAKE_END, MARGIN, MARGIN + 2, '#c9c2b5'); span(-400, LAKE_END, MARGIN + 2, MARGIN + 3, '#e8c15a');
+    span(-400, LAKE_END + 30, MARGIN + 3, ROAD0, '#4f8a4a'); span(LAKE_END - 3, LAKE_END, WATER, MARGIN + 3, '#c9c2b5');
+    // depois do lago: terrenos com gramado
+    span(LAKE_END, 1e5, WATER, LOTE, '#6f8a54');
+    for (let x = Math.max(LAKE_END, x0 - (x0 % 7)); x < x1; x += 7) R(w, x, 100 + Math.round(hash(x) * 18), 2, 1, hash(x * 3) > 0.5 ? '#84a05e' : '#5e7a48');
+    // a mata ao fundo, em duas camadas mais lentas que a rua (só depois do lago)
+    w.save(); w.beginPath(); w.rect(LAKE_END + 30, 0, 1e5, H0 + 60); w.clip();
+    const camada = (lista, par) => {
+      const off = cam * (1 - par);
+      for (const o of lista) {
+        const hw = o.spr.width / 2, wx = o.lx + off;
+        if (wx + hw < x0 || wx - hw > x1) continue;
+        put(o.spr, wx - hw, o.y - o.spr.height);
+        if (o.luz) putLuz(o.luz, wx - hw, o.y - o.spr.height);
+      }
+    };
+    for (const [i, par, by] of [[0, 0.5, 108], [1, 0.75, 117]]) {
+      const m = S.mata[i], off = cam * (1 - par);
+      for (let k = Math.floor((x0 - off) / m.width) - 1; k * m.width + off < x1; k++) { const mx = Math.round(k * m.width + off); w.drawImage(m, mx, by - m.height); R(w, mx, by, m.width, 6, i ? '#447046' : '#5a7c6c'); }
+      camada(i ? S.meio : S.longe, i ? 0.82 : 0.6);   // longe depois da 1ª mata; meio depois da 2ª
+    }
+    w.restore();
+    span(LAKE_END + 30, 1e5, LOTE - 2, LOTE, '#7a8a5a');
+    // calçada de tijolinho (fotos 02 e 03) e o canteiro de grama
+    span(LAKE_END + 30, 1e5, LOTE, 130, '#a8564a');
+    for (let y = LOTE; y < 130; y += 2) span(LAKE_END + 30, 1e5, y, y + 1, '#8a4038');
+    for (let x = Math.max(LAKE_END + 30, x0 - (x0 % 9)); x < x1; x += 9) R(w, x, LOTE, 1, 8, '#96483e');
+    span(LAKE_END + 30, 1e5, 130, ROAD0, '#4f8a4a');
+    for (let x = Math.max(LAKE_END + 30, x0 - (x0 % 5)); x < x1; x += 5) R(w, x, 131 + Math.round(hash(x * 7) * 3), 1, 2, hash(x) > 0.5 ? '#5f9d52' : '#447a40');
+    // vagas em frente à SkyFit
+    span(SF_X + 6, SF_X + SF_W - 4, 130, ROAD0, '#55595f');
+    for (let x = SF_X + 8; x < SF_X + SF_W - 4; x += 60) span(x, x + 1, 130, ROAD0, '#c9ccd1');
+    // rotatória: pracinha e calçada de concreto
+    span(PA_END, DX + 44, LOTE, 128, '#6f9a55'); span(PA_END, DX + 44, 128, ROAD0, '#b9b4ad');
+    for (let x = Math.max(PA_END, x0 - (x0 % 12)); x < Math.min(DX + 44, x1); x += 12) R(w, x, 128, 1, 8, '#a39e96');
+    // a avenida que vai para o fundo (em perspectiva, com a curva)
+    if (x1 > DX - 60 && x0 < DX + 90) {
+      for (let y = VPY + 1; y < ROAD0; y++) {
+        const r = ruaFundo(y), a = Math.round(r.x - r.hw), b = Math.round(r.x + r.hw);
+        R(w, a - 2 - Math.round(r.k * 5), y, b - a + 4 + Math.round(r.k * 10), 1, '#b9b4ad'); // calçadas
+        R(w, a, y, b - a, 1, '#474c57');
+        R(w, a, y, 1, 1, '#d9dde3'); R(w, b - 1, y, 1, 1, '#d9dde3');
+        if (Math.floor(9 / (r.k + 0.08)) % 2 === 0 && r.hw > 5) R(w, Math.round(r.x), y, 1, 1, '#e8c15a');
+      }
+    }
+    // a avenida
     span(-1e4, 1e5, ROAD0, ROAD1, '#474c57');
-    for (let x = Math.floor(x0 / 6) * 6; x < x1; x += 6) R(g, x + Math.round(hash(x) * 4), ROAD0 + 2 + Math.round(hash(x * 3) * 26), 1, 1, '#555a66');
-    span(-1e4, 1e5, ROAD0, ROAD0 + 1, '#5d6573');
-    span(-1e4, 1e5, ROAD1 - 1, ROAD1, '#9aa3b0');
-    for (let x = Math.floor(x0 / 16) * 16; x < x1; x += 16) if (Math.abs(x + 4 - ROT_X) > 46) R(g, x, CENTER, 8, 1, '#d9dde3');
-    for (let y = ROAD0 + 2; y < ROAD1 - 2; y += 4) span(1824, 1838, y, y + 2, '#e9ecef'); // faixa de pedestre
-    span(-1e4, 1e5, ROAD1, WALK, '#9aa3b0');
-    span(-1e4, 1e5, WALK, FRONT, '#8e8a84');
-    for (let x = Math.floor(x0 / 12) * 12; x < x1; x += 12) R(g, x, WALK, 1, FRONT - WALK, '#7a7670');
-    span(-1e4, 1e5, FRONT, H0 + 40, '#3f6e3c');
+    for (let x = Math.floor(x0 / 6) * 6; x < x1; x += 6) R(w, x + Math.round(hash(x) * 4), ROAD0 + 2 + Math.round(hash(x * 3) * 26), 1, 1, '#555a66');
+    span(-1e4, 1e5, ROAD0, ROAD0 + 1, '#5d6573'); span(-1e4, 1e5, ROAD1 - 1, ROAD1, '#9aa3b0');
+    span(DX - 31, DX + 31, ROAD0, ROAD0 + 1, '#474c57');
+    for (let x = Math.floor(x0 / 16) * 16; x < x1; x += 16) if ((x < 1040 || x > PA_END + 20) && Math.abs(x + 4 - ROT_X) > 46 && Math.abs(x + 4 - DX) > 40) R(w, x, CENTER, 8, 1, '#d9dde3');
+    // canteiro central com grama (na PA-160)
+    span(1050, PA_END + 14, 149, 154, '#c9ccd1'); span(1052, PA_END + 12, 150, 153, '#4f8a4a');
+    for (let x = Math.max(1052, x0 - (x0 % 4)); x < Math.min(PA_END + 12, x1); x += 4) R(w, x, 150 + (x % 3), 1, 1, '#62a052');
+    for (let y = ROAD0 + 2; y < ROAD1 - 2; y += 4) span(PA_END + 34, PA_END + 46, y, y + 2, '#e9ecef'); // faixa de pedestre
+    span(-1e4, 1e5, ROAD1, WALK, '#9aa3b0'); span(-1e4, 1e5, WALK, FRONT, '#8e8a84');
+    for (let x = Math.floor(x0 / 12) * 12; x < x1; x += 12) R(w, x, WALK, 1, FRONT - WALK, '#7a7670');
+    span(-1e4, 1e5, FRONT, H0 + 60, '#3f6e3c');
+    for (let x = Math.floor(x0 / 5) * 5; x < x1; x += 5) R(w, x, FRONT + 1 + Math.round(hash(x * 5) * 10), 1, 2, hash(x) > 0.5 ? '#4f8244' : '#33603a');
 
     // sombras compridas do pôr do sol (só no lago)
     if (warm > 0.02) {
-      g.fillStyle = 'rgba(20,10,30,' + (0.3 * warm).toFixed(3) + ')';
+      w.fillStyle = 'rgba(20,10,30,' + (0.3 * warm).toFixed(3) + ')';
       const sunW = cam + sunX;
       for (const o of S.statics) {
         if (!o.lake || o.x < x0 - 40 || o.x > x1 + 40) continue;
-        const w = o.k === 'tree' ? o.r : 1, len = o.k === 'tree' ? 22 + o.r : 30, dir = o.x > sunW ? 1 : -1;
-        g.beginPath();
-        g.moveTo(o.x - w, o.y); g.lineTo(o.x + w, o.y);
-        g.lineTo(o.x + w + dir * len * 0.45, o.y + len * 0.5); g.lineTo(o.x - w + dir * len * 0.45, o.y + len * 0.5);
-        g.closePath(); g.fill();
+        const ww = o.r || 1, len = o.r ? 22 + o.r : 30, dir = o.x > sunW ? 1 : -1;
+        w.beginPath(); w.moveTo(o.x - ww, o.y); w.lineTo(o.x + ww, o.y); w.lineTo(o.x + ww + dir * len * 0.45, o.y + len * 0.5); w.lineTo(o.x - ww + dir * len * 0.45, o.y + len * 0.5); w.closePath(); w.fill();
       }
     }
 
     // tudo o que fica em pé, de trás para a frente
-    const lights = [], emit = [], list = [];
-    for (const o of S.statics) list.push(o);
+    const lights = [], list = [];
+    for (const o of S.statics) if (o.x > x0 - 240 && o.x < x1 + 240) list.push(o);
     for (const p of S.people) {
+      if (p.parado) { list.push({ k: 'walker', y: p.y, x: p.a, dir: p.parado, parado: true, sheet: p.sheet }); continue; }
       const L = p.b - p.a, q = (((p.ph + p.sp * t) % (2 * L)) + 2 * L) % (2 * L);
       list.push({ k: 'walker', y: p.y, x: q < L ? p.a + q : p.a + 2 * L - q, dir: q < L ? 'right' : 'left', dist: p.sp * t, sheet: p.sheet });
     }
-    const dwx = 2700 - 11 * t;
-    list.push({ k: 'walker', y: 132, x: dwx, dir: 'left', dist: 11 * t, sheet: S.dogWalker });
-    list.push({ k: 'dog', y: 133, x: dwx - 14, step: Math.floor(t * 6) });
-    for (const c of S.traffic) list.push({ k: 'traffic', y: FAR, x: c.x0 - 105 * (t - c.t0), spr: c.spr });
-    list.push({ k: 'hero', y: cy, x: cx });
-    // o boneco: anda até o carro, entra; no fim desce e entra na faculdade
+    const dwx = 2500 - 11 * t;
+    list.push({ k: 'walker', y: 128, x: dwx, dir: 'left', dist: 11 * t, sheet: S.dogWalker });
+    list.push({ k: 'dog', y: 129, x: dwx - 14, step: Math.floor(t * 6) });
+    for (const c of S.traffic) { const tx = c.x0 - c.v * (t - c.t0); if (tx > x0 - 140 && tx < x1 + 140) list.push({ k: 'traffic', y: FAR, x: tx, spr: c.spr }); }
+    const cv = virando ? curva(t) : null;
+    list.push(cv ? { k: 'vira', x: cv[0], y: cv[1], a: cv[2], s: cv[3] } : { k: 'hero', y: NEAR + (Math.abs(cx - ROT_X) < 70 ? 2 * Math.cos(((Math.abs(cx - ROT_X) / 70) * Math.PI) / 2) : 0), x: cx });
     let hb = null;
     if (t < TL.walk0) hb = { x: 150, y: 174, dir: 'right', walk: false };
     else if (t < TL.walk1) hb = { x: lerp(150, 238, (t - TL.walk0) / (TL.walk1 - TL.walk0)), y: 174, dir: 'right', walk: true, dist: (t - TL.walk0) * 26 };
     else if (t < TL.inCar) hb = { x: 238, y: 174, dir: 'up', walk: false, a: 1 - smooth(TL.walk1 + 0.2, TL.inCar, t) };
-    else if (t >= TL.out && t < TL.door) hb = { x: lerp(X_STOP + 6, DOOR_X, (t - TL.out) / (TL.door - TL.out)), y: 134, dir: 'right', walk: true, dist: (t - TL.out) * 20, a: smooth(TL.out, TL.out + 0.3, t) };
-    else if (t >= TL.door && t < TL.inside) hb = { x: DOOR_X, y: lerp(134, 123, (t - TL.door) / (TL.inside - TL.door)), dir: 'up', walk: true, dist: (t - TL.door) * 20, a: 1 - smooth(TL.door + 0.4, TL.inside, t) };
     if (hb) list.push(Object.assign({ k: 'boneco' }, hb));
     list.sort((a, b) => a.y - b.y || a.x - b.x);
 
     for (const o of list) {
-      if (o.x < x0 - 360 || o.x > x1 + 80) continue;
       switch (o.k) {
-        case 'tree': tree(g, o.x, o.y, o.r, o.seed, o.lake ? warm : warm * 0.5); break;
-        case 'lamp': lamp(g, o.x, o.y, on, lights); break;
-        case 'shed': shed(g, o.x, o.y, o.w, o.h, o.col); break;
-        case 'skyfit': skyfit(g, o.x, o.y, on, emit, lights); break;
-        case 'fac': faculdade(g, o.x, o.y, on, emit, lights); break;
-        case 'tower': tower(g, o.x, o.y, on, lights); break;
-        case 'moto': moto(g, o.x, o.y, o.col); break;
-        case 'dog': dog(g, o.x, o.y, o.step); break;
-        case 'wall':
-          R(g, o.x, o.y - 10, o.w, 10, '#c9c2b5'); R(g, o.x, o.y - 10, o.w, 1, '#e0d9cc');
-          for (let i = 6; i < o.w; i += 23) R(g, o.x + i, o.y - 8, 3, 6, '#b0a898');
+        case 'spr':
+          if (o.spr.sombra) oval(w, Math.round(o.x), Math.round(o.y), o.spr.sombra, 3, 'rgba(12,24,14,0.24)'); // a sombra da copa
+          put(o.spr, o.x - (o.spr.width >> 1), o.y - o.spr.height);
+          if (o.luz) putLuz(o.luz, o.x - (o.spr.width >> 1), o.y - o.spr.height);
+          if (o.lights && on > 0.01) for (const [dx, dy, r, c, flat] of o.lights) lights.push({ x: o.x + dx, y: o.y + dy, r, c: [c[0], c[1], c[2], c[3] * on], flat: !!flat });
           break;
-        case 'island':
-          oval(g, o.x, o.y, 37, 8, '#e9ecef');
-          oval(g, o.x, o.y, 35, 7, '#9aa3b0');
-          oval(g, o.x, o.y - 1, 33, 6, '#4f8a4a');
-          tree(g, o.x, o.y + 1, 13, 7, warm * 0.4);
+        case 'sprS': put(o.spr, o.x - (o.spr.width * o.s) / 2, o.y - o.spr.height * o.s, o.spr.width * o.s, o.spr.height * o.s); break;
+        case 'lamp': lamp(w, o.x, o.y, on, lights); break;
+        case 'poste': poste(w, o, on, lights); break;
+        case 'dog': dog(w, o.x, o.y, o.step); break;
+        case 'island': {
+          oval(w, o.x, o.y, 37, 8, '#e9ecef'); oval(w, o.x, o.y, 35, 7, '#9aa3b0'); oval(w, o.x, o.y - 1, 33, 6, '#4f8a4a');
+          const tr = S.ilha || (S.ilha = P.arvoreG(7, 66)), b1 = S.ilhaB || (S.ilhaB = P.arbusto(4, 18));
+          put(b1, o.x - 26, o.y + 2 - b1.height); put(b1, o.x + 12, o.y + 3 - b1.height); put(tr, o.x - (tr.width >> 1), o.y + 1 - tr.height);
           break;
-        case 'parked':
-          drawCar(g, S.parkedSpr[o.col], o.x, o.y, o.dir);
+        }
+        case 'parked': put(o.dir > 0 ? S.parkedSpr[o.col].r : S.parkedSpr[o.col].l, o.x - 26, o.y - 21); break;
+        case 'traffic': {
+          const sw = o.spr.l.width, sh = o.spr.l.height;
+          put(o.spr.l, o.x - sw / 2, o.y - sh + 1);
+          if (on > 0.01) lights.push({ beam: true, x: o.x - sw / 2 + 1, y: o.y - 9, dir: -1, a: 0.35 * on }, { x: o.x + sw / 2 - 1, y: o.y - 9, r: 4, c: [255, 60, 60, 0.7 * on] });
           break;
-        case 'traffic':
-          drawCar(g, o.spr, o.x, o.y, -1);
-          if (on > 0.01) lights.push({ beam: true, x: o.x - 25, y: o.y - 9, dir: -1, a: 0.35 * on }, { x: o.x + 25, y: o.y - 9, r: 4, c: [255, 60, 60, 0.7 * on] });
+        }
           break;
         case 'hero': {
-          drawCar(g, S.cars.hero, o.x, o.y, 1);
-          // o boneco sentado aparece pela janela da frente
-          if (t > TL.inCar && t < TL.out) {
+          put(S.cars.hero.r, o.x - 26, o.y - 21);
+          if (t > TL.inCar) { // o boneco sentado aparece pela janela da frente
             const x0c = Math.round(o.x) - 25, by = Math.round(o.y);
-            g.save();
-            g.beginPath(); g.rect(x0c + 25, by - 18, 11, 5); g.clip();
-            g.drawImage(S.hero.right.idle, x0c + 30 - CH.AX, by - 15 - 11);
-            g.restore();
+            w.save(); w.beginPath(); w.rect(x0c + 25, by - 18, 11, 5); w.clip(); w.drawImage(S.hero.right.idle, x0c + 30 - CH.AX, by - 15 - 11); w.restore();
           }
-          // porta aberta enquanto ele entra / sai
-          if ((t > TL.walk1 && t < TL.inCar + 0.2) || (t > TL.stop + 0.2 && t < TL.out + 0.4)) R(g, Math.round(o.x) - 1, Math.round(o.y) - 17, 1, 12, '#f4f6fa');
-          const hl = Math.max(on, t > TL.go - 0.5 && t < TL.stop + 0.6 ? 0.15 : 0);
+          if (t > TL.walk1 && t < TL.inCar + 0.2) R(w, Math.round(o.x) - 1, Math.round(o.y) - 17, 1, 12, '#f4f6fa'); // porta aberta
+          const hl = Math.max(on, t > TL.go - 0.5 ? 0.3 : 0);
           if (hl > 0.01) lights.push({ beam: true, x: o.x + 25, y: o.y - 9, dir: 1, a: 0.45 * hl }, { x: o.x - 25, y: o.y - 9, r: 4, c: [255, 60, 60, 0.8 * hl] });
+          // a seta para a direita, um pouco antes de virar
+          if (t > TL.vira - 2.4 && Math.floor(t * 3.2) % 2 === 0) { R(w, Math.round(o.x) + 23, Math.round(o.y) - 8, 2, 2, '#ffb030'); lights.push({ x: o.x + 24, y: o.y - 7, r: 5, c: [255, 170, 40, 0.9] }); }
           break;
         }
-        case 'walker': person(g, walkFrame(o.sheet, o.dir, o.dist), o.x, o.y); break;
-        case 'boneco': {
-          g.globalAlpha = o.a == null ? 1 : o.a;
-          person(g, o.walk ? walkFrame(S.hero, o.dir, o.dist) : S.hero[o.dir].idle, o.x, o.y);
-          g.globalAlpha = 1;
+        case 'vira': { // o carro virando: a traseira aparece cada vez mais, a lateral some, e ele diminui indo para o fundo
+          const s = o.s, rw = 30 * Math.sin(o.a) * s, sw = 52 * Math.cos(o.a) * s, left = o.x - (rw + sw) / 2;
+          if (sw >= 1) put(S.cars.hero.r, left + rw, o.y - 21 * s, sw, 22 * s);
+          if (rw >= 1) put(S.heroTras, left, o.y - 23 * s, rw, 24 * s);
+          const hl = Math.max(on, 0.3);
+          lights.push({ x: left + rw * 0.2, y: o.y - 11 * s, r: 4 * s + 1, c: [255, 60, 60, 0.8 * hl] }, { x: left + rw * 0.8, y: o.y - 11 * s, r: 4 * s + 1, c: [255, 60, 60, 0.8 * hl] });
+          if (o.a < 1.2 && Math.floor(t * 3.2) % 2 === 0) lights.push({ x: left + rw + sw - 2, y: o.y - 8 * s, r: 5, c: [255, 170, 40, 0.9] });
           break;
         }
+        case 'walker': person(o.parado ? o.sheet[o.dir].idle : walkFrame(o.sheet, o.dir, o.dist), o.x, o.y); break;
+        case 'boneco': w.globalAlpha = o.a == null ? 1 : o.a; person(o.walk ? walkFrame(S.hero, o.dir, o.dist) : S.hero[o.dir].idle, o.x, o.y); w.globalAlpha = 1; break;
       }
     }
+    // a camada da frente: arbustos, capim e palmeiras que passam mais depressa que a rua
+    for (const f of S.frente) {
+      const fx = 1.4 * (f.wx - cam) - 0.2 * VW + cam;
+      if (fx < x0 - 50 || fx > x1 + 50) continue;
+      put(f.spr, fx - (f.spr.width >> 1), FRONT + 5 - f.spr.height);
+    }
+    mundoFim(g, VW, VH, day, warm, on);
 
-    /* ---- a hora do dia: tudo fica mais quente no pôr do sol e escuro à noite ---- */
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.globalCompositeOperation = 'source-atop'; // pinta só por cima do que já foi desenhado
-    if (warm > 0.02) { g.fillStyle = 'rgba(255,140,70,' + (0.14 * warm).toFixed(3) + ')'; g.fillRect(0, 0, VW, VH); }
-    g.fillStyle = 'rgba(8,10,34,' + (0.66 * day).toFixed(3) + ')';
-    g.fillRect(0, 0, VW, VH);
-    g.globalCompositeOperation = 'source-over';
-    g = S.g;
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    g.drawImage(S.wbuf, 0, 0);
-
-    /* ---- luzes (somam: brilho de neon) ---- */
+    /* ---- luzes (somam) ---- */
     g.globalCompositeOperation = 'lighter';
     g.setTransform(1, 0, 0, 1, -cam, oy);
-    if (warm > 0.02 && cam + sunX < LAKE_END) glow(g, cam + sunX, WATER + 10, 60, [255, 170, 100, 0.3 * warm]); // luz quente sobre a água
-    for (const L of lights) {
-      if (L.beam) { beam(g, L.x, L.y, L.dir, 70, L.a); continue; }
-      if (L.c[3] <= 0.005) continue;
-      if (L.flat) { g.save(); g.translate(L.x, L.y); g.scale(1, 0.35); glow(g, 0, 0, L.r, L.c); g.restore(); }
-      else glow(g, L.x, L.y, L.r, L.c);
-    }
+    if (warm > 0.02 && cam + sunX < LAKE_END) glow(g, cam + sunX, WATER + 10, 60, [255, 170, 100, 0.3 * warm]);
+    luzes(g, lights);
     g.globalCompositeOperation = 'source-over';
-    for (const f of emit) f(g); // letreiros acesos (por cima de tudo)
+    g.setTransform(1, 0, 0, 1, 0, 0);
+  }
 
+  /* ---------------- plano 2: para o fundo (câmera atrás do carro) ---------------- */
+  function fundo(g, VW, VH, oy, t, day, on, warm) {
+    const tt = t - F_T0, dist = fDist(tt), hy = oy + HZ - 2, DYC = VH - 18 - hy, K = 60 * DYC, WS = 65 / DYC, cx0 = (VW >> 1) - 30;
+    const bend = (1 - smooth(0, 3.6, tt)) - 0.38 * smooth(4.2, 6, tt) * (1 - smooth(F_DUR - 3.6, F_DUR - 1.6, tt));
+    const cAt = (dy) => { const p = Math.min(1, dy / DYC); return cx0 + bend * 84 * (1 - p) * (1 - p); };
+    g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    ceu(g, VW, hy + 2, day, warm, 2000 + dist * 0.5 + bend * 900, t);
+    g.globalCompositeOperation = 'lighter';
+    estrelas(g, VW, hy, day, t);
+    g.globalCompositeOperation = 'source-over';
+
+    const w = mundoIni(VW, VH, on, 0, 0);
+    // a mata no horizonte
+    for (let i = 0; i < 2; i++) { const m = S.mata[i], off = Math.round(-((bend * 60 * (i + 1) + dist * 0.01 * (i + 1)) % m.width)); for (let x = off - m.width; x < VW; x += m.width) w.drawImage(m, x, hy + 2 + i * 2 - m.height + 6); }
+    // o chão, linha a linha (mais longe = mais perto do horizonte)
+    for (let y = hy + 1; y < VH; y++) {
+      const dy = y - hy, z = K / dy, d = z + dist, ws = dy * WS, c = cAt(dy), b = Math.floor(d / 46) & 1;
+      const seg = (xa, xb, col) => { const a = Math.round(c + xa * ws), e = Math.round(c + xb * ws); R(w, a, y, Math.max(1, e - a), 1, col); };
+      R(w, 0, y, VW, 1, b ? '#6f8a54' : '#668050');
+      if (dy > 3) for (let k = 0; k < 5; k++) { const hx = hash(Math.floor(d / 23) * 7 + k * 31), X = (hx - 0.5) * 16; if (X > 1.6 || X < -3.8) R(w, Math.round(c + X * ws), y, Math.max(1, Math.round(ws * 0.12)), 1, k % 2 ? '#7f9c5c' : '#5a7446'); }
+      seg(-3.75, -3.2, b ? '#b9b4ad' : '#aeaaa2'); seg(-3.2, -1.3, b ? '#474c57' : '#4b505b');
+      seg(-0.98, 0.98, b ? '#474c57' : '#4b505b');
+      seg(-1.33, -0.95, '#c9ccd1'); seg(-1.27, -1.01, b ? '#4f8a4a' : '#478043');
+      seg(0.98, 1.05, '#d9dde3'); seg(1.05, 1.55, b ? '#b9b4ad' : '#aeaaa2');
+      if (Math.floor(d / 30) & 1) { seg(-0.015, 0.015, '#e9ecef'); seg(-2.265, -2.235, '#e9ecef'); }
+    }
+    // o que passa dos lados, do mais longe para o mais perto
+    const lights = [], vis = [];
+    for (const o of S.fundo) { const z = o.D - dist; if (z > 34 && z < (o.serra ? 2600 : 1500)) vis.push([z, o]); }
+    S.frenteCar.forEach((spr, i) => { const z = 300 + i * 950 - (FV * 0.9 + 60) * tt + dist * 0; if (z > 34 && z < 2600) vis.push([z, { X: -2.25, spr, farol: true }]); });
+    vis.sort((a, b) => b[0] - a[0]);
+    const carX2 = lerp(0.44, 0.76, smooth(F_DUR - 4.2, F_DUR - 0.8, tt)), yc = hy + DYC, carPx = cAt(DYC) + carX2 * 65;
+    let carDone = false;
+    const heroi = () => {
+      carDone = true;
+      R(w, Math.round(carPx) - 15, yc - 1, 30, 2, 'rgba(0,0,0,0.35)');
+      put(S.heroTras, carPx - 15, yc - 23);
+      const freio = tt > F_DUR - FDEC ? 1 : 0.55, hl = Math.max(on, 0.3);
+      for (const dx of [-9, 9]) lights.push({ x: carPx + dx, y: yc - 10, r: 5 + freio * 3, c: [255, 50, 40, 0.75 * hl * freio + 0.2] });
+      lights.push({ x: carPx, y: yc - 40, r: 60, c: [255, 236, 180, 0.2 * hl], flat: true });
+      if (tt > F_DUR - 4.4 && tt < F_DUR - 0.3 && Math.floor(t * 3.2) % 2 === 0) { R(w, Math.round(carPx) + 12, yc - 12, 2, 3, '#ffb030'); lights.push({ x: carPx + 13, y: yc - 10, r: 6, c: [255, 170, 40, 0.9] }); }
+    };
+    for (const [z, o] of vis) {
+      if (!carDone && z < 60) heroi();
+      const dy = K / z, y = hy + dy, s = 60 / z, x = cAt(dy) + o.X * dy * WS, sw = o.spr.width * s, sh = o.spr.height * s;
+      if (x + sw < -20 || x - sw > VW + 20) continue;
+      // (de longe, o que é pequeno não precisa tapar as janelas acesas: metade dos desenhos)
+      const lon = LON; if (s < 0.3 && !o.luz) LON = false;
+      put(o.spr, x - sw / 2, y - sh, sw, sh);
+      LON = lon;
+      if (o.luz && s > 0.07) putLuz(o.luz, x - sw / 2, y - sh, sw, sh);
+      if (o.lamp && on > 0.01 && s > 0.1) { const lx = x + (o.lamp < 0 ? 4 : 4) * s, ly = y - 58 * s; lights.push({ x: lx, y: ly, r: 10 * s + 2, c: [255, 214, 150, 0.9 * on] }, { x: lx, y: y + 6 * s, r: 50 * s, c: [255, 196, 120, 0.2 * on], flat: true }); }
+      if (o.farol && s > 0.06) for (const dx of [-9, 9]) lights.push({ x: x + dx * s, y: y - 10 * s, r: 7 * s + 2, c: [255, 240, 190, 0.5 + 0.4 * on] });
+      if (o.serra) { // a luz quente da recepção e da marquise, e o letreiro
+        const al = 0.25 + 0.75 * on;
+        lights.push({ x: x - 22 * s, y: y - 20 * s, r: 60 * s, c: [255, 190, 120, 0.3 * al] }, { x, y: y - 86 * s, r: 90 * s, c: [225, 235, 255, 0.14 * al] }, { x: x - 22 * s, y: y + 10 * s, r: 70 * s, c: [255, 190, 120, 0.22 * al], flat: true });
+      }
+    }
+    if (!carDone) heroi();
+    mundoFim(g, VW, VH, day, warm, on);
+    g.globalCompositeOperation = 'lighter';
+    luzes(g, lights);
+    g.globalCompositeOperation = 'source-over';
+  }
+
+  function render(sc) {
+    const t = S.t, cv = sc.canvas, cw = cv.width, ch = cv.height;
+    const PX = Math.max(1, Math.round(ch / 235)); // tamanho de cada pixel do mundo na tela (720 px de altura → 3)
+    const VW = Math.ceil(cw / PX), VH = Math.ceil(ch / PX), oyB = VH - H0 - Math.round(VH * 0.06);
+    camadas(VW, VH);
+    const day = smooth(6, 41, t), on = smooth(0.3, 0.65, day), warm = 1 - smooth(0.05, 0.45, day);
+    // vindo do lago: o carro começa no mesmo ponto da tela em que estava lá e a câmera se ajeita devagar
+    const pas = S.pas, kp = pas ? 1 - smooth(0, 2.6, t - S.t0) : 0;
+    const oy = oyB + (pas ? Math.round(clamp(pas.fy * VH - (NEAR - 8 + oyB), -28, 8) * kp) : 0);
+    const g = S.bufG;
+    if (t < TL.fundo) lado(g, VW, VH, oy, t, day, on, warm);
+    if (t > F_T0) {
+      const g2 = t < TL.fundo ? S.buf2G : g;
+      fundo(g2, VW, VH, oyB, t, day, on, warm);
+      if (g2 !== g) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = smooth(F_T0, TL.fundo, t); g.drawImage(S.buf2, 0, 0); g.globalAlpha = 1; }
+    }
     /* ---- entrada e saída em preto ---- */
     g.setTransform(1, 0, 0, 1, 0, 0);
-    let black = 1 - smooth(S.t0, S.t0 + (S.t0 ? 0.7 : 1.2), t);
-    black = Math.max(black, smooth(TL.fade, TL.end, t));
+    let black = pas ? 0 : 1 - smooth(S.t0, S.t0 + (S.t0 ? 0.7 : 1.2), t);
+    black = Math.max(black, smooth(TL.para + 0.9, TL.fim, t));
     if (S.skipAt != null) black = Math.max(black, smooth(S.skipAt, S.skipAt + 0.6, t));
     if (black > 0) { g.fillStyle = 'rgba(0,0,0,' + black.toFixed(3) + ')'; g.fillRect(0, 0, VW, VH); }
 
-    // amplia o canvas pequeno na tela, pixel a pixel
     const ctx = sc.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(S.buf, 0, 0, VW * P, VH * P);
-
-    caption(t, cx);
-  }
-  function glow(g, x, y, r, c) {
-    const gr = g.createRadialGradient(x, y, 0, x, y, r);
-    gr.addColorStop(0, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + c[3].toFixed(3) + ')');
-    gr.addColorStop(1, 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',0)');
-    g.fillStyle = gr;
-    g.fillRect(x - r, y - r, r * 2, r * 2);
+    ctx.drawImage(S.buf, 0, 0, VW * PX, VH * PX);
+    // a última imagem do lago some por cima (a passagem sem corte)
+    if (pas && t - S.t0 < 1.1) { ctx.globalAlpha = 1 - smooth(0, 1.1, t - S.t0); ctx.imageSmoothingEnabled = true; ctx.drawImage(pas.foto, 0, 0, cw, ch); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = 1; }
+    caption(t);
   }
 
-  // legenda do lugar (canto de baixo)
-  function caption(t, cx) {
+  // legenda do lugar
+  function caption(t) {
+    const cx = carX(t);
     let c;
     if (t < TL.go) c = ['Canaã dos Carajás · fim de tarde', 'Lago da Prefeitura · Av. São João'];
     else if (cx < LAKE_END) c = ['Av. São João', 'saindo do Lago da Prefeitura'];
-    else if (cx < PA_END) c = ['PA-160', 'Av. Weyne Cavalcante'];
-    else if (cx < ROT_END) c = ['Rotatória', 'a caminho da Av. Carajás'];
-    else if (cx < CAR_END) c = ['Av. Carajás', 'quase lá'];
+    else if (cx < PA_END - 120) c = ['PA-160', 'Av. Weyne Cavalcante'];
+    else if (t < TL.fundo) c = ['Rotatória', 'entrando na Av. Carajás'];
+    else if (t < TL.para - 2.6) c = ['Av. Carajás', 'a caminho da faculdade'];
     else c = ['Faculdade Serra Dourada', 'Canaã dos Carajás'];
     const key = c.join('|');
     if (key === S.caption) return;
@@ -748,37 +742,40 @@
     const el = $('cutCaption');
     el.classList.remove('is-on');
     el.innerHTML = '<b>' + c[0] + '</b><span>' + c[1] + '</span>';
-    void el.offsetWidth; // reinicia a animação
+    void el.offsetWidth;
     el.classList.add('is-on');
   }
 
   /* ------------------------------------------------------------------ */
   /* O mapa                                                              */
   /* ------------------------------------------------------------------ */
-  // para onde ir no fim: a faculdade quando existir; por enquanto o único mapa pronto (PROVISÓRIO)
-  const nextMap = () => (DL.MAPS.faculdade ? 'faculdade' : 'datalab');
+  // no fim: a rua da Serra Dourada (o boneco desce do carro lá); sem ela, o DataLab
+  const nextMap = () => (DL.MAPS.rua ? 'rua' : 'datalab');
 
   function finish(game) {
     if (S.done) return;
     S.done = true;
+    DL.chegada = S.skipAt == null; // (rua.js) chegou de carro: o boneco desce; pulou: já começa na calçada
     setTimeout(() => game.loadMap(nextMap()), 0);
   }
   function skip() { if (S.skipAt == null && !S.done) S.skipAt = S.t; }
 
   DL.registerMap({
     id: 'abertura',
-    name: 'Abertura',
-    // o mundo de verdade não aparece (a cena desenha por cima); só precisa existir
+    name: 'Viagem',
     tiles: ['###', '#.#', '###'],
     items: [],
     spawn: [1, 1],
 
     enter(game) {
-      Object.assign(S, { t: 0, t0: 0, dt: 0, cam: null, done: false, skipAt: null, caption: '' });
-      // (lago.js) vindo do Lago da Prefeitura o boneco já entrou no carro: começa com o carro saindo
-      if (DL.fromLake) { DL.fromLake = false; S.t = S.t0 = TL.inCar + 0.25; }
-      if (!S.statics.length) build();
-      game.locked = true; // o jogador só assiste
+      Object.assign(S, { t: 0, t0: 0, dt: 0, cam: null, done: false, skipAt: null, caption: '', pas: null });
+      // (lago.js) vindo do Lago da Prefeitura o carro já está saindo: começa andando, por baixo da última imagem de lá
+      if (DL.fromLake) { DL.fromLake = false; S.t = S.t0 = TL.go + 1.1; S.pas = DL.passagem || null; DL.passagem = null; }
+      // ?mapa=abertura&t=30 começa no segundo 30 (para testar um trecho)
+      const t0 = parseFloat(new URLSearchParams(location.search).get('t'));
+      if (t0 > 0 && !S.pas) S.t = S.t0 = Math.min(t0, TL.fim - 0.5);
+      build();
+      game.locked = true;
       document.body.classList.add('in-cutscene');
       $('cutscene').hidden = false;
       $('cutSkip').onclick = skip;
@@ -787,18 +784,19 @@
     update(game, dt) {
       S.dt = dt;
       S.t += dt;
-      const end = S.skipAt != null ? S.skipAt + 0.7 : TL.end + 0.1;
+      const end = S.skipAt != null ? S.skipAt + 0.7 : TL.fim + 0.05;
       if (S.t >= end) finish(game);
     },
-    // sem controles: Esc, Enter ou espaço pulam
     key(game, ev) {
       if (ev.code === 'Escape' || ev.code === 'Enter' || ev.code === 'Space') { skip(); ev.preventDefault(); }
       return true;
     },
-    leave() {
+    leave(game) {
+      game.scene.drawInstead = null;
       document.body.classList.remove('in-cutscene');
       $('cutscene').hidden = true;
       $('cutCaption').classList.remove('is-on');
     },
   });
+  DL.Abertura = { S, TL, preparar };
 })();

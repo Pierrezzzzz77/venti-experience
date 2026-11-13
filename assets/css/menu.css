@@ -1,0 +1,60 @@
+/* Venti Experience — o menu inicial (assets/js/ui/menu.js).
+   --px = quantos pixels da página vale 1 pixel do menu (o menu.js calcula conforme o tamanho da janela). */
+.menu { --px: 3px; position: fixed; inset: 0; z-index: 45; overflow: hidden; display: grid; place-items: center; user-select: none; -webkit-user-select: none; }
+.menu canvas { display: block; image-rendering: crisp-edges; image-rendering: pixelated; }
+.menu__ceu { position: absolute; left: 0; top: 0; }
+
+.menu__ui { position: relative; display: grid; justify-items: center; gap: calc(var(--px) * 6); margin-top: -5vh; transition: opacity 1.5s ease; }
+.menu__titulo { margin: 0; animation: menu-flutua 4.5s ease-in-out infinite; }
+.menu__titulo canvas { transition: transform 1.5s ease-out; }
+@keyframes menu-flutua { 0%, 100% { transform: translateY(calc(var(--px) * -2)); } 50% { transform: translateY(calc(var(--px) * 2)); } }
+
+/* o botão Jogar: bloco dourado com contorno escuro e uma "altura" vinho embaixo (afunda ao clicar) */
+.menu__btn {
+  --p: var(--px);
+  position: relative; margin: 0; border: 0; border-radius: 0; outline: 0; cursor: pointer;
+  padding: calc(var(--p) * 6) calc(var(--p) * 16);
+  background: linear-gradient(#fde28a 0 calc(var(--p) * 3), #f9a83a calc(var(--p) * 3) 60%, #f48f30 60%);
+  transition: transform 0.07s, filter 0.15s;
+}
+/* (a ordem das sombras: a de cima da lista fica na frente — a faixa clara da lateral vem antes da escura) */
+.menu__btn { box-shadow:
+    inset 0 var(--p) 0 #fff3c0, inset 0 calc(var(--p) * -1) 0 #d8602a,
+    calc(var(--p) * -1) 0 0 #2a0f2e, var(--p) 0 0 #2a0f2e, 0 calc(var(--p) * -1) 0 #2a0f2e,
+    0 calc(var(--p) * 2) 0 #a8323e, 0 calc(var(--p) * 4) 0 #682a52,
+    calc(var(--p) * -1) calc(var(--p) * 4) 0 #2a0f2e, var(--p) calc(var(--p) * 4) 0 #2a0f2e, 0 calc(var(--p) * 5) 0 #2a0f2e,
+    calc(var(--p) * 2) calc(var(--p) * 8) 0 rgba(30, 22, 48, 0.4); }
+
+/* o pulsar: um aro claro em volta que cresce e some */
+.menu__btn::after { content: ""; position: absolute; inset: calc(var(--p) * -3) calc(var(--p) * -3) calc(var(--p) * -7); border: var(--p) solid #fff3c0; opacity: 0; pointer-events: none; animation: menu-pulsa 1.8s ease-out infinite; }
+@keyframes menu-pulsa { 0% { opacity: 0; transform: scale(0.96); } 25% { opacity: 0.85; } 100% { opacity: 0; transform: scale(1.1, 1.22); } }
+
+.menu__btn:hover:not(:disabled), .menu__btn:focus-visible { filter: brightness(1.14) saturate(1.1) drop-shadow(0 0 calc(var(--p) * 4) rgba(255, 228, 140, 0.85)); }
+.menu__btn:active:not(:disabled), .menu__btn.is-down {
+  transform: translateY(calc(var(--p) * 3));
+  filter: brightness(1.35) drop-shadow(0 0 calc(var(--p) * 6) rgba(255, 240, 180, 0.95));
+  box-shadow:
+    inset 0 var(--p) 0 #fff3c0, inset 0 calc(var(--p) * -1) 0 #d8602a,
+    calc(var(--p) * -1) 0 0 #2a0f2e, var(--p) 0 0 #2a0f2e, 0 calc(var(--p) * -1) 0 #2a0f2e,
+    0 var(--p) 0 #682a52,
+    calc(var(--p) * -1) var(--p) 0 #2a0f2e, var(--p) var(--p) 0 #2a0f2e, 0 calc(var(--p) * 2) 0 #2a0f2e,
+    calc(var(--p) * 2) calc(var(--p) * 4) 0 rgba(30, 22, 48, 0.4);
+}
+.menu__btn:active::after, .menu__btn.is-down::after, .menu__btn:disabled::after { animation: none; opacity: 0; }
+
+/* "Carregando…": apagado, sem pulsar */
+.menu__btn:disabled { cursor: default; padding: calc(var(--p) * 8) calc(var(--p) * 12); background: linear-gradient(#8a5a78 0 calc(var(--p) * 3), #74305c calc(var(--p) * 3) 60%, #5e2a52 60%); }
+.menu__btn:disabled canvas { animation: menu-pisca 1s steps(2, jump-none) infinite; }
+@keyframes menu-pisca { 0% { opacity: 1; } 100% { opacity: 0.55; } }
+
+/* saindo: título e botão somem em 1,5 s (o título com um zoom leve); as nuvens quem abre é o menu.js */
+.menu.is-leaving { pointer-events: none; }
+.menu.is-leaving .menu__ui { opacity: 0; }
+.menu.is-leaving .menu__titulo canvas { transform: scale(1.12); }
+
+/* com o menu na tela, o botão de som fica por cima dele */
+.menu-on .som-btn { z-index: 46; }
+
+@media (prefers-reduced-motion: reduce) {
+  .menu__titulo, .menu__btn::after, .menu__btn:disabled canvas { animation: none; }
+}

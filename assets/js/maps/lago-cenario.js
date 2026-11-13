@@ -681,23 +681,79 @@
     if (cT) K.poly(g, [p(u0, v0, z1), p(u1, v0, z1), p(u1, v1, z1), p(u0, v1, z1)], cT);
     return p;
   }
+  // opt.tipo: 0 sedã · 1 hatch · 2 SUV · 3 picape · 4 moto (com piloto). opt.doorOpen: porta aberta.
+  // Cada carro tem para-choques, saia escura, rodas com calota, vidros azulados com reflexo, colunas,
+  // retrovisor, faróis/grade na frente e lanternas/placa atrás.
   function drawCarAt(g, x, y, ang, col, opt) {
-    const ca = Math.cos(ang), sa = Math.sin(ang), o = opt || {};
-    const d = shade(col, -0.3), l = shade(col, 0.18), glass = P.ne0;
+    const ca = Math.cos(ang), sa = Math.sin(ang), o = opt || {}, tipo = o.tipo || 0;
     const p = (u, v, z) => [x + u * ca - v * sa, y + u * sa + v * ca, z];
+    const B = (u0, u1, v0, v1, z0, z1, cS, cE, cT) => obox(g, x, y, ca, sa, u0, u1, v0, v1, z0, z1, cS, cE, cT);
+    const lado = ca - sa > 0 ? 1 : -1, frente = ca + sa > 0; // o lado comprido e a ponta que a câmera vê
+    if (tipo === 4) return drawMoto(g, p, B, col, frente);
+    const d = shade(col, -0.3), dd = shade(col, -0.52), l = shade(col, 0.18), ll = shade(col, 0.36);
+    const vid = P.wa0, vidL = P.wa2, vidB = P.wa3;
+    // um detalhe "colado" no lado comprido que aparece / na ponta que aparece
+    const dec = (u0, u1, z0, z1, c, v) => { const V = lado * (v || 13.25); K.poly(g, [p(u0, V, z0), p(u1, V, z0), p(u1, V, z1), p(u0, V, z1)], c); };
+    const fim = (v0, v1, z0, z1, c, du) => { const U = (frente ? 1 : -1) * (30.3 + (du || 0)); K.poly(g, [p(U, v0, z0), p(U, v1, z0), p(U, v1, z1), p(U, v0, z1)], c); };
+    const hb = tipo === 2 ? 16 : 14;                                        // altura da lataria
+    // a cabine: [começo, fim] embaixo (vidro inclinado) e em cima (teto), e as duas alturas
+    const CAB = [[-18, 12, -15, 8, 4.5, 9], [-28, 12, -26.5, 8, 4.5, 9], [-28, 14, -27, 11, 5, 11], [-8, 14, -6, 11, 4.5, 9.5]][tipo];
     // sombra de contato
     K.poly(g, [p(-31, -12, 0), p(32, -12, 0), p(32, 15, 0), p(-31, 15, 0)].map((q) => [q[0] + 1, q[1] + 1, 0]), 'rgba(0,0,0,0.3)', false);
-    for (const wu of [-19, 17]) for (const wv of [-12, 10]) obox(g, x, y, ca, sa, wu, wu + 9, wv, wv + 2, 0, 8, P.ne0, P.ne0, P.ne1);
-    obox(g, x, y, ca, sa, -30, 30, -13, 13, 4, 14, col, d, l);
-    obox(g, x, y, ca, sa, -16, 10, -11, 11, 14, 24, glass, glass, l);
-    // colunas da janela do lado que aparece
-    const side = -sa + ca > 0 ? 11 : -11;
-    for (const u of [-16, -4, 8]) K.poly(g, [p(u, side, 14), p(u + 2, side, 14), p(u + 2, side, 24), p(u, side, 24)], col);
-    // faróis na frente, lanternas atrás (só se a face aparece)
-    if (ca + sa > 0) for (const v of [-10, 5]) K.poly(g, [p(30.3, v, 9), p(30.3, v + 5, 9), p(30.3, v + 5, 12), p(30.3, v, 12)], P.sky8);
-    else for (const v of [-10, 6]) K.poly(g, [p(-30.3, v, 9), p(-30.3, v + 4, 9), p(-30.3, v + 4, 12), p(-30.3, v, 12)], P.sky3);
+    // rodas do lado de lá (aparecem por baixo)
+    for (const wu of [-21, 13]) B(wu, wu + 9, -lado * 13.5 - 1, -lado * 13.5 + 1, 0, 8, P.ne0, P.ne0, P.ne1);
+    const parachoque = (na) => { const s2 = na ? 1 : -1; B(Math.min(s2 * 29.5, s2 * 31.5), Math.max(s2 * 29.5, s2 * 31.5), -12.5, 12.5, 4, 8, P.ne2, P.ne1, P.ne3); };
+    parachoque(!frente); // o de lá primeiro (fica atrás da lataria)
+    B(-30, 30, -13, 13, 3, 7, dd, shade(col, -0.62), null); // saia
+    B(-30, 30, -13, 13, 7, hb, col, d, l);                  // lataria
+    parachoque(frente);
+    // caçamba da picape
+    if (tipo === 3) {
+      B(-30, -8, -13, 13, hb, hb + 3, col, d, l);
+      K.poly(g, [p(-28, -11, hb + 3.05), p(-10, -11, hb + 3.05), p(-10, 11, hb + 3.05), p(-28, 11, hb + 3.05)], P.ne1);
+    }
+    // cabine: vidro embaixo (o topo dele é o para-brisa inclinado, mais claro) e o teto
+    B(CAB[0], CAB[1], -12, 12, hb, hb + CAB[4], vid, vid, vidL);
+    B(CAB[2], CAB[3], -11.5, 11.5, hb + CAB[4], hb + CAB[5], vid, vid, l);
+    K.poly(g, [p(CAB[2] + 2, -8, hb + CAB[5] + 0.05), p(CAB[3] - 2, -8, hb + CAB[5] + 0.05), p(CAB[3] - 2, -3, hb + CAB[5] + 0.05), p(CAB[2] + 2, -3, hb + CAB[5] + 0.05)], ll); // brilho no teto
+    if (tipo === 2) for (const v of [-10.5, 9.5]) B(CAB[2] + 3, CAB[3] - 3, v, v + 1, hb + CAB[5], hb + CAB[5] + 1.2, P.ne1, P.ne0, P.ne2); // bagageiro
+    // do lado que aparece: colunas, reflexo no vidro, friso, porta, maçaneta, caixas de roda, rodas e calotas
+    const meio = (CAB[2] + CAB[3]) / 2;
+    for (const u of [CAB[2], meio - 1, CAB[3] - 2]) dec(u, u + 2, hb, hb + CAB[5], col, 12.1);
+    dec(meio + 3, meio + 5, hb + 1.5, hb + CAB[5] - 1.5, vidB, 12.15);
+    dec(CAB[2] + 3, CAB[2] + 4, hb + 2.5, hb + CAB[5] - 1.5, vidB, 12.15);
+    dec(-29, 29, hb - 1, hb, ll);
+    dec(meio - 1, meio - 0.2, 7.5, hb - 1, d);
+    dec(meio + 1.5, meio + 4, hb - 3.4, hb - 2.5, dd);
+    for (const wu of [-21, 13]) { dec(wu - 1.5, wu + 10.5, 7, 10, dd); dec(wu, wu + 9, 0, 8.4, P.ne0, 13.6); dec(wu + 3, wu + 6, 2.6, 5.6, P.ne4, 13.7); }
+    const mv = lado > 0 ? 12 : -14.5;
+    B(CAB[3] - 1, CAB[3] + 1.5, mv, mv + 2.5, hb, hb + 2.2, col, d, l); // retrovisor
+    // na ponta que aparece: faróis + grade (frente) ou lanternas (trás), e a placa no para-choque
+    if (frente) { fim(-11.5, -5.5, 9, 12.6, P.sky8); fim(5.5, 11.5, 9, 12.6, P.sky8); fim(-4.5, 4.5, 8.4, 12, P.ne0); fim(-3, 3, 9.6, 10.4, P.ne3); }
+    else { fim(-12, -6, 9.4, 12.6, P.sky3); fim(6, 12, 9.4, 12.6, P.sky3); fim(-12, -9.5, 9.4, 12.6, P.sky5); fim(9.5, 12, 9.4, 12.6, P.sky5); }
+    fim(-3.5, 3.5, 4.8, 7.2, P.ne6, 1.3);
     // porta aberta do lado direito (o lado da calçada)
-    if (o.doorOpen) K.poly(g, [p(-14, 13.2, 6), p(-14, 25, 6), p(-14, 25, 20), p(-14, 13.2, 20)], shade(col, -0.15));
+    // (doorOpen entre 0 e 1: meio aberta = a porta ainda inclinada, a caminho)
+    if (o.doorOpen) {
+      const k = o.doorOpen === true ? 1 : o.doorOpen, a = (k * Math.PI) / 2, du = -Math.cos(a) * 11.8, dv = Math.sin(a) * 11.8;
+      K.poly(g, [p(-14, 13.2, 6), p(-14 + du, 13.2 + dv, 6), p(-14 + du, 13.2 + dv, 20), p(-14, 13.2, 20)], shade(col, k < 1 ? -0.05 : -0.15));
+      K.poly(g, [p(-14 + du * 0.25, 13.2 + dv * 0.25, 14.5), p(-14 + du * 0.85, 13.2 + dv * 0.85, 14.5), p(-14 + du * 0.85, 13.2 + dv * 0.85, 19), p(-14 + du * 0.25, 13.2 + dv * 0.25, 19)], P.wa1);
+    }
+  }
+  // a moto: duas rodas, tanque na cor, banco e o piloto de capacete
+  function drawMoto(g, p, B, col, frente) {
+    K.poly(g, [p(-12, -3, 0), p(13, -3, 0), p(13, 5, 0), p(-12, 5, 0)], 'rgba(0,0,0,0.3)', false);
+    B(-13, -6, -1.2, 1.2, 0, 8, P.ne0, P.ne0, P.ne1);
+    B(6, 13, -1.2, 1.2, 0, 8, P.ne0, P.ne0, P.ne1);
+    B(-9, 9, -2, 2, 5, 10, P.ne1, P.ne0, P.ne2);                               // quadro e motor
+    B(-1, 6, -2.6, 2.6, 9, 12.5, col, shade(col, -0.3), shade(col, 0.2));      // tanque
+    B(-9, -1, -2.2, 2.2, 10, 11.6, P.ne0, P.ne0, P.ne1);                       // banco
+    B(-6, 0, -3.2, 3.2, 10, 15, P.wa1, P.wa0, P.wa2);                          // pernas
+    B(-6, -1, -3.2, 3.2, 15, 23, col, shade(col, -0.3), shade(col, 0.18));     // tronco
+    B(-1, 6, -3.4, 3.4, 18, 20, P.ne5, P.ne4, P.ne6);                          // braços no guidão
+    B(-5.5, -0.5, -2.8, 2.8, 23, 28.5, P.ne0, P.ne0, P.ne2);                   // capacete
+    if (frente) K.poly(g, [p(9.2, -1.5, 9), p(9.2, 1.5, 9), p(9.2, 1.5, 12), p(9.2, -1.5, 12)], P.sky8);
+    else K.poly(g, [p(-9.2, -1.2, 9), p(-9.2, 1.2, 9), p(-9.2, 1.2, 11), p(-9.2, -1.2, 11)], P.sky3);
   }
   L.drawCarAt = drawCarAt;
 
@@ -888,8 +944,10 @@
   // 5. carros parados: nas vagas do estacionamento (poucos, cores variadas) e junto ao meio-fio da rua do sul
   const LOTC = [P.ne6, P.ne6, P.ne3, P.sky3, P.vd0, P.ne6, P.ne0, P.ne6, P.wa2, P.te2, P.ne4];
   const carBox = (x, y, ang) => { const ca = Math.abs(Math.cos(ang)), sa = Math.abs(Math.sin(ang)), hx = (30 * ca + 13 * sa) / T, hy = (30 * sa + 13 * ca) / T; return boxOf([[x - hx, y - hy], [x + hx, y + hy]]); };
-  const parked = (x, y, ang, col) => put(Object.assign({ kind: 'lg-car', cx: x * T, cy: y * T, ang, col, isoH: 30, solid: false,
-    drawIso(g, sc, e) { K.isoT(g, sc); drawCarAt(g, e.cx, e.cy, e.ang, e.col); } }, carBox(x, y, ang)));
+  const TIPO_PARADO = [0, 1, 0, 2, 3, 1, 0, 2, 1, 0]; // sedãs, hatches, SUVs e picapes
+  const parked = (x, y, ang, col) => put(Object.assign({ kind: 'lg-car', cx: x * T, cy: y * T, ang, col, isoH: 34, solid: false,
+    tipo: TIPO_PARADO[Math.floor(hash(Math.round(x * 7) + Math.round(y * 13)) * TIPO_PARADO.length)],
+    drawIso(g, sc, e) { K.isoT(g, sc); drawCarAt(g, e.cx, e.cy, e.ang, e.col, e); } }, carBox(x, y, ang)));
   let carN = 0;
   for (const v of M.VAGAS) {
     const h = hash(Math.round(v.u * 13) + v.v0 * 7);
@@ -913,7 +971,24 @@
     const [ux, uy] = AV.world(S_CAR - 0.6, AV.calcada[0] + 0.7); // onde o jogador fica para entrar
     const car = put({ id: 'CARRO', kind: 'lg-mycar', tx: Math.floor(cx - 2), ty: Math.floor(cy - 1), tw: 4, th: 2, isoH: 30, solid: false,
       cx: cx * T, cy: cy * T, ang: AV.angle,
-      drawIso(g, sc, e) { K.isoT(g, sc); drawCarAt(g, e.cx, e.cy, e.ang, P.wa3, { doorOpen: !!e.doorOpen }); } });
+      drawIso(g, sc, e) {
+        K.isoT(g, sc);
+        drawCarAt(g, e.cx, e.cy, e.ang, P.wa3, { doorOpen: e.doorOpen || 0 });
+        if (!e.luz && !e.seta) return;
+        // faróis, lanternas e seta (a sequência de entrar no carro, lago.js)
+        const ca = Math.cos(e.ang), sa = Math.sin(e.ang), Lg = DL.Lago;
+        const pt = (u, v, z) => { const x = e.cx + u * ca - v * sa, y = e.cy + u * sa + v * ca; return [x - y, (x + y) / 2 - z]; };
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        if (e.luz) {
+          for (const v of [-8.5, 8.5]) { const [X, Y] = pt(31, v, 10.5); Lg.glow(g, X, Y, 9, '255,236,170', 0.75 * e.luz); }
+          const [FX, FY] = pt(52, 0, 2); Lg.glow(g, FX, FY, 30, '255,226,160', 0.3 * e.luz);
+          for (const v of [-9, 9]) { const [X, Y] = pt(-31, v, 11); Lg.glow(g, X, Y, 7, '255,60,50', 0.8 * e.luz); }
+        }
+        if (e.seta) for (const u of [30, -30]) { const [X, Y] = pt(u, -12, 10.5); Lg.glow(g, X, Y, 6, '255,170,40', 0.95); }
+        g.restore();
+        if (e.seta) for (const u of [30.5, -30.5]) { const [X, Y] = pt(u, -12, 10.5); R(g, Math.round(X) - 1, Math.round(Y) - 1, 2, 2, P.sky7); }
+      } });
     L.carUse = { x: ux * T, y: uy * T };
     L.car = car;
   }

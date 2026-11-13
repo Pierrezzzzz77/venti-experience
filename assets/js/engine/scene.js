@@ -134,11 +134,9 @@
         // (Venti) o 1º quadro pode chegar com um horário anterior ao do start(): nunca deixa dt negativo
         const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
         last = now;
-        const w0 = FPS ? performance.now() : 0;
         if (step) step(dt);
         this.update(dt);
         this.render();
-        if (FPS) FPS(now, performance.now() - w0, this.canvas);
         this.raf = requestAnimationFrame(loop);
       };
       this.raf = requestAnimationFrame(loop);
@@ -148,26 +146,6 @@
       cancelAnimationFrame(this.raf);
     }
   }
-
-  // (Venti) ?fps=1 na URL: contador no canto da tela com o FPS e o tempo médio de cada quadro
-  // ("trabalho" = o tempo que o jogo gasta para calcular e desenhar um quadro; 16,7 ms = 60 FPS)
-  const FPS = /[?&]fps=1(&|$)/.test(location.search) ? (function () {
-    const el = document.createElement('div');
-    el.className = 'fps';
-    document.addEventListener('DOMContentLoaded', () => document.body.appendChild(el));
-    if (document.body) document.body.appendChild(el);
-    let n = 0, work = 0, worst = 0, t0 = 0;
-    return function (now, ms, cv) {
-      if (!t0) t0 = now;
-      n++; work += ms; worst = Math.max(worst, ms);
-      if (now - t0 < 500) return;
-      const fps = (n * 1000) / (now - t0);
-      el.textContent = fps.toFixed(0) + ' FPS · ' + (work / n).toFixed(1) + ' ms/quadro (pior ' + worst.toFixed(0) + ') · ' + cv.width + '×' + cv.height;
-      el.classList.toggle('is-bad', fps < 30);
-      n = 0; work = 0; worst = 0; t0 = now;
-    };
-  })() : null;
-  DL.fpsOn = !!FPS;
 
   DL.Scene = Scene;
 })();

@@ -256,7 +256,7 @@
       R(g, ax - 4, hy + 7, 1, 1, blush);
       R(g, ax + 3, hy + 7, 1, 1, blush);
       R(g, ax - 1, hy + 8, 2, 1, skinD);
-      if (pose === 'talk') R(g, ax - 1, hy + 8, 2, 1, '#6b2e2e');
+      if (pose === 'talk' || pose === 'sitT') R(g, ax - 1, hy + 8, 2, 1, '#6b2e2e');
     } else if (side) {
       if (closed) R(g, ax + 2, hy + 6, 2, 1, eye);
       else {
@@ -264,7 +264,7 @@
         if (L.body === 'f') R(g, ax + 3, hy + 4, 1, 1, eye);
       }
       R(g, ax + 3, hy + 7, 1, 1, blush);
-      if (pose === 'talk') R(g, ax + 4, hy + 8, 1, 1, '#6b2e2e');
+      if (pose === 'talk' || pose === 'sitT') R(g, ax + 4, hy + 8, 1, 1, '#6b2e2e');
       R(g, ax + 5, hy + 5, 1, 2, L.skin);
       R(g, ax - 1, hy + 5, 1, 2, skinD);
     }
@@ -443,6 +443,22 @@
     };
     return sheet;
   };
+  // (Venti) a folha de um MESMO objeto de visual é feita uma vez só (criar centenas de canvases custava caro
+  // cada vez que um personagem novo aparecia, por exemplo os alunos que entram e saem da faculdade)
+  {
+    const FOLHAS = new WeakMap(), fazFolha = DL.makeSheet;
+    DL.makeSheet = function (L) { let s = FOLHAS.get(L); if (!s) { s = fazFolha(L); FOLHAS.set(L, s); } return s; };
+  }
+  // (Venti) um quadro avulso do personagem, já com o contorno: poses que a folha não tem
+  // ('sitA'/'sitB' sentado escrevendo, 'sitR' sentado parado, 'sitT' sentado falando, 'talk' em pé falando).
+  // 'left' é o 'right' espelhado.
+  DL.charFrame = function (L, dir, pose, closed) {
+    const c = mk(FW, FH);
+    drawChar(c.getContext('2d'), dir === 'left' ? 'right' : dir, pose, L, closed);
+    const o = outline(c);
+    return dir === 'left' ? mirror(o) : o;
+  };
+  DL.charOutline = () => C.outline;
 
   /* ------------------------------------------------------------------ */
   /* Equipamentos                                                        */

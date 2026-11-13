@@ -162,29 +162,112 @@
     if (t >= TEMPO.fim) startPlay(game);
   }
 
-  let mastro = null, STRETCH = null;
+  let mastro = null, ALTA = null, SOMBRA = null;
+  // sombras de nuvem no filme: [x, y (px do mundo, a partir do lago), largura]
+  const NUVENS_SOMBRA = [[0, -500, 1500], [900, 500, 1900], [2100, -200, 1300], [3300, 800, 1700], [4500, -700, 2000], [5600, 300, 1400]];
+  function fazSombra() { // uma mancha roxa de borda macia, pintada uma vez
+    const c = DL.mk(192, 96), q = c.getContext('2d');
+    for (const [x, y, r] of [[70, 50, 46], [112, 44, 44], [96, 56, 40], [140, 54, 34], [46, 54, 30]]) {
+      const gr = q.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, 'rgba(36,22,58,0.55)'); gr.addColorStop(0.6, 'rgba(36,22,58,0.3)'); gr.addColorStop(1, 'rgba(36,22,58,0)');
+      q.fillStyle = gr; q.fillRect(0, 0, 192, 96);
+    }
+    return c;
+  }
+  // o chão visto do alto é desenhado com o DOBRO da resolução numa tela escondida e depois reduzido
+  // (já esticado na vertical) para a tela do jogo: cada pixel é a média de vários, sem borrão nem serrilhado
+  const FINO = 2;
+  // quem se mexe (carros, gente, cachorros, crianças), visto do alto: desenhado por cima da imagem pronta,
+  // na mesma tela escondida — assim o mundo já está vivo desde o primeiro quadro do filme
+  const LISTA = [];
+  // o carro visto do alto: desenhado uma vez numa telinha (só refaz quando ele vira) e depois é só copiar
+  function carroPronto(e) {
+    const q = Math.round(e.ang / (Math.PI / 24));
+    if (e._alto && e._altoQ === q) return e._alto;
+    const c = e._alto || (e._alto = DL.mk(112, 80)), q2 = c.getContext('2d');
+    e._altoQ = q;
+    q2.setTransform(1, 0, 0, 1, 0, 0);
+    q2.clearRect(0, 0, 112, 80);
+    q2.setTransform(1, 0, 0, 1, 56, 54);
+    q2.lineWidth = 1;
+    q2.lineJoin = 'round';
+    L.drawCarAt(q2, 0, 0, (q * Math.PI) / 24, e.col, e);
+    return c;
+  }
+  function vivos(game, b, bs) {
+    const V = Lg.vida && Lg.vida.V;
+    if (!V) return;
+    const S2 = bs.S, x0 = bs.ox / S2 - 40, x1 = (bs.ox + bs.canvas.width) / S2 + 40, y0 = bs.oy / S2 - 40, y1 = (bs.oy + bs.canvas.height) / S2 + 40;
+    const dentro = (x, y) => { const X = x - y, Y = (x + y) / 2; return X > x0 && X < x1 && Y > y0 && Y < y1; };
+    LISTA.length = 0;
+    for (const e of V.cars) if (dentro(e.cx, e.cy)) LISTA.push([e.cx + e.cy, 0, e]);
+    if (S2 >= 0.14) { // gente e bichos: só quando já dá para ver (de muito alto seriam menos de um pixel)
+      for (const a of V.peds) if (!a.hidden && dentro(a.x, a.y)) LISTA.push([a.x + a.y, 1, a]);
+      if (V.cross && dentro(V.cross.a.x, V.cross.a.y)) LISTA.push([V.cross.a.x + V.cross.a.y, 1, V.cross.a]);
+      for (const k of V.kids) if (dentro(k.x, k.y)) LISTA.push([k.x + k.y, 2, k]);
+      for (const d of V.dogs) if (dentro(d.x, d.y)) LISTA.push([d.x + d.y, 2, d]);
+      const p = game.player;
+      if (p && !p.hidden) LISTA.push([p.x + p.y, 1, p]);
+    }
+    if (!LISTA.length) return;
+    LISTA.sort((m, n) => m[0] - n[0]);
+    b.save();
+    b.imageSmoothingEnabled = true;
+    b.imageSmoothingQuality = 'low';
+    b.lineWidth = 1 / S2;
+    for (const [, tipo, e] of LISTA) {
+      b.globalAlpha = 1;
+      if (tipo === 1) K.drawActor(b, bs, e, false);
+      else if (tipo === 0) { K.isoT(b, bs); b.drawImage(carroPronto(e), Math.round(e.cx - e.cy) - 56, Math.round((e.cx + e.cy) / 2) - 54); }
+      else e.drawIso(b, bs, e);
+    }
+    b.restore();
+    b.setTransform(1, 0, 0, 1, 0, 0);
+    b.globalAlpha = 1;
+  }
   // um quadro com a câmera alta: céu, a imagem pronta da cidade, o brilho na água, pássaros e nuvens
   function aerial(game, sc) {
     const g = sc.ctx, S = sc.S, cw = sc.canvas.width, ch = sc.canvas.height;
     sc.ox = Math.round((sc.cam.x - sc.cam.y) * S - cw / 2);
     sc.oy = Math.round(((sc.cam.x + sc.cam.y) / 2) * S - ch / 2);
+    const ky = st.ky || 1, bw = cw * FINO, bh = ch * FINO;
+    if (!ALTA || ALTA.c.width !== bw || ALTA.c.height !== bh || Object.getPrototypeOf(ALTA.sc) !== sc) {
+      const c = DL.mk(bw, bh);
+      ALTA = { c, g: c.getContext('2d'), sc: Object.create(sc) }; // uma "cena" igual, só que com a tela grande
+      ALTA.sc.canvas = c; ALTA.sc.ctx = ALTA.g; ALTA.sc.fino = FINO;
+    }
+    const b = ALTA.g, bs = ALTA.sc;
+    bs.S = S * FINO;
+    bs.ox = Math.round((sc.cam.x - sc.cam.y) * bs.S - bw / 2);
+    bs.oy = Math.round(((sc.cam.x + sc.cam.y) / 2) * bs.S - bh / 2);
+    b.setTransform(1, 0, 0, 1, 0, 0);
+    b.globalAlpha = 1;
+    b.globalCompositeOperation = 'source-over';
+    Lg.sky(b, bs, st);
+    Lg.drawAerial(b, bs);
+    Lg.water(b, bs, st);
+    vivos(game, b, bs);
+    // reduz para a tela do jogo; a vista mais "de cima" estica o chão na vertical em volta do meio (no mesmo passo)
+    const hh = bh / ky, y0 = (bh - hh) / 2;
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
-    Lg.sky(g, sc, st);
-    Lg.drawAerial(g, sc);
-    Lg.water(g, sc, st);
-    // a vista mais "de cima": estica o chão na vertical em volta do meio da tela
-    const ky = st.ky || 1;
-    if (ky > 1.001) {
-      const hh = Math.round(ch / ky), y0 = Math.round((ch - hh) / 2);
-      if (!STRETCH || STRETCH.width !== cw || STRETCH.height !== hh) STRETCH = DL.mk(cw, hh);
-      const sg = STRETCH.getContext('2d');
-      sg.clearRect(0, 0, cw, hh);
-      sg.drawImage(g.canvas, 0, y0, cw, hh, 0, 0, cw, hh);
-      g.setTransform(1, 0, 0, 1, 0, 0);
-      g.imageSmoothingEnabled = false;
-      g.drawImage(STRETCH, 0, 0, cw, hh, 0, 0, cw, ch);
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'low'; // metade do tamanho: a média simples já basta (e é a mais leve)
+    g.drawImage(ALTA.c, 0, y0, bw, hh, 0, 0, cw, ch);
+    g.imageSmoothingEnabled = false;
+    // sombras de nuvem passando devagar por cima da cidade (somem quando a câmera desce)
+    const sA = (1 - smooth(0.26, 0.46, S)) * 0.26;
+    if (sA > 0.01) {
+      if (!SOMBRA) SOMBRA = fazSombra();
+      g.globalAlpha = sA;
+      for (let i = 0; i < NUVENS_SOMBRA.length; i++) {
+        const n = NUVENS_SOMBRA[i], Xw = LAGO_ISO.X0 + n[0] + ((st.t * 38 + i * 900) % 7000) - 3500, Yw = (LAGO_ISO.Y0 + LAGO_ISO.Y1) / 2 + n[1];
+        const w = n[2] * S, h = w * 0.5 * ky, sx = Xw * S - sc.ox, sy = (Yw * S - sc.oy - ch / 2) * ky + ch / 2;
+        if (sx + w / 2 < 0 || sx - w / 2 > cw || sy + h / 2 < 0 || sy - h / 2 > ch) continue;
+        g.drawImage(SOMBRA, sx - w / 2, sy - h / 2, w, h);
+      }
+      g.globalAlpha = 1;
     }
     // a bandeira de Canaã fica fora das imagens prontas: desenhada a cada quadro (com vento), sem esticar
     const m = mastro || (mastro = game.world.items.find((e) => e.kind === 'lg-mastro'));
@@ -312,6 +395,7 @@
     if (V) {
       for (const a of V.peds) if (!PE_OK.has(nome(a.x / T, a.y / T))) err('pedestre', 'fora do caminho', a.x / T, a.y / T);
       for (const dg of V.dogs) if (!PE_OK.has(nome(dg.x / T, dg.y / T))) err('cachorro', 'fora do caminho', dg.x / T, dg.y / T);
+      for (const k of V.kids || []) if (!set('grama', 'praca', 'margem').has(nome(k.x / T, k.y / T))) err('criança', 'fora do gramado', k.x / T, k.y / T);
       for (const c of V.cars) if (!set('rua', 'faixa').has(nome(c.cx / T, c.cy / T))) err('carro andando', 'fora da pista', c.cx / T, c.cy / T);
     }
     ERROS = out;
@@ -324,6 +408,8 @@
   function startPlay(game) {
     const sc = game.scene, p = game.player;
     st.phase = 'play';
+    // a viagem (abertura.js) vai sendo montada aos poucos, no tempo livre, enquanto o jogador anda até o carro
+    if (DL.Abertura && DL.Abertura.preparar) DL.Abertura.preparar();
     st.band = 0;
     st.ky = 1;
     st.haze = 0;
@@ -373,7 +459,14 @@
     const car = game.world.byId.CARRO;
     st.carFrom = { x: game.player.x, y: game.player.y };
     st.carTo = { x: L.carUse.x, y: L.carUse.y };
+    st.car0 = { x: car.cx, y: car.cy, v: 0, u: 0 };
+    st.som = {};
+    caption(null);
   }
+  // a sequência (segundos depois de chegar na porta): porta abre em 2 quadros, o boneco entra em 3,
+  // porta fecha, faróis e lanternas acendem, a seta pisca, o carro sai e a câmera vai junto
+  const CARRO = { abre: 0.12, entra: [0.4, 0.58, 0.76, 0.94], fecha: [1.1, 1.24], luz: 1.55, seta: [1.75, 3.2], sai: 2.45, fim: 4.05 };
+  const umaVez = (k, f) => { if (!st.som[k]) { st.som[k] = 1; if (Lg.som) f(Lg.som); } };
   function carStep(game, dt) {
     const p = game.player, car = game.world.byId.CARRO;
     st.carT += dt;
@@ -387,15 +480,51 @@
       p.dist += 50 * dt;
       p.dir = DL.dirOf(st.carTo.x - st.carFrom.x, st.carTo.y - st.carFrom.y);
     } else {
+      const u = t - walkT, C = CARRO, sc = game.scene, AV = L.AV;
+      st.carU = u;
       p.moving = false;
-      p.dir = 'down';
-      car.doorOpen = t < walkT + 1.1;
-      p.alpha = 1 - smooth(walkT + 0.25, walkT + 0.75, t);
-    }
-    if (t > walkT + 1.6 && !st.left) {
-      st.left = true;
-      DL.fromLake = true; // a abertura começa com o boneco já dentro do carro
-      setTimeout(() => game.loadMap('abertura'), 0);
+      p.dir = DL.dirOf(car.cx - st.carTo.x, car.cy - st.carTo.y);
+      // a porta: meio aberta, aberta, meio fechada, fechada
+      car.doorOpen = u < C.abre ? 0.5 : u < C.fecha[0] ? 1 : u < C.fecha[1] ? 0.5 : 0;
+      umaVez('abre', (s) => s.porta(false));
+      if (u >= C.fecha[1]) umaVez('fecha', (s) => s.porta(true));
+      // o boneco entra: três passos para dentro, cada um mais escondido atrás da porta
+      const n = C.entra.filter((x) => u >= x).length;
+      if (n >= 4) p.hidden = true;
+      else {
+        const k = [0, 0.3, 0.6, 0.85][n];
+        p.x = lerp(st.carTo.x, car.cx, k); p.y = lerp(st.carTo.y, car.cy, k);
+        p.alpha = [1, 0.8, 0.5, 0.22][n];
+      }
+      // luzes, seta e partida
+      car.luz = smooth(C.luz, C.luz + 0.25, u);
+      if (u >= C.luz - 0.25) umaVez('motor', (s) => s.motor());
+      car.seta = u > C.seta[0] && u < C.seta[1] && Math.floor((u - C.seta[0]) * 3.2) % 2 === 0;
+      if (u > C.sai) {
+        const c0 = st.car0, a = 70;
+        c0.v = Math.min(120, c0.v + a * dt);
+        c0.u += c0.v * dt;
+        const lado = -smooth(0, 70, c0.u) * 0.9 * T; // sai da beira da calçada para o meio da pista
+        car.cx = c0.x + AV.DIR[0] * c0.u + AV.NRM[0] * lado;
+        car.cy = c0.y + AV.DIR[1] * c0.u + AV.NRM[1] * lado;
+        car.px = car.cx - 30; car.py = car.cy - 13;
+      }
+      // a câmera sai do boneco e acompanha o carro, sem tranco
+      if (!sc.camFree) { sc.camFree = true; st.camK = 0; st.cam0 = { x: sc.cam.x, y: sc.cam.y }; }
+      st.camK = Math.min(1, st.camK + dt / 1.6);
+      const ck = st.camK * st.camK * (3 - 2 * st.camK);
+      sc.cam.x = lerp(st.cam0.x, st.cam0.x + (car.cx - st.car0.x) + (st.car0.x - st.carTo.x) * 0.5, ck);
+      sc.cam.y = lerp(st.cam0.y, st.cam0.y + (car.cy - st.car0.y) + (st.car0.y - st.carTo.y) * 0.5, ck);
+      if (u > C.fim && !st.left) {
+        st.left = true;
+        DL.fromLake = true; // a abertura começa com o boneco já dentro do carro
+        // a passagem para a viagem: a abertura começa por baixo desta mesma imagem, com o carro no mesmo ponto da tela
+        const cv = sc.canvas, foto = DL.mk(cv.width, cv.height);
+        foto.getContext('2d').drawImage(cv, 0, 0);
+        const X = (car.cx - car.cy) * sc.S - sc.ox, Y = ((car.cx + car.cy) / 2) * sc.S - sc.oy;
+        DL.passagem = { foto, fx: X / cv.width, fy: Y / cv.height, dusk: st.dusk };
+        setTimeout(() => game.loadMap('abertura'), 0);
+      }
     }
   }
 
@@ -415,7 +544,9 @@
 
     enter(game) {
       const sc = game.scene;
-      Object.assign(st, { t: 0, band: 0, ky: 1, haze: 1, dusk: duskAt(0), phase: 'film', skipAt: null, fadeIn: null, caption: '', carT: 0, left: false, ready: false });
+      Object.assign(st, { t: 0, band: 0, ky: 1, haze: 1, dusk: duskAt(0), phase: 'film', skipAt: null, fadeIn: null, caption: '', carT: 0, left: false, ready: false, jaPintou: false,
+        // (menu inicial) com o menu na tela o filme fica parado no começo, e as nuvens são as do menu
+        espera: !!DL.menuEspera, doMenu: !!DL.menuEspera });
       Lg.lamps = game.world.items.filter((e) => e.lamp);
       mastro = null;
       // o preparo (lago-preparo.js): desenha uma vez o que fica parado; o filme começa quando termina
@@ -426,6 +557,9 @@
         const g = sc.ctx;
         if (!st.ready) { g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#000'; g.fillRect(0, 0, sc.canvas.width, sc.canvas.height); return true; }
         if (st.phase !== 'film' || sc.S >= Lg.AERIAL_MAX) return false;
+        // atrás do menu as nuvens tapam tudo: a cidade continua andando (update), mas não precisa ser desenhada
+        if (st.espera && st.jaPintou) return true;
+        st.jaPintou = true;
         aerial(game, sc);
         return true;
       };
@@ -433,7 +567,10 @@
       const car = game.world.byId.CARRO;
       car.ix = L.carUse.x;
       car.iy = L.carUse.y;
-      car.doorOpen = false;
+      car.doorOpen = 0; car.luz = 0; car.seta = false;
+      if (!L.car0) L.car0 = { x: car.cx, y: car.cy };
+      car.cx = L.car0.x; car.cy = L.car0.y;
+      car.px = car.tx * T; car.py = car.ty * T;
       sc.background = (g) => { Lg.sky(g, sc, st); Lg.drawCity(g, sc); };
       sc.underlay = (g) => {
         Lg.shadows(g, sc, st); // antes da água: na água a sombra quase não aparece
@@ -458,6 +595,11 @@
 
     update(game, dt) {
       if (!st.ready) return; // ainda preparando
+      if (st.espera) { // escondido atrás do menu, esperando o Jogar: a cidade já vai andando (carros, gente, bichos)
+        if (Lg.vida) Lg.vida.update(game, Math.min(dt, 0.05), st);
+        film(game, 0);
+        return;
+      }
       st.t += dt;
       st.dusk = duskAt(st.t);
       if (Lg.vida) Lg.vida.update(game, dt, st);
@@ -488,12 +630,12 @@
       g.save();
       g.setTransform(1, 0, 0, 1, 0, 0);
       // as nuvens da abertura
-      if (st.phase === 'film') Lg.clouds(g, sc, smooth(TEMPO.nuvens[0], TEMPO.nuvens[1], st.t), st.t);
+      if (st.phase === 'film' && !st.doMenu) Lg.clouds(g, sc, smooth(TEMPO.nuvens[0], TEMPO.nuvens[1], st.t), st.t);
       // entrada, Pular e saída em preto
-      let black = 1 - smooth(0, 1.0, st.t);
+      let black = st.doMenu ? 0 : 1 - smooth(0, 1.0, st.t);
       if (st.skipAt != null) black = Math.max(black, smooth(st.skipAt, st.skipAt + 0.5, st.t));
       if (st.fadeIn != null) black = Math.max(black, 1 - smooth(st.fadeIn, st.fadeIn + 0.6, st.t));
-      if (st.phase === 'car') black = Math.max(black, smooth(1.4, 2.2, st.carT));
+
       if (black > 0) { g.fillStyle = 'rgba(0,0,0,' + black.toFixed(3) + ')'; g.fillRect(0, 0, sc.canvas.width, sc.canvas.height); }
       g.restore();
     },

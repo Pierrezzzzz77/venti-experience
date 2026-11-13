@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Venti Experience</title>
   <link rel="stylesheet" href="assets/css/game.css">
+  <link rel="stylesheet" href="assets/css/menu.css">
 </head>
 <body>
   <canvas id="game" aria-label="Sala do DataLab em pixel art isométrica"></canvas>
@@ -93,6 +94,8 @@
   <script src="assets/js/ui/terminal.js"></script>
   <script src="assets/js/ui/monitor.js"></script>
   <script src="assets/js/maps/datalab.js"></script>
+  <script src="assets/js/maps/arte.js"></script>
+  <script src="assets/js/maps/abertura-pecas.js"></script>
   <script src="assets/js/maps/abertura.js"></script>
   <!-- parte 0: o Lago da Prefeitura (o cenário antes; lago.js por último) -->
   <script src="assets/js/maps/lago-paleta.js"></script>
@@ -105,11 +108,21 @@
   <script src="assets/js/maps/lago-som.js"></script>
   <script src="assets/js/maps/lago-preparo.js"></script>
   <script src="assets/js/maps/lago.js"></script>
-  <!-- próximas partes (mapas separados): maps/faculdade.js, maps/rua.js -->
+  <!-- parte 2: a faculdade por dentro (do Pierre); antes da rua, que liga a porta de vidro dela -->
+  <script src="assets/js/maps/faculdade-alunos.js"></script>
+  <script src="assets/js/maps/faculdade.js"></script>
+  <!-- a rua da Faculdade Serra Dourada e do DataLab (depois da viagem) -->
+  <script src="assets/js/maps/rua.js"></script>
+  <!-- o menu inicial (depois do lago: as nuvens dele abrem o filme) -->
+  <script src="assets/js/ui/menu.js"></script>
   <script>
-    // o jogo começa no Lago da Prefeitura; para testar um mapa direto: index.html?mapa=abertura (ou datalab)
-    const pedido = new URLSearchParams(location.search).get('mapa');
-    DL.game.loadMap(DL.MAPS[pedido] ? pedido : 'lago');
+    // o jogo começa no Lago da Prefeitura; para testar um mapa direto: index.html?mapa=abertura (ou rua, faculdade, datalab)
+    // sem ?mapa o jogo abre no menu inicial, com o lago sendo montado por trás; ?menu=0 pula o menu
+    const url = new URLSearchParams(location.search), pedido = url.get('mapa');
+    const comecar = () => DL.game.loadMap(DL.MAPS[pedido] ? pedido : 'lago');
+    // o menu aparece primeiro; o lago começa a ser montado logo depois (senão a página ficaria em branco)
+    if (!DL.MAPS[pedido] && url.get('menu') !== '0') { DL.Menu.abrir(); requestAnimationFrame(() => setTimeout(comecar, 30)); }
+    else comecar();
   </script>
 </body>
 </html>

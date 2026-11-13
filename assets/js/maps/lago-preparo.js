@@ -150,12 +150,11 @@
       if (Lg.cancelPrep === sc) return;
       const a = performance.now();
       // vários passos por vez, sem segurar a página mais que ~60 ms
-      while (i < steps.length && performance.now() - a < 60) { const b = performance.now(); steps[i++](); if (DL.fpsOn && performance.now() - b > 200) console.log('[lago] passo ' + (i - 1) + ': ' + Math.round(performance.now() - b) + ' ms'); }
+      while (i < steps.length && performance.now() - a < 60) steps[i++]();
       if (performance.now() - t0 > 300 || i < steps.length) bar(i < steps.length, i / steps.length);
       if (i < steps.length) { setTimeout(run, 0); return; }
       bar(false);
       sc.floor = cache.floor; // o chão pronto entra no lugar do chão simples (iso.js copia na próxima vez que desenhar)
-      if (DL.fpsOn) console.log('[lago] preparo: ' + Math.round(performance.now() - t0) + ' ms');
       done();
     };
     run();
@@ -176,10 +175,11 @@
     const S = sc.S, cw = sc.canvas.width, ch = sc.canvas.height, mips = cache.mips;
     const vx0 = sc.ox / S, vy0 = sc.oy / S, vx1 = (sc.ox + cw) / S, vy1 = (sc.oy + ch) / S;
     g.setTransform(1, 0, 0, 1, 0, 0);
-    g.imageSmoothingEnabled = false;
-    // a imagem pronta mais parecida com o zoom de agora (escala de 2 em 2: no máximo 1,4× maior ou menor)
-    let best = 0;
-    for (let i = 0; i < mips.length; i++) if (Math.abs(Math.log(mips[i].s / S)) < Math.abs(Math.log(mips[best].s / S))) best = i;
+    g.imageSmoothingEnabled = true; // (reduzindo, a média dos pixels fica mais limpa)
+    g.imageSmoothingQuality = 'low'; // (as outras qualidades refazem a imagem a cada quadro: pesado)
+    // a imagem pronta mais DETALHADA que o zoom de agora (nunca ampliar: ampliada, fica borrada); a última se não houver
+    let best = mips.length - 1;
+    for (let i = 0; i < mips.length; i++) if (mips[i].s >= S * 0.85) { best = i; break; }
     // se ela não cobre a tela toda, por baixo vai a maior que cubra (mais simples)
     if (!covers(mips[best], vx0, vy0, vx1, vy1)) {
       let base = best;

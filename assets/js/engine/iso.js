@@ -48,21 +48,41 @@
     g.closePath();
   }
   // filled polygon (iso-pixel space); the hairline stroke in the same colour hides AA seams
+  // (Venti) a costura agora é o próprio polígono alargado ~meio pixel para fora (preenchimento),
+  // não mais um contorno: os contornos eram o maior custo da placa de vídeo na faculdade (~30 → ~55 FPS).
+  let SEAM = 0.5;
   function poly(g, pts, fill, seam) {
-    path(g, pts);
     g.fillStyle = fill;
+    if (seam === false) { path(g, pts); g.fill(); return; }
+    let cx = 0, cy = 0;
+    const n = pts.length, xs = [], ys = [];
+    for (let i = 0; i < n; i++) { const p = pts[i]; xs[i] = IX(p[0], p[1]); ys[i] = IY(p[0], p[1], p[2]); cx += xs[i]; cy += ys[i]; }
+    cx /= n; cy /= n;
+    g.beginPath();
+    for (let i = 0; i < n; i++) {
+      const dx = xs[i] - cx, dy = ys[i] - cy, d = Math.hypot(dx, dy) || 1;
+      const x = xs[i] + (dx / d) * SEAM, y = ys[i] + (dy / d) * SEAM;
+      if (i) g.lineTo(x, y); else g.moveTo(x, y);
+    }
+    g.closePath();
     g.fill();
-    if (seam !== false) { g.strokeStyle = fill; g.stroke(); }
+  }
+  // (Venti) linha como faixa preenchida (bem mais barata que stroke na placa de vídeo).
+  // pts em pixels iso; cada trecho vira um quadrilátero, todos num caminho só.
+  function faixa(g, pts, fechado, col, w) {
+    const h = (w || g.lineWidth) / 2, n = pts.length, m = fechado ? n : n - 1;
+    g.beginPath();
+    for (let i = 0; i < m; i++) {
+      const a = pts[i], b = pts[(i + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1;
+      const ox = (-dy / d) * h, oy = (dx / d) * h, ex = (dx / d) * h, ey = (dy / d) * h;
+      g.moveTo(a[0] - ex + ox, a[1] - ey + oy); g.lineTo(b[0] + ex + ox, b[1] + ey + oy);
+      g.lineTo(b[0] + ex - ox, b[1] + ey - oy); g.lineTo(a[0] - ex - ox, a[1] - ey - oy); g.closePath();
+    }
+    g.fillStyle = col;
+    g.fill('nonzero');
   }
   function line(g, a, b, col, w) {
-    g.beginPath();
-    g.moveTo(IX(a[0], a[1]), IY(a[0], a[1], a[2]));
-    g.lineTo(IX(b[0], b[1]), IY(b[0], b[1], b[2]));
-    g.strokeStyle = col;
-    const lw = g.lineWidth;
-    if (w) g.lineWidth = w;
-    g.stroke();
-    g.lineWidth = lw;
+    faixa(g, [[IX(a[0], a[1]), IY(a[0], a[1], a[2])], [IX(b[0], b[1]), IY(b[0], b[1], b[2])]], false, col, w);
   }
   // world-aligned box: the visible faces are south (y = y1), east (x = x1) and the top
   function box(g, x0, y0, x1, y1, z0, z1, c) {
@@ -118,6 +138,42 @@
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, SW, SH);
     try { DL.drawItem(ctx, c, t || 0); } catch (err) { if (!warned) { warned = true; console.warn('iso: could not paint', c.kind, err); } }
+  }
+  // (Venti) DESENHO GUARDADO. Antes, todo objeto era repintado num rascunho a cada quadro e copiado para a
+  // tela — a imagem tinha de subir de novo para a placa de vídeo toda vez (na faculdade, ~20 FPS).
+  // Agora: o objeto que não muda com o tempo é pintado UMA vez num canvas guardado e copiado dali.
+  // Na 1ª vez ele é pintado em 2 instantes diferentes; se der igual, é "parado" e fica guardado.
+  // Objetos iguais (mesmo tipo, cor, giro e propriedades) dividem o mesmo canvas. Se as propriedades
+  // simples dele mudarem (uma luz que acende), ele é guardado de novo; se mudarem sempre, volta ao jeito antigo.
+  const GUARDADOS = new Map(), ESTADO = new WeakMap(), POS = { px: 1, py: 1, tx: 1, ty: 1, ix: 1, iy: 1, id: 1, cx: 1, cy: 1 };
+  function assinatura(e, c) {
+    let s = (c.kind || '') + '|' + (c.rot | 0) + '|' + c.tw + '|' + c.th + '|' + (e.cx != null ? (e.cx - e.px) + ',' + (e.cy - e.py) : '') + (DL.skinKey ? '|' + DL.skinKey(e) : '') + '|';
+    for (const k in e) {
+      if (POS[k] || k.charCodeAt(0) === 95) continue; // (sem posição e sem os campos internos "_...")
+      const v = e[k], ty = typeof v;
+      if (ty === 'number' || ty === 'string' || ty === 'boolean') s += k + '=' + v + ';';
+      else if (v && ty === 'object' && k === 'host') s += 'host=' + (v.kind || '') + (v.variant || '') + ';';
+    }
+    return s;
+  }
+  function pintar(e, c, t) {
+    const est = ESTADO.get(e) || { muda: -1, sig: null };
+    if (est.anim) { paint(scratch(), c, t); return; }
+    const sig = assinatura(e, c);
+    if (sig !== est.sig) { est.sig = sig; est.muda++; ESTADO.set(e, est); }
+    if (est.muda > 4) { est.anim = true; paint(scratch(), c, t); return; } // muda toda hora: repinta sempre
+    let gd = GUARDADOS.get(sig);
+    if (!gd) {
+      paint(pg, c, t + 0.37); const d1 = pg.getImageData(0, 0, SW, SH).data;
+      paint(pg, c, t + 1.13); const d2 = pg.getImageData(0, 0, SW, SH).data;
+      let igual = true;
+      for (let i = 0; i < d1.length; i++) if (d1[i] !== d2[i]) { igual = false; break; }
+      if (igual) { const cv = DL.mk(SW, SH); paint(cv.getContext('2d'), c, t); gd = { c: cv }; }
+      else gd = { anim: true };
+      GUARDADOS.set(sig, gd);
+    }
+    if (gd.anim) { est.anim = true; paint(scratch(), c, t); return; }
+    SC = gd.c;
   }
   // the object as if it stood at the scratch origin (optionally turned to `rot` with a footprint)
   function clone(e, rot, tw, th) {
@@ -232,7 +288,7 @@
     const f = frameOf(e), tw = f.Wf / T, th = f.Df / T;
     const c = clone(e, f.art, tw, th);
     const L = look(keyOf(e, f.art, tw, th), c);
-    paint(scratch(), c, t);
+    pintar(e, c, t);
     const u0 = clamp(Math.floor(L.x0), 0, f.Wf - 2), u1 = clamp(Math.ceil(L.x1), u0 + 2, f.Wf);
     const m = Math.min(u0, f.Wf - u1, 4), v0 = Math.max(0, m - 1), v1 = f.Df - m;
     const sp = SPLIT[e.kind], split = sp != null && sp > L.y0 && sp < L.y1 - 2 ? sp : null;
@@ -252,11 +308,7 @@
     line(g, fw(f, u0, v0, z0 + H), fw(f, u1, v0, z0 + H), 'rgba(255,255,255,0.16)');
     // a dark silhouette line keeps volumes readable on dark floors
     const hb = hull(r[0], r[1], r[2], r[3], z0, z0 + H);
-    g.beginPath();
-    hb.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])));
-    g.closePath();
-    g.strokeStyle = 'rgba(4,5,9,0.55)';
-    g.stroke();
+    faixa(g, hb, true, 'rgba(4,5,9,0.55)');
     let hz = z0 + H;
     if (split != null) {
       const Mc = cardMap(sc, f, (v0 + v1) / 2, z0 + H, split);
@@ -279,7 +331,7 @@
     const f = frameOf(e), tw = f.Wf / T, th = f.Df / T;
     const c = clone(e, f.art, tw, th);
     const L = look(keyOf(e, f.art, tw, th), c);
-    paint(scratch(), c, t);
+    pintar(e, c, t);
     const desk = e.kind === 'desk', v = desk ? '' : e.variant || '';
     const Z = surfTop(e);
     const tl = desk ? ['#2a2e36', '#15181d'] : TABLE[v] || TABLE[''];
@@ -340,7 +392,7 @@
     const f = frameOf(e), tw = f.Wf / T, th = f.Df / T;
     const c = clone(e, f.art, tw, th);
     const L = look(keyOf(e, f.art, tw, th), c);
-    paint(scratch(), c, t);
+    pintar(e, c, t);
     const z0 = e.host ? surfTop(e.host) : 0, vc = f.Df / 2;
     const M = cardMap(sc, f, vc, z0, L.y1);
     setMap(g, sc, M[0], M[1], M[2]);
@@ -372,7 +424,7 @@
   function drawBill(g, sc, e, t) {
     const c = clone(e);
     const L = look(keyOf(e, e.rot | 0, e.tw, e.th, 'b:'), c);
-    paint(scratch(), c, t);
+    pintar(e, c, t);
     const A = anchorOf(e), S = sc.S;
     const tx = Math.round((IX(A.wx, A.wy) - (A.sx - e.px)) * S) / S, ty = Math.round((IY(A.wx, A.wy, A.z) - (A.sy - e.py)) * S) / S;
     const m = [S, 0, 0, S, S * tx - sc.ox, S * ty - sc.oy];
@@ -389,7 +441,7 @@
   function drawWallItem(g, sc, e, t) {
     const c = clone(e);
     const L = look(keyOf(e, e.rot | 0, e.tw, e.th, 'w:'), c);
-    paint(scratch(), c, t);
+    pintar(e, c, t);
     const M = [[e.px, e.py, LIFT], [1, 0, 0], [0, 0, -1]];
     setMap(g, sc, M[0], M[1], M[2]);
     blit(g, -6, -80, e.tw * T + 12, 80 + LIFT);
@@ -400,7 +452,7 @@
     return { rect: [bb[0] - 1, bb[1] - 1, bb[2] + 1, bb[3] + 1] };
   }
   function drawFlat(g, sc, e, t) {
-    paint(scratch(), clone(e), t);
+    pintar(e, clone(e), t);
     const M = [[e.px, e.py, 0], [1, 0, 0], [0, 1, 0]];
     setMap(g, sc, M[0], M[1], M[2]);
     blit(g, 0, 0, e.tw * T, e.th * T);
@@ -470,19 +522,39 @@
     g.fillRect(0, 0, to - from, H);
   }
 
+  // (Venti) a face inteira de um trecho de parede (textura + sombra) pintada UMA vez num canvas
+  // guardado; antes eram um desenho por coluna de 16 px a cada quadro (o maior custo na faculdade).
+  function faceRun(g, sc, w, axis, at, from, to, dark) {
+    const key = styleKey(w.style) + '|' + w.H + '|' + from + '|' + to + '|' + dark;
+    if (!w._face || w._faceKey !== key) {
+      const H = w.H, L = to - from, cv = DL.mk(Math.max(1, L), H), cg = cv.getContext('2d'), tex = wallTex(w.style, H);
+      for (let a = from; a < to; a = Math.floor(a / T) * T + T) {
+        const b = Math.min(to, Math.floor(a / T) * T + T), sx = a - Math.floor(a / T) * T;
+        cg.drawImage(tex, sx, 0, b - a, H, a - from, 0, b - a, H);
+      }
+      const gr = cg.createLinearGradient(0, 0, 0, H);
+      gr.addColorStop(0, 'rgba(255,255,255,0.07)');
+      gr.addColorStop(0.45, 'rgba(0,0,0,' + (dark || 0) + ')');
+      gr.addColorStop(1, 'rgba(0,0,0,' + (0.24 + (dark || 0)) + ')');
+      cg.fillStyle = gr; cg.fillRect(0, 0, L, H);
+      w._face = cv; w._faceKey = key;
+    }
+    if (axis === 'x') setMap(g, sc, [from, at, w.H], [1, 0, 0], [0, 0, -1]);
+    else setMap(g, sc, [at, from, w.H], [0, 1, 0], [0, 0, -1]);
+    g.drawImage(w._face, 0, 0);
+  }
+
   function drawRun(g, sc, w) {
     const r = w.r, c = wallCols(w.style);
     isoT(g, sc);
     if (w.face === 's') {
       box(g, r[0], r[1], r[2], r[3], 0, w.H, { s: c.face, e: c.end, t: c.top });
-      texFace(g, sc, w.style, w.H, 'x', r[3], r[0], r[2]);
-      faceShade(g, sc, 'x', r[3], r[0], r[2], w.H, 0);
+      faceRun(g, sc, w, 'x', r[3], r[0], r[2], 0);
       isoT(g, sc);
       line(g, [r[0], r[3], w.H], [r[2], r[3], w.H], 'rgba(255,255,255,0.22)');
     } else if (w.face === 'e') {
       box(g, r[0], r[1], r[2], r[3], 0, w.H, { s: c.end, e: c.face, t: c.top });
-      texFace(g, sc, w.style, w.H, 'y', r[2], r[1], r[3]);
-      faceShade(g, sc, 'y', r[2], r[1], r[3], w.H, 0.1);
+      faceRun(g, sc, w, 'y', r[2], r[1], r[3], 0.1);
       isoT(g, sc);
       line(g, [r[2], r[1], w.H], [r[2], r[3], w.H], 'rgba(255,255,255,0.16)');
     } else box(g, r[0], r[1], r[2], r[3], 0, w.H, { s: c.low, e: c.end, t: c.top });
@@ -907,6 +979,7 @@
     }
     g.imageSmoothingEnabled = false;
     g.lineWidth = 1 / S;
+    SEAM = 0.5 / S;
     g.lineJoin = 'round';
 
     // the plinth the whole map stands on

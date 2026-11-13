@@ -30,6 +30,9 @@ Av. São João → PA-160 → rotatória → Av. Carajás → faculdade.
 |---|---|
 | `06-faculdade-serra-dourada-fachada-noite.jpg` | Fachada de esquina: parede de metal ondulado prata, marquise de madeira (laranja/marrom), porta de vidro de correr, recepção com luminárias redondas, logo da folha, poste com câmeras |
 | `07-faculdade-serra-dourada-lateral-noite.jpg` | Lateral: vidraça com mesas e plantas na frente, painéis grandes de propaganda iluminados, motos estacionadas, rua com faixa amarela |
+| `15-skyfit-fachada-real.png` | SkyFit de frente: bloco da esquerda com chapa VERMELHA em cima e o letreiro "SKY FIT ACADEMIA", vidraça escura em losangos, entrada com pilares vermelhos e azuis e quadro vermelho de 3 estrelas; à direita o bloco branco com duas portas de enrolar cinza; bandeirola roxa e vermelha na calçada |
+| `16-serra-dourada-fachada-real.png` | Serra Dourada de dia: frente em DIAGONAL (prédio de esquina), metal prata de nervuras verticais com o brasão branco (escudo com folha) e o letreiro, marquise curva de madeira, porta de vidro de correr e painel de madeira na recepção (ignorar o balão laranja do Instagram) |
+| `17-datalab-original-rua.png` | A rua do DataLab original (isométrica, noite): prédio do DataLab entre duas lojinhas de toldo listrado; no jogo a rua nova é ESPELHADA (rua do lado direito, fachadas olhando para a direita) |
 
 ## Cores para a pixel art (aproximadas)
 

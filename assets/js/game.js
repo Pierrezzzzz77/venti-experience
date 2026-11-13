@@ -15,6 +15,7 @@
   const KEYMAP = { KeyW: 'up', ArrowUp: 'up', KeyS: 'down', ArrowDown: 'down', KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right' };
   const USE_KEYS = { KeyE: 1, Space: 1, Enter: 1 };
   const SPEED = 74;
+  const FADE = 0.28;   // segundos de cada metade da transição entre mapas
   const USE_DIST = 20; // até quantos px dos pés o jogador alcança um objeto
 
   const game = {
@@ -38,10 +39,29 @@
       this.scene = new DL.Scene(canvas, Object.assign({ world: this.world }, def.camera));
       const sp = spawn ? { x: spawn[0] * DL.T + 8, y: spawn[1] * DL.T + 10 } : this.world.spawn;
       this.player = this.scene.addPlayer(DL.LOOKS.player, sp.x, sp.y, def.spawnDir || 'down');
-      this.scene.overlay = (g, sc) => { if (def.overlay) def.overlay(g, sc, this); };
+      this.scene.overlay = (g, sc) => { if (def.overlay) def.overlay(g, sc, this); this.drawFade(g, sc); };
       document.title = (def.name ? def.name + ' · ' : '') + 'Venti Experience';
       if (def.enter) def.enter(this);
       this.scene.start((dt) => this.step(dt));
+    },
+
+    // Troca de mapa com uma transição curta: a tela escurece, o mapa troca e a tela volta a abrir.
+    // (o escuro é pintado dentro do próprio canvas, sem camada de CSS por cima)
+    goTo(id, spawn) {
+      if (this.fade && this.fade.id) return;
+      this.fade = { t: 0, id, spawn };
+      this.locked = true;
+    },
+    drawFade(g, sc) {
+      const f = this.fade;
+      if (!f) return;
+      const k = Math.min(1, f.t / FADE), a = f.id ? k : 1 - k;
+      g.save();
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.globalAlpha = 1;
+      g.fillStyle = 'rgba(0,0,0,' + a.toFixed(3) + ')';
+      g.fillRect(0, 0, sc.canvas.width, sc.canvas.height);
+      g.restore();
     },
 
     // Mostra uma mensagem curta no rodapé por alguns segundos.
@@ -67,6 +87,12 @@
     },
 
     step(dt) {
+      if (this.fade) {
+        const f = this.fade;
+        f.t += dt;
+        if (f.id && f.t >= FADE) { this.fade = { t: 0 }; return this.loadMap(f.id, f.spawn); }
+        if (!f.id && f.t >= FADE) this.fade = null;
+      }
       const p = this.player, sc = this.scene;
       let ix = 0, iy = 0;
       if (!this.locked) {
@@ -103,18 +129,22 @@
       sc.cam.x += (p.x - 7 + p.vx * 0.22 - sc.cam.x) * kc;
       sc.cam.y += (p.y - 12 + 4.9 + p.vy * 0.22 - sc.cam.y) * kc;
 
-      // portas para outros mapas (ainda não usadas: virão com a faculdade e a rua)
+      // portas para outros mapas: quem pisa no tile da porta troca de mapa (com a transição)
       const tx = Math.floor(p.x / DL.T), ty = Math.floor(p.y / DL.T);
-      for (const pt of this.world.portals) if (pt.tx === tx && pt.ty === ty) return this.loadMap(pt.to, pt.spawn);
+      if (!(this.fade && this.fade.id)) for (const pt of this.world.portals) if (pt.tx === tx && pt.ty === ty) { this.goTo(pt.to, pt.spawn); break; }
 
       if (this.map.update) this.map.update(this, dt);
 
       // dica de interação
       this.near = this.locked ? null : this.findNear();
-      const hint = $('hint');
-      const label = this.near && this.map.useLabel(this, this.near);
-      hint.innerHTML = label ? '<kbd>E</kbd> ' + label : '';
-      hint.classList.toggle('is-on', !!label);
+      // (só mexe no DOM quando o texto muda: escrever a cada quadro obrigava o navegador a refazer o estilo e a pintura da dica)
+      const label = (this.near && this.map.useLabel(this, this.near)) || '';
+      if (label !== this._hint) {
+        this._hint = label;
+        const hint = $('hint');
+        hint.innerHTML = label ? '<kbd>E</kbd> ' + label : '';
+        hint.classList.toggle('is-on', !!label);
+      }
     },
 
     use() {

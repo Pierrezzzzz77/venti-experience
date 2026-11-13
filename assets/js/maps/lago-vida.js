@@ -5,6 +5,8 @@
      bichos      cachorros passeando (andam, param, cheiram, voltam; desviam das pessoas; não entram na água),
                  passarinhos pulando no chão, patos nadando, uma garça na beira, pássaros em bando no céu
      folhas      caindo das árvores com o vento; conversa ("...") em cima de quem está parado
+     crianças    no gramado da beira do lago: roda de bola, pega-pega e uma pipa no céu
+     vaga-lumes  piscando no gramado quando escurece
    lago.js chama: init(game, st), update(game, dt, st), water(g, sc, st) logo depois da água,
    air(g, sc, st) por cima de tudo (antes da luz). */
 (function () {
@@ -193,9 +195,10 @@
       return pa;
     });
   }
-  function drawMover(g, sc, e) { K.isoT(g, sc); L.drawCarAt(g, e.cx, e.cy, e.ang, e.col); }
-  function addCar(sc, lane, u, col) {
-    const e = { kind: 'lg-traffic', u, col, lane, v: 0, vmax: (lane.av ? 70 : 40) + Math.random() * 30, tw: 60 / T, th: 26 / T, isoH: 30, drawIso: drawMover };
+  function drawMover(g, sc, e) { K.isoT(g, sc); L.drawCarAt(g, e.cx, e.cy, e.ang, e.col, e); }
+  const TIPO_RUA = [0, 1, 2, 0, 4, 3, 1, 0, 2, 4, 0, 1]; // sedã, hatch, SUV, picape e moto (lago-cenario.js)
+  function addCar(sc, lane, u, col, tipo) {
+    const e = { kind: 'lg-traffic', tipo: tipo || 0, u, col, lane, v: 0, vmax: (lane.av ? 70 : 40) + Math.random() * 30, tw: 60 / T, th: 26 / T, isoH: 30, drawIso: drawMover };
     place(e);
     sc.drawables.push(e);
     V.cars.push(e);
@@ -320,6 +323,204 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* Crianças brincando no gramado: roda de bola, pega-pega e pipa         */
+  /* ------------------------------------------------------------------ */
+  const KID = 0.75;                       // o tamanho de uma criança (o boneco normal, menor)
+  const KID_OK = { g: 1, q: 1, m: 1 };    // grama, praça e margem
+  const kidOk = (x, y) => KID_OK[L.kindAt(x / T, y / T)] && F.lakeDist(x / T, y / T) > 0.7;
+  function drawKid(g, sc, e) {
+    const S = sc.S, C = DL.CHAR, X = Math.round(IX(e.x, e.y) * S) / S, Y = Math.round(IY(e.x, e.y) * S) / S;
+    K.isoT(g, sc);
+    R(g, X - 4, Y - 1, 8, 2, 'rgba(20,16,30,0.3)');
+    g.drawImage(e.a.frame(), X - C.AX * KID, Y - (e.z || 0) - C.AY * KID, C.FW * KID, C.FH * KID);
+  }
+  function addKid(sc, i, x, y) {
+    const a = new DL.Actor(look(300 + i * 7), x, y, 'down');
+    a.moving = false;
+    const e = { kind: 'lg-kid', a, x, y, z: 0, hx: x, hy: y, px: x - 8, py: y - 5, tw: 1, th: 0.6, isoH: 24, drawIso: drawKid, wait: 0, t: Math.random() * 2, gx: x, gy: y };
+    sc.drawables.push(e);
+    V.kids.push(e);
+    return e;
+  }
+  // anda até (tx, ty) com a velocidade v; devolve true quando chega
+  function kidTo(sc, e, tx, ty, v, dt) {
+    const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy);
+    if (d < 1.2) { e.a.moving = false; return true; }
+    const st = Math.min(d, v * dt), nx = e.x + (dx / d) * st, ny = e.y + (dy / d) * st;
+    if (!kidOk(nx, ny) || sc.hits(nx, ny)) { e.a.moving = false; return true; }
+    e.x = nx; e.y = ny; e.px = nx - 8; e.py = ny - 5;
+    e.a.dir = DL.dirOf(dx, dy);
+    e.a.dist += st * 1.3; // passinhos curtos
+    e.a.moving = true;
+    return false;
+  }
+  // um lugar livre no gramado. Tudo em medidas da avenida (tiles): s ao longo, d para o lado do lago;
+  // rs e rd = meia-largura ao longo e para o lado (o gramado entre a calçada e o lago é comprido e estreito)
+  let TRAVAS = null;
+  const noGramado = (s, d) => { const [x, y] = AV.world(s, d); return KID_OK[L.kindAt(x, y)] && F.lakeDist(x, y) > 0.75; };
+  function clareira(s, d, rs, rd) {
+    if (!noGramado(s, d)) return false;
+    for (let k = 0; k < 8; k++) {
+      const a = (k * Math.PI) / 4, c = Math.cos(a), sn = Math.sin(a);
+      if (!noGramado(s + c * rs, d + sn * rd) || !noGramado(s + c * rs * 0.5, d + sn * rd * 0.5)) return false;
+    }
+    const [cx, cy] = AV.world(s, d), r = Math.max(rs, rd);
+    for (const o of TRAVAS) {
+      // nenhuma árvore na frente: a copa taparia as crianças (a câmera olha de baixo para cima no mapa);
+      // árvore atrás não atrapalha: basta não encostar no tronco
+      const fundo = o[0] + o[1] - cx - cy;
+      if (o[2] && fundo < -0.5 ? Math.hypot(o[0] - cx, o[1] - cy) < 1.1 : Math.hypot((o[3] - s) / (rs + 0.8), (o[4] - d) / (rd + 0.8)) < 1) return false;
+      if (o[2] && fundo > 3 && fundo < 17 && Math.abs(o[0] - o[1] - (cx - cy)) < r * 0.5 + 2) return false;
+    }
+    return true;
+  }
+  // procura ao longo da calçada do lago a clareira mais perto do ponto preferido (ds0 = tiles depois do jogador)
+  function acharClareira(ds0, rs, rd, usados) {
+    let best = null, bd = 1e9;
+    for (let ds = -34; ds <= 50; ds += 0.5) for (let dd = 0.8; dd < 18; dd += 0.4) {
+      const dist = Math.abs(ds - ds0) + dd * 0.6;
+      if (dist >= bd) continue;
+      const s = L.S_SPAWN + ds, d = AV.calcada[1] + dd;
+      if (usados.some((u) => Math.hypot(u.s - s, u.d - d) < Math.max(u.rs, u.rd) + Math.max(rs, rd) + 2.5) || !clareira(s, d, rs, rd)) continue;
+      bd = dist; best = { s, d, rs, rd };
+    }
+    if (best) usados.push(best);
+    return best;
+  }
+  const noLugar = (c, a, k) => { const [x, y] = AV.world(c.s + Math.cos(a) * c.rs * k, c.d + Math.sin(a) * c.rd * k); return [x * T, y * T]; };
+  function drawBall(g, sc, e) {
+    K.isoT(g, sc);
+    const X = Math.round(IX(e.x, e.y)), Y = Math.round(IY(e.x, e.y)), z = Math.round(e.z);
+    R(g, X - 1, Y, 3, 1, 'rgba(20,16,30,0.35)');
+    R(g, X - 1, Y - 3 - z, 3, 3, P.ne6); R(g, X - 1, Y - 1 - z, 3, 1, P.ne4); R(g, X, Y - 2 - z, 1, 1, P.sky3);
+  }
+  function addKids(sc) {
+    TRAVAS = [];
+    for (const o of sc.world.items) {
+      if (!/^lg-(tree|bush|lamp|bench|sign|flag|mastro)$/.test(o.kind)) continue;
+      const x = o.cx != null ? o.cx / T : o.tx + 0.5, y = o.cy != null ? o.cy / T : o.ty + 0.5, l = AV.local(x, y);
+      TRAVAS.push([x, y, o.kind === 'lg-tree' ? 1 : 0, l.s, l.d]);
+    }
+    const usados = [];
+    let n = 0;
+    // 1. a roda de bola: 4 crianças chutando a bola de uma para a outra (no gramado à beira d'água)
+    const cb = acharClareira(16, 1.7, 0.65, usados);
+    if (cb) {
+      const kids = [];
+      for (let k = 0; k < 4; k++) { const [x, y] = noLugar(cb, k * 1.57 + 0.4, 0.82); kids.push(addKid(sc, n++, x, y)); }
+      const ball = { kind: 'lg-ball', x: kids[0].x, y: kids[0].y, z: 0, px: 0, py: 0, tw: 0.3, th: 0.3, isoH: 20, drawIso: drawBall };
+      sc.drawables.push(ball);
+      V.bola = { kids, ball, de: 0, para: 1, k: 0, dur: 0.9, pausa: 0.5, alto: 5 };
+    }
+    // 2. pega-pega: uma corre atrás, as outras fogem; quem é pega vira a pegadora
+    //    (três na praça e duas apostando corrida na faixa de grama perto do carro)
+    for (const [ds, rs, rd, q] of [[-13, 2.1, 2.1, 3], [28, 3, 0.5, 2]]) {
+      const cp = acharClareira(ds, rs, rd, usados);
+      if (!cp) continue;
+      const kids = [];
+      for (let k = 0; k < q; k++) { const [x, y] = noLugar(cp, k * (6.283 / q), 0.7); kids.push(addKid(sc, n++, x, y)); }
+      V.pegas.push({ c: cp, kids, it: 0 });
+    }
+    // 3. pipas: a criança parada no gramado, a pipa lá no alto, puxada pelo vento
+    for (const ds of [22, -4]) {
+      const ck = acharClareira(ds, 0.8, 0.5, usados);
+      if (!ck) continue;
+      const [x, y] = noLugar(ck, 0, 0), e = addKid(sc, n++, x, y);
+      e.a.dir = 'right';
+      V.pipas.push({ e, ph: n * 1.7, cor: V.pipas.length ? [P.sky7, P.wa3] : [P.sky3, P.sky7] });
+    }
+  }
+  function kidsStep(sc, dt, t) {
+    for (const e of V.kids) e.a.tick(dt);
+    // a bola
+    const B = V.bola;
+    if (B) {
+      const de = B.kids[B.de], para = B.kids[B.para], ball = B.ball;
+      if (B.pausa > 0) { B.pausa -= dt; ball.x = de.x + 3; ball.y = de.y + 2; ball.z = 0; }
+      else {
+        B.k += dt / B.dur;
+        const k = Math.min(1, B.k);
+        ball.x = de.x + 3 + (para.x - de.x) * k; ball.y = de.y + 2 + (para.y - de.y) * k;
+        ball.z = Math.sin(k * Math.PI) * B.alto;
+        if (B.k >= 1) { // chegou: quem recebeu domina e chuta para outra criança
+          B.de = B.para;
+          do B.para = Math.floor(Math.random() * B.kids.length); while (B.para === B.de);
+          B.k = 0; B.dur = 0.7 + Math.random() * 0.6; B.pausa = 0.25 + Math.random() * 0.7; B.alto = Math.random() < 0.3 ? 16 : 4 + Math.random() * 5;
+          para.pulo = 0.3;
+        }
+      }
+      ball.px = ball.x - 2; ball.py = ball.y - 2;
+      for (const e of B.kids) {
+        // cada uma fica perto do seu lugar, dando uns passinhos; olha para a bola; pulinho ao chutar
+        e.t -= dt;
+        if (e.t <= 0) { e.t = 0.8 + Math.random() * 1.8; e.gx = e.hx + (Math.random() - 0.5) * 9; e.gy = e.hy + (Math.random() - 0.5) * 9; }
+        if (kidTo(sc, e, e.gx, e.gy, 26, dt)) e.a.dir = DL.dirOf(ball.x - e.x, ball.y - e.y);
+        if (e.pulo > 0) { e.pulo -= dt; e.z = Math.max(0, Math.sin((e.pulo / 0.3) * Math.PI) * 3); } else e.z = 0;
+      }
+    }
+    // o pega-pega
+    for (const G of V.pegas) {
+      const it = G.kids[G.it];
+      const ponto = (longeDe) => { // um ponto da clareira, o mais longe possível de quem pega
+        let b = null, bd = -1;
+        for (let k = 0; k < 6; k++) {
+          const [x, y] = noLugar(G.c, Math.random() * 6.283, Math.sqrt(Math.random()));
+          const d = Math.hypot(x - longeDe.x, y - longeDe.y);
+          if (d > bd && kidOk(x, y)) { bd = d; b = [x, y]; }
+        }
+        return b || noLugar(G.c, 0, 0);
+      };
+      for (const e of G.kids) {
+        if (e.pulo > 0) { e.pulo -= dt; e.z = Math.max(0, Math.sin((e.pulo / 0.3) * Math.PI) * 3); } else e.z = 0;
+        if (e.wait > 0) { e.wait -= dt; e.a.moving = false; continue; }
+        if (e === it) {
+          let alvo = null, bd = 1e9;
+          for (const o of G.kids) { if (o === it) continue; const d = Math.hypot(o.x - it.x, o.y - it.y); if (d < bd) { bd = d; alvo = o; } }
+          kidTo(sc, it, alvo.x, alvo.y, 60, dt);
+          if (bd < 7) { G.it = G.kids.indexOf(alvo); alvo.wait = 1.1; alvo.pulo = 0.3; it.t = 0; } // pegou!
+        } else {
+          e.t -= dt;
+          const perto = Math.hypot(e.x - it.x, e.y - it.y) < 34;
+          if (e.t <= 0 || (perto && e.t < 0.9)) { [e.gx, e.gy] = ponto(it); e.t = 1.3 + Math.random(); }
+          if (kidTo(sc, e, e.gx, e.gy, perto ? 54 : 30, dt) && !perto) e.a.dir = DL.dirOf(it.x - e.x, it.y - e.y);
+        }
+      }
+    }
+    // quem solta pipa: olha para ela e de vez em quando dá um passinho
+    for (const pp of V.pipas) {
+      const e = pp.e;
+      e.t -= dt;
+      if (e.t <= 0) { e.t = 2 + Math.random() * 3; e.gx = e.hx + (Math.random() - 0.5) * 8; e.gy = e.hy + (Math.random() - 0.5) * 8; }
+      if (kidTo(sc, e, e.gx, e.gy, 14, dt)) e.a.dir = 'right';
+      pp.kx = e.x + 58 + Math.sin(t * 0.7 + pp.ph) * 12; pp.ky = e.y - 6 + Math.cos(t * 0.5 + pp.ph) * 8; pp.kz = 96 + Math.sin(t * 1.1 + pp.ph) * 7;
+    }
+  }
+  // a pipa (losango de duas cores, com rabiola) e a linha até a mão da criança
+  const PIPA_W = [1, 3, 5, 7, 7, 5, 5, 3, 3, 1];
+  function drawPipas(g, sc, t) {
+    for (const pp of V.pipas) {
+      if (pp.kx == null) continue;
+      const e = pp.e, hx = IX(e.x, e.y) + 4, hy = IY(e.x, e.y, 13), X = Math.round(IX(pp.kx, pp.ky)), Y = Math.round(IY(pp.kx, pp.ky, pp.kz));
+      g.strokeStyle = 'rgba(244,224,196,0.6)';
+      g.lineWidth = 1 / sc.S;
+      g.beginPath(); g.moveTo(hx, hy); g.quadraticCurveTo((hx + X) / 2 + 6, (hy + Y) / 2 + 16, X, Y + 5); g.stroke();
+      for (let r = 0; r < PIPA_W.length; r++) {
+        const w = PIPA_W[r], h = (w - 1) / 2;
+        R(g, X - h, Y - 5 + r, h, 1, pp.cor[0]); R(g, X, Y - 5 + r, h + 1, 1, pp.cor[1]);
+      }
+      R(g, X, Y - 5, 1, 10, P.ne0);
+      for (let k = 0; k < 5; k++) R(g, X + Math.round(Math.sin(t * 5 + k * 0.9 + pp.ph) * (1 + k * 0.5)) - k, Y + 6 + k * 3, 2, 2, k % 2 ? pp.cor[0] : pp.cor[1]);
+    }
+  }
+  // vaga-lumes no gramado da beira do lago (aparecem quando escurece)
+  function addFlies() {
+    for (let i = 0; i < 90; i++) {
+      const [x, y] = AV.world(L.S_SPAWN + (hash(i * 7 + 2) - 0.45) * 110, AV.calcada[1] + 0.4 + hash(i * 13 + 5) * 9);
+      if (KID_OK[L.kindAt(x, y)]) V.flies.push({ x: x * T, y: y * T, z: 5 + hash(i * 3) * 16, ph: hash(i * 11) * 20 });
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Passarinhos no chão: pulam, bicam, voam quando alguém chega perto     */
   /* ------------------------------------------------------------------ */
   function addGroundBirds() {
@@ -402,7 +603,7 @@
     init(game) {
       const sc = game.scene;
       if (!ROADS) makeRoads();
-      V = { peds: [], cars: [], dogs: [], birds: [], ducks: makeDucks(), flocks: [], leaves: [], cross: null, flockIn: 2.5, crossIn: 9, leafIn: 0, heron: heronSpot() };
+      V = { peds: [], cars: [], dogs: [], birds: [], kids: [], pipas: [], flies: [], bola: null, pegas: [], ducks: makeDucks(), flocks: [], leaves: [], cross: null, flockIn: 2.5, crossIn: 9, leafIn: 0, heron: heronSpot() };
       let i = 0;
       // calçada da avenida: gente andando para os dois lados (longe do ponto onde o jogador aparece)
       const sp = L.S_SPAWN;
@@ -429,10 +630,12 @@
       // bichos
       for (let k = 0; k < 5; k++) addDog(sc, k);
       addGroundBirds();
+      addKids(sc);
+      addFlies();
       // trânsito (sempre um carro branco na pista de cá)
       let c = 0;
       for (const lane of ROADS) {
-        for (let k = 0; k < lane.n; k++, c++) addCar(sc, lane, (k + hash(c * 3) * 0.6) * (lane.len / lane.n), c === 0 ? P.ne6 : CARC[c % CARC.length]);
+        for (let k = 0; k < lane.n; k++, c++) addCar(sc, lane, (k + hash(c * 3) * 0.6) * (lane.len / lane.n), c === 0 ? P.ne6 : CARC[c % CARC.length], c === 0 ? 0 : TIPO_RUA[c % TIPO_RUA.length]);
       }
       // sombras dos carros (lago-ceu.js junta tudo numa sombra só)
       Lg.state.extraShadows = [(g, dx, dy, ang, vx0, vx1, vy0, vy1) => {
@@ -441,7 +644,7 @@
           const X = e.cx - e.cy, Y = (e.cx + e.cy) / 2;
           if (X < vx0 - 40 || X > vx1 + 40 || Y < vy0 - 20 || Y > vy1 + 20) continue;
           any = true;
-          const x0 = e.cx - 30, y0 = e.cy - 12, x1 = e.cx + 30, y1 = e.cy + 12, h = 20;
+          const m = e.tipo === 4, x0 = e.cx - (m ? 11 : 30), y0 = e.cy - (m ? 4 : 12), x1 = e.cx + (m ? 11 : 30), y1 = e.cy + (m ? 4 : 12), h = 20;
           g.moveTo(x0, y0); g.lineTo(x1, y0); g.lineTo(x1 + dx * h, y0 + dy * h); g.lineTo(x1 + dx * h, y1 + dy * h); g.lineTo(x0 + dx * h, y1 + dy * h); g.lineTo(x0, y1); g.closePath();
         }
         return any;
@@ -456,6 +659,7 @@
       carStep(dt);
       for (const dg of V.dogs) dogStep(sc, dg, dt, game);
       for (const b of V.birds) birdStep(b, dt, game);
+      kidsStep(sc, dt, Lg.state.t);
       // patos
       for (const d of V.ducks) d.ph += d.w * dt;
       // garça: de vez em quando bica a água
@@ -550,6 +754,24 @@
         }
         g.globalAlpha = 1;
       }
+      // pipas e vaga-lumes (só com a câmera baixa: do alto seriam um pontinho)
+      if (sc.S >= Lg.AERIAL_MAX) {
+        drawPipas(g, sc, t);
+        const fa = clamp((st.dusk - 0.4) / 0.15, 0, 1);
+        if (fa > 0) {
+          const S = sc.S, vx0 = sc.ox / S, vx1 = (sc.ox + sc.canvas.width) / S, vy0 = sc.oy / S, vy1 = (sc.oy + sc.canvas.height) / S;
+          g.globalCompositeOperation = 'lighter';
+          for (const f of V.flies) {
+            const bl = Math.sin(t * 1.4 + f.ph);
+            if (bl < 0.25) continue;
+            const X = IX(f.x, f.y) + Math.sin(t * 0.6 + f.ph) * 7, Y = IY(f.x, f.y, f.z + Math.sin(t * 0.9 + f.ph * 2) * 4);
+            if (X < vx0 || X > vx1 || Y < vy0 || Y > vy1) continue;
+            Lg.glow(g, X, Y, 5, '200,255,120', 0.55 * fa * bl);
+            R(g, Math.round(X), Math.round(Y), 1, 1, P.sky8);
+          }
+          g.globalCompositeOperation = 'source-over';
+        }
+      }
       // "..." em cima de quem conversa (um de cada vez)
       for (const a of V.peds) {
         if (!a.ped.still) continue;
@@ -565,9 +787,9 @@
         g.globalCompositeOperation = 'lighter';
         for (const e of V.cars) {
           const ca = Math.cos(e.ang), sa = Math.sin(e.ang);
-          const fx = e.cx + ca * 32, fy = e.cy + sa * 32;
+          const hl = e.tipo === 4 ? 11 : 32, fx = e.cx + ca * hl, fy = e.cy + sa * hl;
           Lg.glow(g, IX(fx, fy), IY(fx, fy, 10), 14, '255,230,160', 0.35 * on);
-          const bx = e.cx - ca * 32, by = e.cy - sa * 32;
+          const bx = e.cx - ca * hl, by = e.cy - sa * hl;
           Lg.glow(g, IX(bx, by), IY(bx, by, 10), 6, '255,60,50', 0.4 * on);
         }
         g.globalCompositeOperation = 'source-over';

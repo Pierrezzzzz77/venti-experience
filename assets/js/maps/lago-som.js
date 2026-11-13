@@ -107,6 +107,55 @@
       plocIn -= dt;
       if (plocIn <= 0 && !high) { ploc(); plocIn = 1.5 + Math.random() * 3; }
     },
+    // o "clique" do botão Jogar do menu (duas notinhas curtas); também acorda o som
+    clique() {
+      if (!ac) return;
+      wake();
+      const t0 = ac.currentTime + 0.02;
+      [[660, 0], [990, 0.07]].forEach(([f, d]) => {
+        const o = ac.createOscillator(), g = ac.createGain(), s = t0 + d;
+        o.type = 'square';
+        o.frequency.setValueAtTime(f, s);
+        g.gain.setValueAtTime(0.05, s);
+        g.gain.exponentialRampToValueAtTime(0.0005, s + 0.12);
+        o.connect(g); g.connect(master);
+        o.start(s); o.stop(s + 0.14);
+      });
+    },
+    // a porta do carro: uma batida grave e curta (abrindo é mais leve)
+    porta(fecha) {
+      if (!ac) return;
+      wake();
+      const t0 = ac.currentTime + 0.01, o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(fecha ? 150 : 210, t0);
+      o.frequency.exponentialRampToValueAtTime(fecha ? 48 : 90, t0 + 0.11);
+      g.gain.setValueAtTime(fecha ? 0.22 : 0.09, t0);
+      g.gain.exponentialRampToValueAtTime(0.0005, t0 + (fecha ? 0.16 : 0.1));
+      o.connect(g); g.connect(master);
+      o.start(t0); o.stop(t0 + 0.2);
+    },
+    // o motor: dá a partida (uns "tec-tec") e fica um ronco grave que sobe quando o carro sai
+    motor() {
+      if (!ac) return;
+      wake();
+      const t0 = ac.currentTime + 0.01, o = ac.createOscillator(), o2 = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
+      o.type = 'sawtooth'; o2.type = 'square';
+      f.type = 'lowpass'; f.frequency.value = 420;
+      for (const [q, k] of [[o, 1], [o2, 0.5]]) {
+        q.frequency.setValueAtTime(34 * k, t0);
+        q.frequency.linearRampToValueAtTime(62 * k, t0 + 0.35);
+        q.frequency.linearRampToValueAtTime(52 * k, t0 + 1.0);
+        q.frequency.exponentialRampToValueAtTime(120 * k, t0 + 2.8);
+        q.connect(f); q.start(t0); q.stop(t0 + 3.4);
+      }
+      g.gain.setValueAtTime(0, t0);
+      for (let i = 0; i < 4; i++) { g.gain.linearRampToValueAtTime(0.07, t0 + i * 0.08 + 0.02); g.gain.linearRampToValueAtTime(0.01, t0 + i * 0.08 + 0.07); }
+      g.gain.linearRampToValueAtTime(0.06, t0 + 0.5);
+      g.gain.linearRampToValueAtTime(0.09, t0 + 2.4);
+      g.gain.linearRampToValueAtTime(0, t0 + 3.3);
+      f.connect(g); g.connect(master);
+    },
     leave() {
       window.removeEventListener('pointerdown', wake);
       window.removeEventListener('keydown', wake);
