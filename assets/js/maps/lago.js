@@ -423,7 +423,7 @@
     document.body.classList.remove('in-cutscene');
     $('cutscene').hidden = true;
     showMission(true);
-    game.toast('Vá até o seu carro, perto da faixa de pedestre.');
+    game.toast('Siga as setas até o seu carro, perto da faixa de pedestre.');
   }
 
   function skip() { if (st.phase === 'film' && st.skipAt == null) st.skipAt = st.t; }
@@ -445,6 +445,67 @@
       p.textContent = savedMission;
       $('missionSteps').innerHTML = '';
     }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Setas que guiam até o carro (só na parte jogável)                   */
+  /* ------------------------------------------------------------------ */
+  const SETA = '255,233,150', SETA_BORDA = 'rgba(40,24,10,0.55)';
+  // no chão da calçada: uma fila de setas do jogador até o carro; um brilho corre na direção do carro
+  // e as setas por onde o jogador já passou somem
+  function setasChao(g, game) {
+    if (st.phase !== 'play') return;
+    const AV = L.AV, d = AV.DIR, n = AV.NRM, p = game.player;
+    const sJog = AV.local(p.x / T, p.y / T).s, sFim = L.S_CAR - 2.2, PASSO = 2.6;
+    g.save();
+    game.scene.groundTransform(g); // (a água e as sombras, desenhadas antes, trocam a transformação)
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    for (let s = L.S_SPAWN + 1.5, i = 0; s <= sFim; s += PASSO, i++) {
+      if (s < sJog + 1.2) continue;
+      const [cx, cy] = AV.world(s, L.walkMid), X = cx * T, Y = cy * T;
+      const onda = 0.5 + 0.5 * Math.sin(st.t * 5 - i * 0.9), a = 0.7 + 0.3 * onda;
+      const P = (u, v) => [X + (d[0] * u + n[0] * v), Y + (d[1] * u + n[1] * v)];
+      // seta cheia (haste + ponta), deitada no chão, apontando para o carro
+      g.beginPath();
+      [[-8, 2], [0, 2], [0, 6], [9, 0], [0, -6], [0, -2], [-8, -2]].forEach(([u, v], j) => { const q = P(u, v); if (j) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); });
+      g.closePath();
+      g.strokeStyle = SETA_BORDA; g.lineWidth = 2.5; g.stroke();
+      g.fillStyle = 'rgba(' + SETA + ',' + a.toFixed(2) + ')'; g.fill();
+    }
+    // um anel pulsando no ponto onde se entra no carro
+    const k = (st.t * 0.9) % 1;
+    g.beginPath();
+    g.arc(L.carUse.x, L.carUse.y, 4 + k * 7, 0, Math.PI * 2);
+    g.strokeStyle = 'rgba(' + SETA + ',' + (0.9 * (1 - k)).toFixed(2) + ')';
+    g.lineWidth = 2;
+    g.stroke();
+    g.restore();
+  }
+  // no ar: uma seta para baixo balançando em cima do carro; se o carro está fora da tela,
+  // a seta fica na borda da tela apontando para o lado dele
+  function setaCarro(g, sc, game) {
+    if (st.phase !== 'play') return;
+    const car = game.world.byId.CARRO, dpr = sc.dpr, cw = sc.canvas.width, ch = sc.canvas.height;
+    const q = sc.worldToScreen(car.cx, car.cy, 34), u = Math.max(2, Math.round(sc.S)); // u = 1 pixel do jogo
+    let x = q.x * dpr, y = q.y * dpr - (2 + Math.sin(st.t * 4) * 2.5) * u, ang = 0;
+    const m = 14 * u, fora = x < m || x > cw - m || y < m || y > ch - m;
+    if (fora) {
+      const px = cw / 2, py = ch / 2;
+      ang = Math.atan2(y - py, x - px) - Math.PI / 2;
+      x = clamp(x, m, cw - m); y = clamp(y, m, ch - m);
+    }
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.translate(Math.round(x), Math.round(y));
+    g.rotate(ang);
+    g.scale(u, u);
+    const forma = () => { g.beginPath(); g.moveTo(-2, -9); g.lineTo(2, -9); g.lineTo(2, -2); g.lineTo(6, -2); g.lineTo(0, 5); g.lineTo(-6, -2); g.lineTo(-2, -2); g.closePath(); };
+    forma(); g.lineJoin = 'round'; g.lineWidth = 2.5; g.strokeStyle = 'rgba(40,24,10,0.8)'; g.stroke();
+    forma(); g.fillStyle = 'rgb(' + SETA + ')'; g.fill();
+    g.restore();
   }
 
   /* ------------------------------------------------------------------ */
@@ -577,6 +638,7 @@
         Lg.water(g, sc, st);
         if (Lg.vida) Lg.vida.water(g, sc, st);
         Lg.drawCityFront(g, sc);
+        setasChao(g, game);
       };
       if (Lg.vida) Lg.vida.init(game, st);
       debugSetup();
@@ -627,6 +689,7 @@
       if (Lg.vida) Lg.vida.air(g, sc, st);
       if (DEBUG) debugDraw(g, sc);
       Lg.light(g, sc, st);
+      setaCarro(g, sc, Lg.game);
       g.save();
       g.setTransform(1, 0, 0, 1, 0, 0);
       // as nuvens da abertura

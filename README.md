@@ -24,9 +24,16 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 1. Viagem: do Lago da Prefeitura até a Faculdade Serra Dourada, de carro (botão Pular) — **pronto**
    Vista de lado pela PA-160 (SkyFit, casas, comércios, árvores em camadas); na rotatória o carro vira e a
    câmera vai para trás dele, pela Av. Carajás em perspectiva, até encostar em frente à faculdade.
-2. Faculdade por dentro — *a fazer* (por enquanto a porta mostra "Faculdade por dentro: em breve")
+2. Faculdade por dentro, seguindo a planta real: entrada com porta de vidro e faixa tátil; em frente, as mesas;
+   à direita, o saguão com o logo numa parede em diagonal, a secretaria (mesa redonda com 3 notebooks),
+   a parede verde no fim e o corredor das salas (4 portas de cada lado) — **pronto** (`?mapa=faculdade`)
+   (Sala 1: sala de ADS, laboratório de informática · Sala 2: laboratório da área da saúde · Salas 3 a 8: portas fechadas)
+   Alunos (bots) pela faculdade e nas 2 salas: estudando nas mesas, conversando em grupinhos (em pé e sentados),
+   entrando e saindo das salas e da faculdade (as portas abrem), com mochila; E perto deles = falar com o aluno.
+   A porta de vidro leva de volta à calçada da rua.
 3. Rua da Serra Dourada e do DataLab, à noite: o boneco desce do carro e anda pela calçada até a porta de vidro
-   ("Pressione E para entrar") — **pronto** (`validarMapa()` no console também confere este mapa)
+   ("Pressione E para entrar") — **pronto** (`validarMapa()` no console também confere este mapa).
+   O DataLab fica colado na faculdade, com o letreiro de néon aceso; a porta dele leva à sala do DataLab (parte 4).
 4. DataLab: colocar servidor e switch no rack, ligar o cabo e deixar o servidor online pelo terminal — **pronto**
    (`ip addr` → `sudo ip link set eth0 up` → `ping 10.0.1.1`)
 
@@ -53,9 +60,11 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 | `assets/js/maps/lago-som.js` | Parte 0: som de vento, água e pássaros (Web Audio), botão para silenciar. |
 | `assets/js/maps/lago.js` | Parte 0: o filme (câmera, legendas) e a parte jogável (entrar no carro). |
 | `assets/js/maps/arte.js` | Arte compartilhada: fonte de pixels, brasão e a frente da Faculdade Serra Dourada (foto 16), em duas camadas (prédio e o que acende). |
-| `assets/js/maps/abertura-pecas.js` | Parte 1: as peças da viagem, cada uma num sprite pronto — árvores, palmeiras, 16 modelos de casa/comércio, SkyFit (foto 15), carros. |
+| `assets/js/maps/abertura-pecas.js` | Parte 1: as peças da viagem, cada uma num sprite pronto — árvores, 23 modelos de casa/comércio, SkyFit (foto 15), prédios ao longe, carros. |
 | `assets/js/maps/abertura.js` | Parte 1: a viagem — plano de lado com camadas em paralaxe, a curva na rotatória e o plano em perspectiva até a faculdade. |
-| `assets/js/maps/rua.js` | Parte 3: a rua da Serra Dourada e do DataLab (isométrica, noite): prédios e chão pintados uma vez, carro parado, pedestres, a porta com E. |
+| `assets/js/maps/faculdade-alunos.js` | Os alunos (bots) da faculdade: quem estuda, conversa e anda; mochila, caderno e livro. Carregado antes de `faculdade.js`. |
+| `assets/js/maps/faculdade.js` | Parte 2: a faculdade por dentro (mesas, saguão com o logo, secretaria, corredor) e as 2 salas (mapas `faculdade-sala1` e `faculdade-sala2`). |
+| `assets/js/maps/rua.js` | Parte 3: a rua da Serra Dourada e do DataLab (isométrica, noite): prédios e chão pintados uma vez, carro parado, pedestres, as portas da faculdade e do DataLab. |
 | `assets/js/maps/datalab.js` | Parte 4: a sala do DataLab e a missão. |
 
 ### Como acrescentar um mapa novo (faculdade, rua, abertura)
