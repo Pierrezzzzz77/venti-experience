@@ -93,7 +93,17 @@
   /* O aluno                                                             */
   /* ------------------------------------------------------------------ */
   // altura do assento (px): onde fica o quadril de quem senta
-  const ASSENTOS = { cadeira: 7, 'poltrona-vermelha': 8, 'poltrona-madeira': 7, puff: 7, 'banco-pedra': 5 };
+  const ASSENTOS = { cadeira: 7, 'poltrona-vermelha': 10, 'poltrona-madeira': 8, puff: 11, 'banco-pedra': 8 }; // (banco-pedra agora é a cadeira de escritório)
+  // assentos em 3/4 com direção (face, ver pecas3d em faculdade.js): outra altura de assento
+  const ASSENTOS_3D = { cadeira: 8, 'poltrona-vermelha': 9, 'poltrona-madeira': 9.5, 'poltrona-cinza': 9, 'banco-pedra': 10 };
+  const FACE = { L: 0, S: 90, O: 180, N: 270 };
+  const radDaFace = (face) => ((typeof face === 'number' ? face : FACE[face]) * Math.PI) / 180;
+  // para onde o aluno sentado olha na tela: o mesmo lado da cadeira (de frente, de costas ou de lado)
+  function dirDaFace(face) {
+    const r = radDaFace(face), fx = Math.cos(r), fy = Math.sin(r), sx = fx - fy, sy = (fx + fy) / 2;
+    if (Math.abs(sx) > 2.5 * Math.abs(sy)) return sx < 0 ? 'left' : 'right';
+    return sy > 0 ? 'down' : 'up';
+  }
 
   const QUADROS = new Map();
   class Aluno extends DL.Actor {
@@ -107,7 +117,7 @@
       this.pose = null;                 // pose avulsa quando parado ('talk', 'sitA', ...)
       // os quadros prontos (com mochila, sentado...) ficam guardados por aluno n + assento, e não por objeto:
       // os alunos que entram e saem são criados de novo o tempo todo, e refazer os desenhos pesava a cada quadro
-      const chave = i + '|' + this.mochila + '|' + (this.assento ? [this.assento.kind, this.assento.rot, this.assento.color, this.assento.variant, this.assento.z].join(',') : '');
+      const chave = i + '|' + this.mochila + '|' + (this.assento ? [this.assento.kind, this.assento.rot, this.assento.color, this.assento.variant, this.assento.z, this.assento.face].join(',') : '');
       if (!QUADROS.has(chave)) QUADROS.set(chave, new Map());
       this.quadros = QUADROS.get(chave);
       if (this.assento) { this.z = this.assento.z; this.noShadow = true; }
@@ -157,7 +167,8 @@
     sentado(dir, pose, fechado) {
       const A = this.assento, Z = A.z, chao = AY + Z, L = this.look;
       const c = DL.mk(FW + 8, chao + 3), g = c.getContext('2d');
-      const banco = () => DL.drawItem(g, { kind: A.kind, rot: A.rot, color: A.color, variant: A.variant, px: AX - 8, py: chao - 13, tw: 1, th: 1 }, 0);
+      // (tuck 0: o aluno já sentou na posição empurrada para a mesa, e a cadeira vem junto com ele)
+      const banco = () => DL.drawItem(g, { kind: A.kind, rot: A.rot, color: A.color, variant: A.variant, face: A.face, tuck: 0, px: AX - 8, py: chao - 13, tw: 1, th: 1 }, 0);
       const corpo = () => {
         g.drawImage(DL.charFrame(L, dir, pose, fechado), 0, 0);
         if (dir !== 'down') return;
@@ -208,8 +219,17 @@
     if (k < 0) { console.warn('Aluno sem assento em', tx, ty); return null; }
     const s = sc.drawables[k];
     sc.drawables.splice(k, 1);
-    const assento = { kind: s.kind, rot: s.rot, color: s.color, variant: s.variant, z: ASSENTOS[s.kind] };
-    return novo(sc, i, tx + 0.5, ty + 0.5, dir, Object.assign({ assento, mochila: hash(i * 3 + 1) < 0.7 }, o));
+    const assento = { kind: s.kind, rot: s.rot, color: s.color, variant: s.variant, face: s.face, z: ASSENTOS[s.kind] };
+    let x = tx + 0.5, y = ty + 0.5;
+    if (s.face != null && ASSENTOS_3D[s.kind] != null) {
+      // cadeira com direção: o aluno olha para o mesmo lado dela e senta onde ela está (empurrada para a mesa)
+      assento.z = ASSENTOS_3D[s.kind];
+      dir = dirDaFace(s.face);
+      const r = radDaFace(s.face), k = (s.tuck || 0) / T;
+      x += Math.cos(r) * k;
+      y += Math.sin(r) * k;
+    }
+    return novo(sc, i, x, y, dir, Object.assign({ assento, mochila: hash(i * 3 + 1) < 0.7 }, o));
   }
   // um objeto invisível no mapa para a tecla E ("Falar com ...")
   function fala(w, dica, tipo, x, y) {
@@ -315,12 +335,12 @@
   /* ------------------------------------------------------------------ */
   const CENAS = {
     faculdade(game) {
-      // estudando na mesa comprida (cadeiras das linhas 29 e 31) e nos bancos "pedra"
-      estudar(game, 1, 8, 29, 'down', 0.42);
-      estudar(game, 5, 13, 31, 'up', 0.22);
-      estudar(game, 6, 11, 33, 'right', 0.4);
+      // estudando na mesa comprida (cadeiras das linhas 30 e 32) e nos bancos "pedra"
+      estudar(game, 1, 8, 30, 'down', 0.42);
+      estudar(game, 5, 13, 32, 'up', 0.22);
+      estudar(game, 6, 11, 35, 'right', 0.4);
       // conversando sentados: nos bancos da mesinha e nas poltronas/puffs do saguão
-      grupo(game, 10, [[15, 33, 'right', true], [17, 33, 'left', true]]);
+      grupo(game, 10, [[15, 35, 'right', true], [17, 35, 'left', true]]);
       grupo(game, 12, [[21, 28, 'down', true], [23, 29, 'up', true]]);
       // conversando em pé, no saguão
       grupo(game, 20, [[21.5, 24.6, 'right'], [22.9, 24.6, 'left']]);
