@@ -69,6 +69,7 @@
     I: ['111', '010', '010', '010', '111'], M: ['101', '111', '111', '101', '101'],
     P: ['110', '101', '110', '100', '100'], N: ['110', '101', '101', '101', '101'],
     H: ['101', '101', '111', '101', '101'], '!': ['010', '010', '010', '000', '010'],
+    V: ['101', '101', '101', '101', '010'],
   };
   function texto(g, s, x, y, cor) {
     for (const ch of s) {
@@ -109,7 +110,9 @@
     // (o sol baixo entra mais fundo: até ~3,5 tiles do vidro, apagando aos poucos; o piso é pintado uma vez só)
     // (no corredor de estudo, colunas 5 a 18, o vidro fica 3 linhas mais para fora: linha 37)
     // (o saguão também vai até a linha 37; no canto, o vidro é a diagonal x + y = 58)
-    const largo = x >= 5, yv = largo ? Math.min(37, 58 - x) : 34;
+    // (a sala do fundo, colunas 1 a 4, é fechada por paredes: fica sem sol)
+    if (x < 5) return;
+    const largo = true, yv = Math.min(37, 58 - x);
     if (TILES_FAC.length < 38 || y < yv - 4 || y > yv - 1 || x < 1 || x > 24) return;
     const fundo = largo ? yv * T : yv * T - 4; // a linha do vidro
     for (let j = 0; j < 16; j++) {
@@ -354,8 +357,9 @@
       { perna: [-7.2, 6.2, -5.6, 4.6], z0: 0, z1: 4.5, cor: mad },
       { perna: [7.2, 6.2, 5.6, 4.6], z0: 0, z1: 4.5, cor: mad },
       { p: caixa(-6.2, 6.2, -5.4, 5.4), z0: 3.6, z1: 4.6, cor: mad, lado: -0.25 },                     // armação
-      { p: caixa(-5, 5, -3.6, 5.2), z0: 4.6, z1: 9, cor: t, topo: shade(t, 0.14) },                     // assento fofo
-      { p: caixa(-5.2, 5.2, -5.6, -3.4), z0: 4.6, z1: 16.5, cor: t, lado: -0.2, topo: shade(t, 0.16) }, // encosto
+      { p: caixa(-5, 5, -3.6, 5.2), z0: 4.6, z1: 9, cor: t, topo: shade(t, 0.14), tex: boucle },        // assento fofo
+      { p: caixa(-5.2, 5.2, -5.6, -3.4), z0: 4.6, z1: 16.5, cor: t, lado: -0.2, topo: shade(t, 0.16), tex: (x, y, cr) => (y % 6 === 0 ? shade(cr, -0.08) : cr) }, // encosto (com costura)
+      { p: caixa(-3.6, 3.6, -3.4, -2.2), z0: 9, z1: 13, cor: '#e9d9b8', lado: -0.12, topo: '#f3e6cc', tex: boucle }, // almofada creme
       { p: caixa(-6.6, -5, -5.2, 4.4), z0: 4.6, z1: 11, cor: mad, topo: '#ecc492', lado: -0.2 },       // braços de madeira
       { p: caixa(5, 6.6, -5.2, 4.4), z0: 4.6, z1: 11, cor: mad, topo: '#ecc492', lado: -0.2 },
     ]);
@@ -385,10 +389,13 @@
       { perna: [-5.6, -5, -5.6, -5], z0: 0, z1: 6, cor: madE, grossa: 2 }, { perna: [5, -5, 5, -5], z0: 0, z1: 6, cor: madE, grossa: 2 },
       { perna: [-5.6, 5, -5.6, 5], z0: 0, z1: 6, cor: mad, grossa: 2 }, { perna: [5, 5, 5, 5], z0: 0, z1: 6, cor: mad, grossa: 2 },
       { p: caixa(-6, 6, -5.4, 5.4), z0: 5, z1: 7, cor: mad },                                        // assento de madeira
-      { p: caixa(-5, 5, -4, 5), z0: 7, z1: 9.5, cor: alm, topo: '#e58a52' },                          // almofada
-      { p: caixa(-6, 6, -6, -4.6), z0: 7, z1: 17, cor: mad, lado: -0.18, tex: (x, y, cr) => (y % 3 === 0 ? shade(cr, -0.18) : cr) }, // encosto de ripas
+      { p: caixa(-5, 5, -4, 5), z0: 7, z1: 9.5, cor: alm, topo: '#e58a52', tex: (x, y, cr) => (y % 4 === 0 ? shade(cr, -0.1) : cr) }, // almofada (com costura)
+      { p: caixa(-6, 6, -6, -4.6), z0: 7, z1: 17, cor: mad, lado: -0.18, tex: (x, y, cr) => (y % 3 === 0 ? shade(cr, -0.22) : (x + y) % 7 === 0 ? shade(cr, 0.06) : cr) }, // encosto de ripas (com veio)
+      { p: caixa(-4.4, 4.4, -4.6, -3.4), z0: 9.5, z1: 15, cor: alm, lado: -0.12, topo: '#e58a52' }, // almofada das costas
       { p: caixa(-7, -5.6, -5, 4), z0: 7, z1: 12, cor: mad, topo: '#c4834e' },                       // braços
       { p: caixa(5.6, 7, -5, 4), z0: 7, z1: 12, cor: mad, topo: '#c4834e' },
+      { p: caixa(-7.2, -5.4, 2.6, 4.4), z0: 12, z1: 12.6, cor: '#d49862', topo: '#e0aa74' },          // ponta dos braços
+      { p: caixa(5.4, 7.2, 2.6, 4.4), z0: 12, z1: 12.6, cor: '#d49862', topo: '#e0aa74' },
     ]);
   }
 
@@ -474,6 +481,7 @@
     pecas3d(g, c, b, 'S', 0, [
       { p: roda(5.6, 16), z0: 0, z1: 10.5, cor: base, lado: -0.26, tex: (x, y, cr) => (y % 5 === 0 ? shade(cr, -0.07) : boucle(x, y, cr)) },
       { p: roda(4.6, 14), z0: 10.5, z1: 11.2, cor: shade(base, 0.12), topo: shade(base, 0.16), ordem: 50 }, // a borda de cima, fofa
+      { p: roda(0.9, 6), z0: 11.2, z1: 11.4, cor: shade(base, -0.25), topo: shade(base, -0.25), ordem: 70 }, // botão do capitonê
     ]);
   }
   // cadeira do corredor e das salas: rot 0 = de frente para a câmera, rot 1 = de costas
@@ -616,6 +624,21 @@
     g.drawImage(TAPETES[k], e.px, e.py);
   }
 
+  // luz quente no chão, embaixo dos lustres dos lounges (uma mancha oval suave, somada ao piso)
+  function luzChao(g, e) {
+    const W = e.tw * T, H = e.th * T, cx = e.px + W / 2, cy = e.py + H / 2, r = Math.min(W, H) / 2, f = e.forca || 0.16;
+    g.save();
+    g.globalCompositeOperation = 'lighter';
+    g.translate(cx, cy); g.scale(W >= H ? W / H : 1, W >= H ? 1 : H / W);
+    const gr = g.createRadialGradient(0, 0, 0, 0, 0, r);
+    gr.addColorStop(0, 'rgba(255,190,110,' + f + ')');
+    gr.addColorStop(0.55, 'rgba(255,170,90,' + (f * 0.45).toFixed(3) + ')');
+    gr.addColorStop(1, 'rgba(255,160,80,0)');
+    g.fillStyle = gr;
+    g.fillRect(-r, -r, 2 * r, 2 * r);
+    g.restore();
+  }
+
   /* ---------- na parede ---------- */
   // parede de ripas de madeira com o logo "Faculdade Serra Dourada" (logo-saguao.jpg)
   function logo(g, e) {
@@ -744,25 +767,26 @@
     R(g, x0 + (W >> 1) - 2, top + 11, 1, 7, '#e3e7eb'); R(g, x0 + (W >> 1) + 2, top + 11, 1, 7, '#e3e7eb');
     R(g, x0 + W + 1, top + 4, 3, 6, COR.placa);
   }
-  // quadro de avisos de acrílico com papéis coloridos
+  // quadro de avisos de acrílico (mais organizado): moldura de alumínio, faixa de título e os papéis
+  // alinhados em 2 fileiras do mesmo tamanho, cada um com um alfinete e linhas de texto
   function avisos(g, e) {
-    // quadro de vidro/acrílico transparente, preso por parafusos, com panfletos coloridos
-    const x0 = e.px + 3, W = e.tw * T - 6, top = e.py - 27, H = 20;
+    const x0 = e.px + 3, W = e.tw * T - 6, top = e.py - 28, H = 22;
     R(g, x0 + 1, top + 1, W, H, 'rgba(0,0,0,0.10)');            // sombra na parede
-    R(g, x0, top, W, H, 'rgba(228,238,243,0.55)');
-    R(g, x0, top, W, 1, '#f7fafb'); R(g, x0, top + H - 1, W, 1, '#aeb8bf');
-    R(g, x0, top, 1, H, '#eef3f5'); R(g, x0 + W - 1, top, 1, H, '#aeb8bf');
-    for (const [dx, dy] of [[1, 1], [W - 3, 1], [1, H - 3], [W - 3, H - 3]]) R(g, x0 + dx, top + dy, 2, 2, '#9aa3ab');
-    const cores = ['#e8c15a', '#c4553c', '#3a6ea5', '#7ec29a', '#f4f6f7', '#e8a0b0', '#f08a3c'];
-    let x = x0 + 3, k = 0;
-    while (x < x0 + W - 6) {
-      const w = 5 + Math.floor(hash(k * 7 + e.tx) * 2), h = 7 + Math.floor(hash(k * 3 + 1) * 4), y = top + 3 + Math.floor(hash(k * 5 + 2) * (H - h - 5));
-      const cor = cores[(k + e.tx) % cores.length];
-      R(g, x, y, w, h, cor); R(g, x, y, w, 1, shade(cor, 0.2));
-      R(g, x + 1, y + 3, w - 2, 1, shade(cor, -0.3)); R(g, x + 1, y + 5, w - 3, 1, shade(cor, -0.3));
-      x += w + 2; k++;
+    R(g, x0, top, W, H, '#9aa3ab');                              // moldura
+    R(g, x0 + 1, top + 1, W - 2, H - 2, '#eef2f4');              // fundo claro
+    R(g, x0 + 1, top + 1, W - 2, 6, '#1f7f96');                  // faixa de título
+    texto(g, 'AVISOS', x0 + ((W - largura('AVISOS')) >> 1), top + 1, '#f4f7f8');
+    R(g, x0, top, W, 1, '#c8ced4');
+    const cores = ['#f4f6f7', '#e8c15a', '#f4f6f7', '#7ec29a', '#e8a0b0', '#f4f6f7'];
+    const n = Math.max(2, Math.floor((W - 4) / 7)), pw = 5, gap = Math.floor((W - 4 - n * pw) / (n - 1));
+    for (let fila = 0; fila < 2; fila++) for (let k = 0; k < n; k++) {
+      const x = x0 + 2 + k * (pw + gap), y = top + 8 + fila * 7, cor = cores[(k + fila * 2 + e.tx) % cores.length];
+      R(g, x, y, pw, 6, cor);
+      R(g, x + pw, y + 1, 1, 5, 'rgba(0,0,0,0.12)');             // sombrinha do papel
+      R(g, x + 1, y + 2, pw - 2, 1, shade(cor, -0.35)); R(g, x + 1, y + 4, pw - 3, 1, shade(cor, -0.35)); // linhas de texto
+      R(g, x + (pw >> 1), y, 1, 1, '#c4553c');                   // alfinete
     }
-    R(g, x0 + W - 6, top + 2, 1, 6, 'rgba(255,255,255,0.6)'); // reflexo no vidro
+    R(g, x0 + W - 3, top + 8, 1, 6, 'rgba(255,255,255,0.6)');    // reflexo no acrílico
   }
 
   /* ---------- Sala 1: laboratório de informática ---------- */
@@ -877,7 +901,7 @@
   const ARTE = {
     'poltrona-vermelha': poltronaVermelha, 'poltrona-cinza': poltronaCinza, 'poltrona-madeira': poltronaMadeira,
     'banco-pedra': bancoPedra, puff, cadeira, violao, sofa,
-    'planta-alta': plantaAlta, pendente, globos, tapete,
+    'planta-alta': plantaAlta, pendente, globos, tapete, 'luz-chao': luzChao,
     logo, placa, 'ar-parede': arCondicionado, extintor, interruptor, hidrante, quadro, 'parede-verde': paredeVerde, 'vidro-sala': vidroSala, avisos,
     notebook, esqueleto, fossil, vitrine, torso, coracao, cerebro, cranio, microscopio,
   };
@@ -961,9 +985,10 @@
   // mapa), de frente para a câmera, como a porta da fachada de fora
   function desenharVidro(g, sc, e) {
     const K = DL.isoKit, v = e.axis === 'v', dg = e.axis === 'd', H = 30, Hf = 34, L = 32;
-    const ponto = (u, z) => (dg ? [e.px + u, e.py + T - u, z] : v ? [e.px + 2, e.py + u, z] : [e.px + u, e.py + 2, z]);
+    const bx = e.px + (e.dx || 0); // (e.dx: a porta fica mais para dentro do tile, alinhada com a parede)
+    const ponto = (u, z) => (dg ? [e.px + u, e.py + T - u, z] : v ? [bx + 2, e.py + u, z] : [e.px + u, e.py + 2, z]);
     const caixa = (u0, u1, z0, z1, c) => (dg ? (K.poly(g, [ponto(u0, z0), ponto(u1, z0), ponto(u1, z1), ponto(u0, z1)], c.s), K.line(g, ponto(u0, z1), ponto(u1, z1), c.t))
-      : v ? K.box(g, e.px, e.py + u0, e.px + 4, e.py + u1, z0, z1, c) : K.box(g, e.px + u0, e.py, e.px + u1, e.py + 4, z0, z1, c));
+      : v ? K.box(g, bx, e.py + u0, bx + 4, e.py + u1, z0, z1, c) : K.box(g, e.px + u0, e.py, e.px + u1, e.py + 4, z0, z1, c));
     const alu = { s: '#9aa3b0', e: '#6d747d', t: '#c8ccd2' };
     const d = clamp(e.open || 0, 0, 1) * 13;
     K.isoT(g, sc);
@@ -982,9 +1007,9 @@
     K.line(g, ponto(2, H - 5), ponto(L - 2, H - 5), '#c8ced6');
     K.line(g, ponto(16 - d, 0), ponto(16 - d, H), '#c8ced6');
     K.line(g, ponto(16 + d, 0), ponto(16 + d, H), '#c8ced6');
-    caixa(12, 20, Hf + 1, Hf + 5, { s: '#2fa65e', e: '#1f7a44', t: '#46c47a' });
+    if (!e.semPlaca) caixa(12, 20, Hf + 1, Hf + 5, { s: '#2fa65e', e: '#1f7a44', t: '#46c47a' });
     if (dg) return caixaTela(e.px, e.py + T - L, e.px + L, e.py + T, 0, Hf + 5);
-    return v ? caixaTela(e.px, e.py, e.px + 4, e.py + L, 0, Hf + 5) : caixaTela(e.px, e.py, e.px + L, e.py + 4, 0, Hf + 5);
+    return v ? caixaTela(bx, e.py, bx + 4, e.py + L, 0, Hf + 5) : caixaTela(e.px, e.py, e.px + L, e.py + 4, 0, Hf + 5);
   }
   // a borda baixa da parede da entrada (no lugar da que o motor desenharia), como as outras bordas
   function desenharBorda(g, sc, e) {
@@ -1101,9 +1126,22 @@
   // e.eixo 'h': corre no sentido x na linha y = e.lin; 'v': corre no sentido y na coluna x = e.lin; de e.a0 a e.a1.
   // e.opaca: um trecho de parede cheia (clara) na linha da vidraça; e.pilar = [x, y]: uma pilastra no ponto
   const PAREDE_FORA = { s: '#e2ddd3', e: '#c9c3b8', t: '#f1ede6' };
+  // ripas de madeira marrom (a mesma cor do painel de dentro da sala do fundo)
+  const PAREDE_MADEIRA = { s: '#6e4f38', e: '#5a4030', t: '#8a6a50' };
+  // as ripas verticais na face da parede que fica de frente para a câmera (sentido u, de a0 a a1)
+  function ripas(K, g, P, a0, a1, H) {
+    for (let u = a0 + 1; u < a1; u += 1) {
+      const k = Math.round(u) % 4;
+      if (k === 3) K.line(g, P(u, 2), P(u, H - 3), 'rgba(40,24,14,0.55)');
+      else if (k === 0) K.line(g, P(u, 2), P(u, H - 3), 'rgba(170,128,92,0.35)');
+    }
+    K.line(g, P(a0, H - 1), P(a1, H - 1), '#f1ede6'); // o forro claro em cima
+    K.line(g, P(a0, 1), P(a1, 1), '#3a2618');          // rodapé escuro
+  }
   function desenharFachada(g, sc, e) {
     const K = DL.isoKit, H = sc.wallCut ? 7 : 32, h = e.eixo === 'h';
-    const P = (u, z) => (h ? [u, e.lin, z] : e.eixo === 'd' ? [u, e.lin - u, z] : [e.lin, u, z]);
+    // ('e': a diagonal do canto esquerdo, linha y = x + e.lin, quase de perfil para a câmera)
+    const P = (u, z) => (h ? [u, e.lin, z] : e.eixo === 'd' ? [u, e.lin - u, z] : e.eixo === 'e' ? [u, u + e.lin, z] : [e.lin, u, z]);
     K.isoT(g, sc);
     if (e.pilar) {
       const [x, y] = e.pilar, r = 3;
@@ -1116,8 +1154,23 @@
         K.poly(g, [P(e.a0, H), P(e.a1, H), [e.a1 - 3, e.lin - e.a1 - 3, H], [e.a0 - 3, e.lin - e.a0 - 3, H]], PAREDE_FORA.t);
         return caixaTela(e.a0 - 3, e.lin - e.a1 - 3, e.a1, e.lin - e.a0, 0, H);
       }
-      if (h) { K.box(g, e.a0, e.lin - 4, e.a1, e.lin, 0, H, PAREDE_FORA); return caixaTela(e.a0, e.lin - 4, e.a1, e.lin, 0, H); }
-      K.box(g, e.lin - 4, e.a0, e.lin, e.a1, 0, H, PAREDE_FORA); return caixaTela(e.lin - 4, e.a0, e.lin, e.a1, 0, H);
+      const cor = e.madeira ? PAREDE_MADEIRA : PAREDE_FORA;
+      if (h && e.junta) {
+        // (a ponta da direita encosta na parede da diagonal: o topo termina chanfrado, igual ao dela)
+        K.poly(g, [P(e.a0, 0), P(e.a1, 0), P(e.a1, H), P(e.a0, H)], cor.s);
+        K.poly(g, [[e.a0, e.lin, H], [e.a1, e.lin, H], [e.a1 - 3, e.lin - 3, H], [e.a0, e.lin - 3, H]], cor.t);
+        return caixaTela(e.a0, e.lin - 4, e.a1, e.lin, 0, H);
+      }
+      if (h) {
+        K.box(g, e.a0, e.lin - 4, e.a1, e.lin, 0, H, cor);
+        if (e.madeira) ripas(K, g, (u, z) => [u, e.lin, z], e.a0, e.a1, H);
+        return caixaTela(e.a0, e.lin - 4, e.a1, e.lin, 0, H);
+      }
+      // (e.fora: a parede fica do lado de fora da linha, para não entrar no tile de dentro)
+      const x0 = e.fora ? e.lin : e.lin - 4;
+      K.box(g, x0, e.a0, x0 + 4, e.a1, 0, H, cor);
+      if (e.madeira) ripas(K, g, (u, z) => [x0 + 4, u, z], e.a0, e.a1, H);
+      return caixaTela(x0, e.a0, x0 + 4, e.a1, 0, H);
     }
     K.poly(g, [P(e.a0, 0), P(e.a1, 0), P(e.a1, H), P(e.a0, H)], h ? 'rgba(186,212,232,0.13)' : 'rgba(160,190,218,0.16)', false);
     // reflexo: faixas inclinadas bem leves, uma quente e uma branca, a cada ~3 tiles
@@ -1131,7 +1184,18 @@
     K.line(g, P(e.a0, H), P(e.a1, H), 'rgba(230,234,238,0.55)'); // a borda de cima da placa (fina)
     K.line(g, P(e.a0, 0.5), P(e.a1, 0.5), '#b9bfc5');              // soleira fina
     if (e.eixo === 'd') return caixaTela(e.a0, e.lin - e.a1, e.a1, e.lin - e.a0, 0, H);
+    if (e.eixo === 'e') return caixaTela(e.a0, e.a0 + e.lin, e.a1, e.a1 + e.lin, 0, H);
     return caixaTela(h ? e.a0 : e.lin - 1, h ? e.lin - 1 : e.a0, h ? e.a1 : e.lin + 1, h ? e.lin + 1 : e.a1, 0, H);
+  }
+  // a parede alta do lado de baixo do corredor de trás (linha 21): clara, com o rodapé, como as do motor
+  function desenharParedeCorredor(g, sc, e) {
+    const K = DL.isoKit, H = 44, x0 = e.px, x1 = e.px + e.tw * T, y0 = e.py, y1 = e.py + 4;
+    K.isoT(g, sc);
+    K.box(g, x0, y0, x1, y1, 0, H, { s: COR.parede, e: shade(COR.parede, -0.2), t: shade(COR.parede, 0.3) });
+    K.line(g, [x0, y1, 4], [x1, y1, 4], '#f4f3ef');
+    K.line(g, [x0, y1, 1], [x1, y1, 1], '#c9c7c0');
+    K.line(g, [x0, y1, H - 1], [x1, y1, H - 1], shade(COR.parede, 0.4));
+    return caixaTela(x0, y0, x1, y1, 0, H);
   }
   // O lado de fora da vidraça: o motor pinta as casas de parede de fora como chão escuro e levanta ali umas
   // bordas baixas escuras (a "base grossa"), e põe a base de maquete embaixo do mapa todo. Aqui o lado de fora
@@ -1156,6 +1220,10 @@
     g.moveTo(21 * T, 37 * T); g.lineTo(25 * T, 33 * T); g.lineTo(26 * T, 33 * T); g.lineTo(26 * T, 38 * T); g.lineTo(21 * T, 38 * T); g.closePath(); g.fill(); g.restore();
     // sem as bordas baixas e a parede pintada que o motor levanta na linha da vidraça
     st.runs = st.runs.filter((r) => !(r.r[1] >= 34 * T - 4 && (r.face !== 's' && r.face !== 'e' ? true : r.face === 'e' && r.r[0] === 5 * T - 4)));
+    // (e a parede escura que o motor levantava na coluna 25, do lado de fora, atrás da parede da direita do lounge)
+    st.runs = st.runs.filter((r) => !(r.r[0] >= 25 * T && r.r[1] < 17 * T + 4));
+    // (e a borda baixa do lado de baixo do corredor de trás, linha 21: a parede alta 'parede-corredor' fica no lugar)
+    st.runs = st.runs.filter((r) => !(r.face === 'n' && r.r[1] === 21 * T && r.r[0] >= 7 * T && r.r[2] <= 16 * T));
   }
   // a base fina do prédio: 3 px de altura embaixo da borda do piso, onde o lado de fora (ou o fim do mapa) começa
   function baseFina(g, sc) {
@@ -1165,6 +1233,12 @@
     // a base da diagonal do canto (a linha reta, no lugar dos degraus dos tiles)
     K.poly(g, [[21 * T, 37 * T, 0], [25 * T, 33 * T, 0], [25 * T, 33 * T, -B], [21 * T, 37 * T, -B]], '#34383f');
     K.line(g, [21 * T, 37 * T, 0], [25 * T, 33 * T, 0], 'rgba(220,224,228,0.45)');
+    // o peitoril da lateral direita (x de 25 tiles a +5 px, linhas 17 a 33): o topo da cor da soleira e as bordas
+    const X0 = 25 * T, X1 = 25 * T + 5, Ya = 17 * T, Yb = 33 * T;
+    K.poly(g, [[X0, Ya, 0], [X1, Ya, 0], [X1, Yb, 0], [X0, Yb, 0]], '#b9bfc5');
+    K.poly(g, [[X1, Yb, 0], [X1, Ya, 0], [X1, Ya, -B], [X1, Yb, -B]], '#2c3037');
+    K.poly(g, [[X0, Yb, 0], [X1, Yb, 0], [X1, Yb, -B], [X0, Yb, -B]], '#3c4048');
+    K.line(g, [X1, Ya, 0], [X1, Yb, 0], 'rgba(220,224,228,0.45)');
     for (let y = 0; y < w.H; y++) for (let x = 0; x < w.W; x++) {
       if (fora(x, y) || (x + y === 57 && x >= 21 && y >= 33)) continue; // (os tiles da diagonal: a base é a de cima)
       const X = x * T, Y = y * T;
@@ -1180,7 +1254,9 @@
     K.isoT(g, sc);
     K.poly(g, [[x0 + 1, y0 + 1, 0], [x1 + 1, y0 + 1, 0], [x1 + 1, y1 + 1, 0], [x0 + 1, y1 + 1, 0]], 'rgba(40,22,10,0.16)', false); // sombra
     const perna = (x, y) => K.box(g, x, y, x + 1, y + 1, 0, Z - 2, metal);
-    perna(x0 + 1.5, y0 + 1); perna(x1 - 2.5, y0 + 1); perna(x0 + 1.5, y1 - 2); perna(x1 - 2.5, y1 - 2);
+    perna(x0 + 1.5, y0 + 1); perna(x1 - 2.5, y0 + 1);
+    K.box(g, x0 + 1.5, y0 + 1, x1 - 1.5, y1 - 1, 2.5, 3.2, { s: shade(tampo, -0.3), e: shade(tampo, -0.42), t: shade(tampo, -0.08) }); // prateleira de baixo
+    perna(x0 + 1.5, y1 - 2); perna(x1 - 2.5, y1 - 2);
     K.box(g, x0, y0, x1, y1, Z - 2, Z, { s: shade(tampo, -0.25), e: shade(tampo, -0.38), t: tampo });
     for (let x = x0 + 4; x < x1 - 1; x += 5) K.line(g, [x, y0 + 1, Z], [x + 2, y1 - 1, Z], 'rgba(120,70,30,0.22)'); // veios
     K.line(g, [x0, y1, Z], [x1, y1, Z], 'rgba(255,235,200,0.45)');
@@ -1209,7 +1285,7 @@
       if (e.lado) alvo = alguem(andando, e.lado === 'l' ? e.px - 2 : e.px + T + 2, e.py + 8, 16) ? 1 : 0;
       else {
         const v = e.axis === 'v', dg = e.axis === 'd';
-        const cx = dg ? e.px + T : v ? e.px + 2 : e.px + e.tw * 8, cy = dg ? e.py : v ? e.py + 16 : e.kind === 'porta-vidro' || e.front ? e.py + 2 : e.py + 14;
+        const cx = dg ? e.px + T : v ? e.px + (e.dx || 0) + 2 : e.px + e.tw * 8, cy = dg ? e.py : v ? e.py + 16 : e.kind === 'porta-vidro' || e.front ? e.py + 2 : e.py + 14;
         alvo = alguem(todos, cx, cy, 34) ? 1 : 0;
       }
       e.open = (e.open || 0) + (alvo - (e.open || 0)) * Math.min(1, dt * 7);
@@ -1299,7 +1375,7 @@
     '#######MMMMMMGGGGGGGGMMMMx',
     '#######MMMMMMMMMMMMMGMMMMx',
     '#######MMMMMMMMMMMMMGMMMMx',
-    '###################MGMMMMx',
+    '################MMMMGMMMMx', // (a parede curta atrás da secretaria, colunas 16 a 18, saiu: ela terminava num toco)
     '################MMMMGMMMMx',
     '################MMMMGMMMMx',
     '################MMMMGMMMMx',
@@ -1319,9 +1395,10 @@
     // da fachada de fora): a vidraça vai de (21, 37) a (25, 33) e a porta de vidro fica no meio dela, de frente
     // para a câmera. Os tiles em cima da diagonal ficam inteiros no mapa ('o' = soleira da porta); a metade de
     // fora deles é apagada no desenho (ver ajustarFachada). (a sala de vidro do fundo, colunas 1 a 4, continua)
-    '#####MMMMMMMMMMMMMMMMMMo##',
-    '#####MMMMMMMMMMMMMMMMMo###',
-    '#####MMMMMMMMMMMMMMMMM####',
+    // (canto de baixo à esquerda: a sala do fundo, colunas 1 a 4, desce até a linha 36, rente à frente do prédio)
+    '#MMMMMMMMMMMMMMMMMMMMMMo##',
+    '#MMMMMMMMMMMMMMMMMMMMMo###',
+    '#MMMMMMMMMMMMMMMMMMMMM####',
     '##########################',
   ];
 
@@ -1341,7 +1418,7 @@
   const DIAG = 58 * T, PORTA0 = [22 * T, 36 * T], PORTA1 = [24 * T, 34 * T];
   const ret = (x, y) => [x - 1, y - 1 - DY * T, x + 1, y + 1 - DY * T]; // um retângulo de ordem de desenho bem pequeno, no ponto
   add({ id: 'ENTRADA', kind: 'porta-vidro', axis: 'd', tx: 22, ty: 35 - DY, solid: false, drawIso: desenharVidro, isoRect: ret(23 * T, 35 * T), isoH: 44 });
-  add({ kind: 'borda', tx: XE, ty: 5, th: 11, drawIso: desenharBorda, isoRect: [XE * T, 5 * T, XE * T + 4, 16 * T], isoH: 8 }); // (até a pilastra da linha 28; dali para baixo é vidro)
+  // (a borda baixa da ponta direita, linhas 17 a 27, saiu: ali agora tem parede cheia e vidro, ver abaixo)
   add({ kind: 'planta-alta', tx: 21, ty: 35 - DY });
   add({ kind: 'planta-alta', tx: 23, ty: 33 - DY, variant: 'folhas' });
 
@@ -1354,21 +1431,37 @@
   // entrava, e um aluno sentado chegava a ser desenhado antes da mesa).
   //   em px do mapa (já com as linhas finais: a vidraça da sala do fundo e do saguão na linha 34, a do corredor na 37)
   const fachada = (eixo, lin, a0, a1, rect) => add({ kind: 'fachada', eixo, lin, a0, a1, tx: Math.floor((eixo === 'h' ? a0 : lin) / T), ty: Math.floor((eixo === 'h' ? lin : a0) / T) - DY, solid: false, drawIso: desenharFachada, isoRect: rect.map((v, k) => (k % 2 ? v - DY * T : v)), isoH: 34 });
-  fachada('h', 34 * T, 1 * T, 5 * T, [1 * T, 34 * T, 5 * T, 34 * T + 1]);        // sala de vidro do fundo
-  fachada('v', 5 * T, 34 * T, 37 * T, [5 * T - 1, 34 * T + 1, 5 * T, 37 * T]);     // ponta esquerda da faixa da janela
+  // a sala do fundo (colunas 1 a 4, linhas 28 a 36): fechada por paredes de ripas de madeira marrom (como as de
+  // dentro dela), uma do lado do corredor (no lugar do vidro âmbar da coluna 4) e uma na frente do prédio (linha 37).
+  // A porta é de vidro (de correr, como a da entrada, sem a placa de saída), na parede do corredor, nas linhas
+  // 31 e 32; a parede de ripas fica dos dois lados dela.
+  add({ kind: 'fachada', opaca: true, madeira: true, eixo: 'v', lin: 4 * T + 10, a0: 28 * T, a1: 31 * T, tx: 4, ty: 28 - DY, th: 3, solid: true, drawIso: desenharFachada, isoRect: [4 * T + 6, 28 * T - DY * T, 4 * T + 10, 31 * T - DY * T], isoH: 34 });
+  add({ kind: 'fachada', opaca: true, madeira: true, eixo: 'v', lin: 4 * T + 10, a0: 33 * T, a1: 37 * T - 4, tx: 4, ty: 33 - DY, th: 4, solid: true, drawIso: desenharFachada, isoRect: [4 * T + 6, 33 * T - DY * T, 4 * T + 10, 37 * T - 4 - DY * T], isoH: 34 });
+  add({ id: 'PORTA-REUNIAO', kind: 'porta-vidro', axis: 'v', dx: 6, semPlaca: true, tx: 4, ty: 31 - DY, th: 2, solid: false, drawIso: desenharVidro, isoRect: [4 * T + 6, 31 * T - DY * T, 4 * T + 10, 33 * T - DY * T], isoH: 44 });
+  add({ kind: 'fachada', opaca: true, madeira: true, eixo: 'h', lin: 37 * T, a0: 1 * T, a1: 5 * T, tx: 1, ty: 36 - DY, tw: 4, solid: false, drawIso: desenharFachada, isoRect: [1 * T, 37 * T - 4 - DY * T, 5 * T, 37 * T - DY * T], isoH: 34 });
+  // a parede comprida do lado de baixo do corredor de trás (linha 21, colunas 7 a 15): alta como as outras, no
+  // lugar da borda baixa (o vão escuro entre o corredor e a parede dos avisos fica atrás dela)
+  add({ kind: 'parede-corredor', tx: 7, ty: 21 - DY, tw: 9, solid: false, drawIso: desenharParedeCorredor, isoRect: [7 * T, 21 * T - DY * T, 16 * T, 21 * T + 4 - DY * T], isoH: 46 });
   // a frente (linha 37), da esquerda para a direita: vidro, uma pilastra (x ≈ 14,8), vidro e um trecho de parede
   // cheia (colunas 19 e 20) até o canto
   fachada('h', 37 * T, 5 * T, 19 * T, [5 * T, 37 * T, 19 * T, 37 * T + 1]);       // corredor de estudo: vidro
-  add({ kind: 'fachada', pilar: [14.8 * T, 37 * T - 1], tx: 14, ty: 36 - DY, solid: false, drawIso: desenharFachada, isoRect: ret(14.8 * T, 37 * T + 1), isoH: 36 });
-  add({ kind: 'fachada', opaca: true, eixo: 'h', lin: 37 * T, a0: 19 * T, a1: 21 * T, tx: 19, ty: 37 - DY, solid: false, drawIso: desenharFachada, isoRect: [19 * T, 37 * T - DY * T, 21 * T, 37 * T + 1 - DY * T], isoH: 34 });
+  // pilastras a cada 4 tiles (x ≈ 6,8, 10,8 e 14,8)
+  for (const px of [6.8, 10.8, 14.8])
+    add({ kind: 'fachada', pilar: [px * T, 37 * T - 1], tx: Math.floor(px), ty: 36 - DY, solid: false, drawIso: desenharFachada, isoRect: ret(px * T, 37 * T + 1), isoH: 36 });
+  add({ kind: 'fachada', opaca: true, junta: true, eixo: 'h', lin: 37 * T, a0: 19 * T, a1: 21 * T, tx: 19, ty: 37 - DY, solid: false, drawIso: desenharFachada, isoRect: [19 * T, 37 * T - DY * T, 21 * T, 37 * T + 1 - DY * T], isoH: 34 });
   // a diagonal: um trecho de parede cheia de cada lado da porta (eixo 'd': corre de (a0, DIAG − a0) a (a1, DIAG − a1));
   // o tile de cada pedaço fica fechado (a metade de dentro dele também)
   for (const [x0, x1, cx, cy] of [[21 * T, 22 * T, 21, 36], [24 * T, 25 * T, 24, 33]])
     add({ kind: 'fachada', opaca: true, eixo: 'd', lin: DIAG, a0: x0, a1: x1, tx: cx, ty: cy - DY, solid: true, drawIso: desenharFachada, isoRect: ret((x0 + x1) / 2, DIAG - (x0 + x1) / 2), isoH: 34 });
-  // a lateral direita (coluna 25), depois da porta: vidro das linhas 28 a 33, com uma pilastra na linha 28
-  // (acima dela continua a borda baixa). Os tiles do lado de fora do vidro ficam fechados.
-  add({ kind: 'fachada', eixo: 'v', lin: XE * T, a0: 28 * T, a1: 33 * T, tx: XE, ty: 28 - DY, th: 5, solid: true, drawIso: desenharFachada, isoRect: [XE * T, 28 * T - DY * T, XE * T + 1, 33 * T - DY * T], isoH: 34 });
-  add({ kind: 'fachada', pilar: [XE * T + 1, 28 * T], tx: XE, ty: 27 - DY, solid: false, drawIso: desenharFachada, isoRect: ret(XE * T + 2, 28 * T), isoH: 36 });
+  // a lateral direita (coluna 25): parede cheia ao lado do lounge da parede verde (linhas 17 a 21, rente ao lado
+  // de fora do piso, para não cobrir os móveis da coluna 24) e vidro das linhas 21 a 33, com pilastras nas
+  // linhas 24 e 28. Os tiles do lado de fora ficam fechados.
+  add({ kind: 'fachada', opaca: true, fora: true, eixo: 'v', lin: XE * T, a0: 17 * T, a1: 21 * T, tx: XE, ty: 17 - DY, th: 4, solid: true, drawIso: desenharFachada, isoRect: [XE * T, 17 * T - DY * T, XE * T + 4, 21 * T - DY * T], isoH: 34 });
+  add({ kind: 'fachada', eixo: 'v', lin: XE * T, a0: 21 * T, a1: 31 * T, tx: XE, ty: 21 - DY, th: 10, solid: true, drawIso: desenharFachada, isoRect: [XE * T, 21 * T - DY * T, XE * T + 1, 31 * T - DY * T], isoH: 34 });
+  // (e parede cheia no pedaço junto da porta, linhas 31 a 33)
+  add({ kind: 'fachada', opaca: true, fora: true, eixo: 'v', lin: XE * T, a0: 31 * T, a1: 33 * T, tx: XE, ty: 31 - DY, th: 2, solid: true, drawIso: desenharFachada, isoRect: [XE * T, 31 * T - DY * T, XE * T + 4, 33 * T - DY * T], isoH: 34 });
+  for (const py of [24, 28])
+    add({ kind: 'fachada', pilar: [XE * T + 1, py * T], tx: XE, ty: py - 1 - DY, solid: false, drawIso: desenharFachada, isoRect: ret(XE * T + 2, py * T), isoH: 36 });
   //   (cada pedaço ocupa os seus 4 tiles: o balcão inteiro é sólido, ninguém atravessa ele)
   //   faixa da janela: um balcão branco contínuo encostado no vidro (colunas 6 a 17), com as cadeiras de
   //   escritório brancas viradas para ele, de costas para o corredor; cada mesinha desenha um pedaço de 4 tiles.
@@ -1408,7 +1501,7 @@
   naParede({ kind: 'hidrante', tx: 9, ty: 16 });
   // fundo: sala com parede de vidro (dá para ver dentro, não dá para entrar)
   // (vidro âmbar com faixa fosca e o logo na altura dos olhos, como as salas de vidro das fotos)
-  for (let y = 16; y <= 21; y++) add({ kind: 'glass', tx: 4, ty: y, tinta: 'ambar', drawIso: desenharVidroSeg });
+  // (o vidro âmbar da coluna 4 virou parede cheia: ver a fachada da sala do fundo, lá em cima)
   add({ kind: 'table', variant: 'meeting', tx: 2, ty: 18, tw: 1, th: 2 });
   for (const y of [18, 19]) assento({ kind: 'cadeira', tx: 1, ty: y, color: COR.verde }, 'L', 3); // viradas para a mesa
   add({ kind: 'planta-alta', tx: 3, ty: 16 });
@@ -1420,6 +1513,7 @@
   add({ id: 'LOGO', kind: 'logo-parede', tx: 16, ty: 11, th: 4, solid: false, drawIso: desenharLogoParede, isoRect: [16 * T, 11 * T, 16 * T + 0.5, 15.5 * T], isoH: 50, glow: 'rgba(255,170,110,0.05)' });
   // na frente do logo: tapete, poltronas vermelhas, puffs, lustres
   add({ kind: 'tapete', rug: true, tx: 21, ty: 14, tw: 4, th: 4, solid: false });
+  add({ kind: 'luz-chao', rug: true, tx: 21, ty: 14, tw: 4, th: 4, solid: false, forca: 0.15 }); // a luz dos lustres no chão
   add({ id: 'MESINHA', kind: 'table', variant: 'small', color: '#b07a45', tx: 22, ty: 15, tw: 2, drawIso: desenharMesinhaCentro, isoH: 16 });
   // (as poltronas olham para a mesinha, cada uma num ângulo)
   assento({ kind: 'poltrona-vermelha', tx: 21, ty: 16 }, 326);
@@ -1435,6 +1529,7 @@
   assento({ kind: 'poltrona-madeira', tx: 22, ty: 11 }, 'L');
   assento({ kind: 'poltrona-madeira', tx: 24, ty: 11 }, 'O');
   lustre('MESA-MADEIRA', 23, 11, 'b');
+  add({ kind: 'luz-chao', rug: true, tx: 22, ty: 10, tw: 3, th: 3, solid: false, forca: 0.14 });
   add({ kind: 'planta-alta', tx: 24, ty: 9, variant: 'folhas' });
 
   // 4. Secretaria (aberta para o saguão): mesa redonda com 3 notebooks
@@ -1448,6 +1543,7 @@
   add({ kind: 'degrau', tx: 19, ty: 5, tw: 5, drawIso: desenharDegrau, isoRect: [19 * T, 5 * T, 24 * T, 6 * T], isoH: 20 });
   add({ kind: 'violao', tx: 24, ty: 5 });
   add({ kind: 'tapete', rug: true, tx: 21, ty: 6, tw: 4, th: 3, solid: false });
+  add({ kind: 'luz-chao', rug: true, tx: 20, ty: 6, tw: 5, th: 3, solid: false, forca: 0.13 });
   add({ id: 'MESA-VERDE', kind: 'table', variant: 'small', color: '#c49261', tx: 22, ty: 7, tw: 2, drawIso: desenharMesinhaCentro, isoH: 16 });
   assento({ kind: 'poltrona-vermelha', tx: 21, ty: 7 }, 12);
   assento({ kind: 'poltrona-madeira', tx: 24, ty: 7 }, 'O');
@@ -1513,8 +1609,9 @@
       { x: 12, y: 1, w: 3, h: 16, style: ESTILO_CORREDOR },                                   // corredor das salas
       { x: 5, y: 28, w: 14, h: 6, style: ESTILO_CORREDOR },                                   // mesas
       { x: 5, y: 34, w: 14, h: 3, style: ESTILO_CORREDOR },                                   // faixa da janela (corredor alargado)
+      { x: 16, y: 21, w: 3, h: 1, style: ESTILO },                                            // onde ficava a parede curta atrás da secretaria
       // sala de vidro do fundo: painel de madeira escura em ripas atrás do vidro âmbar (foto 4), não mais vermelha
-      { x: 1, y: 28, w: 4, h: 6, style: { wall: 'pintada', wallColor: '#6e4f38', ripas: true, light: 'warm' } },
+      { x: 1, y: 28, w: 4, h: 9, style: { wall: 'pintada', wallColor: '#6e4f38', ripas: true, light: 'warm' } }, // (até a linha 36)
     ],
     spawn: [21.75, 33.6], // logo depois da porta de vidro (1 passo para dentro do meio dela), olhando as mesas
     spawnDir: 'left',
