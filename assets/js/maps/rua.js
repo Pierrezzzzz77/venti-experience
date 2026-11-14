@@ -327,7 +327,7 @@
   // a porta de vidro (só o ponto de interação)
   const fS = () => A.serra();
   const PORTA = (() => { const k = (80 + 4) / 2 / T; return { x: (SERRA.x1 - SERRA.c + k + 0.55) * T, y: (SERRA.y1 - k + 0.55) * T }; })();
-  items.push({ id: 'PORTA', kind: 'rua-porta', tx: Math.floor(PORTA.x / T), ty: Math.floor(PORTA.y / T), tw: 1, th: 1, solid: false, isoH: 2, drawIso: () => null });
+  items.push({ id: 'PORTA', kind: 'rua-porta', tx: Math.floor(PORTA.x / T), ty: Math.floor(PORTA.y / T), tw: 1, th: 1, solid: false, isoH: 2, drawIso: (g, sc) => luzDaPorta(g, sc) });
   // a porta do DataLab, que também desenha o brilho do néon a cada quadro (pulsa de leve e, às vezes, pisca)
   items.push({ id: 'PORTA-DL', kind: 'rua-porta', tx: Math.floor(DL_PORTA.x / T), ty: Math.floor(DL_PORTA.y / T) - 1, tw: 1, th: 1, solid: false, isoH: 2, drawIso: desenhaNeon });
 
@@ -440,7 +440,102 @@
   const NA_PORTA_DL = { x: DL_PORTA.x + 14, y: DL_PORTA.y + 2 }; // na calçada, em frente ao DataLab (quem sai de lá)
   const SAIDA = { x: 26.2 * T, y: 50.2 * T };  // onde o boneco fica ao descer do carro
   // a chegada (segundos): tela abre, porta abre em 2 quadros, o boneco aparece em 3, porta fecha, faróis apagam
-  const CH = { abre: [0.7, 0.85], sai: [1.15, 1.35, 1.55], fecha: [2.0, 2.15], apaga: 2.5, fim: 2.9 };
+  const CH = { abre: [0.7, 0.85], sai: [1.15, 1.35, 1.55], fecha: [2.0, 2.15], apaga: 2.5 };
+  // e depois, como a abertura do DataLab, em planos de cinema (barras pretas, cortes rápidos no preto):
+  //   1 anda pela calçada até a frente da porta (câmera de sempre, seguindo)
+  //   2 para e olha para cima: câmera mais perto, nas costas dele, sobe pela fachada da Serra Dourada até o topo
+  //   3 de perto, anda até a porta de vidro, a luz da recepção acende na calçada e ele entra; a tela escurece
+  //     e o jogo continua lá dentro (mapa da faculdade). Espaço, Enter, Esc ou um clique pulam direto para dentro.
+  const CENA = {
+    andar: [2.6, 5.4],    // até a frente da porta
+    corte: 0.3,           // o mergulho no preto entre dois planos (s)
+    olhar: 5.4,           // plano 2 começa
+    subir: [5.9, 8.3],    // a câmera sobe pela fachada
+    entrar: 9.6,          // plano 3 começa
+    aPorta: [9.8, 11.4],  // anda até a porta
+    luz: [10.6, 11.3],    // a luz da porta acende
+    some: [11.4, 12.2],   // entra e some na luz
+    fim: 12.0,            // a tela escurece e troca de mapa
+    barras: 0.7,          // as barras pretas entram (s)
+  };
+  const OLHA = { x: PORTA.x + 1.9 * T, y: PORTA.y + 1.9 * T }; // na calçada, de frente para a porta (onde ele para e olha)
+  const DENTRO = { x: PORTA.x - 6, y: PORTA.y - 6 };            // passando da porta
+  const span = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+  const easeIO = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+  // um passo da cena: põe o boneco em (x, y), virado para onde anda, com a animação de andar
+  function anda(pl, x, y, dir) {
+    const dx = x - pl.x, dy = y - pl.y, d = Math.hypot(dx, dy);
+    pl.x = x; pl.y = y; pl.vx = pl.vy = 0;
+    pl.moving = d > 0.005;
+    if (!pl.moving) return;
+    pl.dir = dir || (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up');
+    pl.dist = (pl.dist || 0) + d;
+  }
+  // a câmera mirando um ponto da tela (X, Y em pixels isométricos), com zoom S
+  function mira(sc, X, Y, S) { sc.S = S; sc.cam.x = Y + X / 2; sc.cam.y = Y - X / 2; }
+  // a cena, a cada quadro (t = segundos desde que a rua abriu)
+  function cena(game, t) {
+    const pl = game.player, sc = game.scene, E = CENA;
+    if (t < E.andar[0]) return;
+    if (t < E.olhar) {
+      // 1 · anda da porta do carro até a frente da porta de vidro (desacelera no fim); a câmera de sempre segue
+      const k = easeIO(span(t, E.andar[0], E.andar[1] - 0.2));
+      anda(pl, lerp(SAIDA.x, OLHA.x, k), lerp(SAIDA.y, OLHA.y, k));
+      if (k >= 1) { pl.moving = false; pl.dir = 'up'; }
+      return;
+    }
+    const S2 = (sc.autoS || 1) * 2, PX = OLHA.x - OLHA.y, PY = (OLHA.x + OLHA.y) / 2;
+    if (t < E.entrar) {
+      // 2 · parado, olhando para cima; a câmera, perto e nas costas dele, sobe pela fachada até o topo
+      pl.x = OLHA.x; pl.y = OLHA.y; pl.moving = false; pl.dir = 'up';
+      const topo = (PORTA.x + PORTA.y) / 2 - SERRA.h, vh = sc.canvas.height / S2;
+      const y0 = PY - 22, y1 = topo + vh * 0.32;
+      mira(sc, PX, lerp(y0, Math.min(y0, y1), easeIO(span(t, E.subir[0], E.subir[1]))), S2);
+      return;
+    }
+    // 3 · de perto, anda até a porta (curva suave), a luz da recepção acende, ele entra e some na luz
+    const u = easeIO(span(t, E.aPorta[0], E.aPorta[1]));
+    if (t < E.aPorta[1]) anda(pl, lerp(OLHA.x, NA_PORTA.x, u), lerp(OLHA.y, NA_PORTA.y, u), 'up');
+    else anda(pl, lerp(NA_PORTA.x, DENTRO.x, span(t, E.aPorta[1], E.some[1])), lerp(NA_PORTA.y, DENTRO.y, span(t, E.aPorta[1], E.some[1])), 'up');
+    st.luzPorta = easeIO(span(t, E.luz[0], E.luz[1]));
+    pl.alpha = 1 - span(t, E.some[0], E.some[1]);
+    const DX = PORTA.x - PORTA.y, DY = (PORTA.x + PORTA.y) / 2;
+    mira(sc, lerp(pl.x - pl.y, DX, 0.4), lerp((pl.x + pl.y) / 2, DY, 0.4) - 26, S2);
+    if (t >= E.fim) entraNaFaculdade(game);
+  }
+  function entraNaFaculdade(game) {
+    if (st.fase !== 'chegada') return;
+    st.fase = 'entrando'; st.entrou = true;
+    game.goTo(DL.MAPS.faculdade ? 'faculdade' : 'datalab');
+  }
+  // pular: a tela escurece e o jogo continua lá dentro (como no DataLab)
+  function pulaCena(game) { entraNaFaculdade(game); }
+  // um clique na tela também pula
+  window.addEventListener('pointerdown', () => { const g = DL.game; if (g && g.map && g.map.id === 'rua' && st.fase === 'chegada' && st.t > 0.4) pulaCena(g); });
+  // por cima da cena: os cantos escuros, os cortes no preto entre os planos e as barras de cinema
+  function cenaPorCima(g, cw, ch) {
+    const t = st.t, E = CENA;
+    const v = g.createRadialGradient(cw / 2, ch / 2, Math.min(cw, ch) * 0.35, cw / 2, ch / 2, Math.hypot(cw, ch) * 0.55);
+    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.5)');
+    g.fillStyle = v; g.fillRect(0, 0, cw, ch);
+    let b = 0;
+    for (const c of [E.olhar, E.entrar]) b = Math.max(b, 1 - Math.abs(t - c) / (E.corte / 2));
+    if (b > 0) { g.fillStyle = 'rgba(0,0,0,' + clamp(b, 0, 1).toFixed(3) + ')'; g.fillRect(0, 0, cw, ch); }
+    const bh = Math.round(ch * 0.11 * easeIO(span(t, 0, E.barras)));
+    if (bh > 0) { g.fillStyle = '#000'; g.fillRect(0, 0, cw, bh); g.fillRect(0, ch - bh, cw, bh); }
+  }
+  // a luz quente que sai da porta de vidro quando ela "abre" (plano 3)
+  function luzDaPorta(g, sc) {
+    const k = st.luzPorta || 0;
+    if (k <= 0.01 || st.fase === 'jogo') return null;
+    K.isoT(g, sc);
+    const X = PORTA.x - PORTA.y, Y = (PORTA.x + PORTA.y) / 2;
+    g.globalCompositeOperation = 'lighter';
+    g.globalAlpha = 0.55 * k; g.drawImage(halo(), X - 30, Y - 34, 60, 50);  // o vão da porta, claro
+    g.globalAlpha = 0.4 * k; g.drawImage(halo(), X - 40, Y - 6, 80, 36);    // e a luz derramando na calçada
+    g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    return null;
+  }
 
   DL.registerMap({
     id: 'rua',
@@ -456,7 +551,7 @@
       const sc = game.scene, w = game.world, Pr = prepara(), L = DL.Lago && DL.Lago.L;
       const deDentro = !DL.chegada && st.deDentro;  // voltou da faculdade pela porta de vidro
       const doLab = !DL.chegada && st.doLab;        // voltou do DataLab
-      Object.assign(st, { t: 0, fase: DL.chegada ? 'chegada' : 'jogo', gente: [], msg: 0, deDentro: false, doLab: false });
+      Object.assign(st, { t: 0, fase: DL.chegada ? 'chegada' : 'jogo', gente: [], msg: 0, deDentro: false, doLab: false, luzPorta: 0 });
       DL.chegada = false;
       pintaChao(sc.floor);
       let v = 0;
@@ -491,6 +586,7 @@
       $('carry').classList.remove('is-on');
       box.classList.remove('is-done');
       const pl = game.player;
+      document.body.classList.toggle('in-cutscene', st.fase === 'chegada'); // (a missão e as dicas somem durante a cena, como na viagem)
       if (st.fase === 'chegada') { game.locked = true; pl.hidden = true; pl.x = SAIDA.x; pl.y = SAIDA.y; sc.cam.x = pl.x; sc.cam.y = pl.y; }
       else if (doLab) { pl.x = NA_PORTA_DL.x; pl.y = NA_PORTA_DL.y; pl.dir = 'right'; sc.cam.x = pl.x; sc.cam.y = pl.y; }
       else if (deDentro) { pl.x = NA_PORTA.x; pl.y = NA_PORTA.y; pl.dir = 'down'; sc.cam.x = pl.x; sc.cam.y = pl.y; }
@@ -520,8 +616,16 @@
           pl.alpha = [0, 0.35, 0.7, 1][n]; pl.dir = 'left'; pl.moving = false;
         }
         car.luz = 1 - smooth(CH.apaga, CH.apaga + 0.3, t);
-        if (t >= CH.fim) { st.fase = 'jogo'; game.locked = false; pl.alpha = 1; car.luz = 0; game.toast('Vá pela calçada até a porta da Serra Dourada.'); }
+        cena(game, t);
       }
+    },
+
+    // durante a cena: Espaço, Enter ou Esc pulam para dentro da faculdade (as outras teclas não fazem nada)
+    key(game, ev) {
+      if (st.fase !== 'chegada') return false;
+      if (ev.type === 'keydown' && !ev.repeat && (ev.code === 'Space' || ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.code === 'Escape')) pulaCena(game);
+      ev.preventDefault();
+      return true;
     },
 
     useLabel(game, e) {
@@ -540,11 +644,13 @@
       g.setTransform(1, 0, 0, 1, 0, 0);
       const cw = sc.canvas.width, ch = sc.canvas.height;
       const preto = st.fase === 'chegada' || st.t < 0.7 && !DL.game.fade ? 1 - smooth(0, 0.7, st.t) : 0; // (vindo da faculdade, a transição é a do jogo)
+      if (st.fase === 'chegada' || st.fase === 'entrando') cenaPorCima(g, cw, ch);
       if (preto > 0.003) { g.fillStyle = 'rgba(0,0,0,' + preto.toFixed(3) + ')'; g.fillRect(0, 0, cw, ch); }
       g.restore();
     },
 
     leave() {
+      document.body.classList.remove('in-cutscene');
       if (missaoAntes != null) { $('mission').querySelector('p').textContent = missaoAntes; $('missionSteps').innerHTML = ''; }
     },
   });
