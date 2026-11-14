@@ -108,7 +108,8 @@
   function solTarde(g, px, py, x, y) {
     // (o sol baixo entra mais fundo: até ~3,5 tiles do vidro, apagando aos poucos; o piso é pintado uma vez só)
     // (no corredor de estudo, colunas 5 a 18, o vidro fica 3 linhas mais para fora: linha 37)
-    const largo = x >= 5 && x <= 18, yv = largo ? 37 : 34;
+    // (o saguão também vai até a linha 37; no canto, o vidro é a diagonal x + y = 58)
+    const largo = x >= 5, yv = largo ? Math.min(37, 58 - x) : 34;
     if (TILES_FAC.length < 38 || y < yv - 4 || y > yv - 1 || x < 1 || x > 24) return;
     const fundo = largo ? yv * T : yv * T - 4; // a linha do vidro
     for (let j = 0; j < 16; j++) {
@@ -707,8 +708,9 @@
     const frase = [['ESTUDAR', 'AQUI'], ['E DAR', 'UM PASSO'], ['A MAIS', 'RUMO AOS'], ['SEUS SONHOS!', '']];
     frase.forEach(([forte, leve], k) => {
       const y = e.py - 28 + k * 6;
-      texto(g, forte, x0 + 4, y, '#f4f7f4');
-      if (leve) texto(g, leve, x0 + 4 + largura(forte) + 4, y, '#cfdcd5');
+      // letras escuras (quase pretas) na parede verde: antes eram branco-esverdeadas e sumiam no verde
+      texto(g, forte, x0 + 4, y, '#14181b');
+      if (leve) texto(g, leve, x0 + 4 + largura(forte) + 4, y, '#2a2f34');
     });
     // veios: anéis ovais em painéis estreitos, como um tronco cortado
     const gx = x0 + 66, gw = W - 70, cl = '#e8eee9';
@@ -955,10 +957,13 @@
   }
   // porta de vidro de correr da entrada (entrada.jpg), com a placa verde de saída em cima.
   // axis 'v': a porta fica numa parede que corre no sentido y (a entrada, na ponta do corredor)
+  // axis 'd': na vidraça em diagonal do canto (de (e.px, e.py + T) até 32 px para a direita e 32 para cima no
+  // mapa), de frente para a câmera, como a porta da fachada de fora
   function desenharVidro(g, sc, e) {
-    const K = DL.isoKit, v = e.axis === 'v', H = 30, Hf = 34, L = 32;
-    const ponto = (u, z) => (v ? [e.px + 2, e.py + u, z] : [e.px + u, e.py + 2, z]);
-    const caixa = (u0, u1, z0, z1, c) => (v ? K.box(g, e.px, e.py + u0, e.px + 4, e.py + u1, z0, z1, c) : K.box(g, e.px + u0, e.py, e.px + u1, e.py + 4, z0, z1, c));
+    const K = DL.isoKit, v = e.axis === 'v', dg = e.axis === 'd', H = 30, Hf = 34, L = 32;
+    const ponto = (u, z) => (dg ? [e.px + u, e.py + T - u, z] : v ? [e.px + 2, e.py + u, z] : [e.px + u, e.py + 2, z]);
+    const caixa = (u0, u1, z0, z1, c) => (dg ? (K.poly(g, [ponto(u0, z0), ponto(u1, z0), ponto(u1, z1), ponto(u0, z1)], c.s), K.line(g, ponto(u0, z1), ponto(u1, z1), c.t))
+      : v ? K.box(g, e.px, e.py + u0, e.px + 4, e.py + u1, z0, z1, c) : K.box(g, e.px + u0, e.py, e.px + u1, e.py + 4, z0, z1, c));
     const alu = { s: '#9aa3b0', e: '#6d747d', t: '#c8ccd2' };
     const d = clamp(e.open || 0, 0, 1) * 13;
     K.isoT(g, sc);
@@ -973,7 +978,12 @@
     caixa(0, 2, 0, Hf, alu);
     caixa(L - 2, L, 0, Hf, alu);
     caixa(0, L, H, Hf, alu);
+    // como a porta de fora: caixilho prata com a travessa clara em cima e o montante duplo no meio
+    K.line(g, ponto(2, H - 5), ponto(L - 2, H - 5), '#c8ced6');
+    K.line(g, ponto(16 - d, 0), ponto(16 - d, H), '#c8ced6');
+    K.line(g, ponto(16 + d, 0), ponto(16 + d, H), '#c8ced6');
     caixa(12, 20, Hf + 1, Hf + 5, { s: '#2fa65e', e: '#1f7a44', t: '#46c47a' });
+    if (dg) return caixaTela(e.px, e.py + T - L, e.px + L, e.py + T, 0, Hf + 5);
     return v ? caixaTela(e.px, e.py, e.px + 4, e.py + L, 0, Hf + 5) : caixaTela(e.px, e.py, e.px + L, e.py + 4, 0, Hf + 5);
   }
   // a borda baixa da parede da entrada (no lugar da que o motor desenharia), como as outras bordas
@@ -1089,10 +1099,26 @@
   // a vidraça: placa de vidro transparente do piso até o alto (sem viga em cima, sem base escura embaixo),
   // montantes verticais finos a cada 2 tiles, reflexo leve e uma soleira fina rente ao piso.
   // e.eixo 'h': corre no sentido x na linha y = e.lin; 'v': corre no sentido y na coluna x = e.lin; de e.a0 a e.a1.
+  // e.opaca: um trecho de parede cheia (clara) na linha da vidraça; e.pilar = [x, y]: uma pilastra no ponto
+  const PAREDE_FORA = { s: '#e2ddd3', e: '#c9c3b8', t: '#f1ede6' };
   function desenharFachada(g, sc, e) {
     const K = DL.isoKit, H = sc.wallCut ? 7 : 32, h = e.eixo === 'h';
-    const P = (u, z) => (h ? [u, e.lin, z] : [e.lin, u, z]);
+    const P = (u, z) => (h ? [u, e.lin, z] : e.eixo === 'd' ? [u, e.lin - u, z] : [e.lin, u, z]);
     K.isoT(g, sc);
+    if (e.pilar) {
+      const [x, y] = e.pilar, r = 3;
+      K.box(g, x - r, y - r, x + r, y + r, 0, H + 2, PAREDE_FORA);
+      return caixaTela(x - r, y - r, x + r, y + r, 0, H + 2);
+    }
+    if (e.opaca) {
+      if (e.eixo === 'd') {
+        K.poly(g, [P(e.a0, 0), P(e.a1, 0), P(e.a1, H), P(e.a0, H)], PAREDE_FORA.s);
+        K.poly(g, [P(e.a0, H), P(e.a1, H), [e.a1 - 3, e.lin - e.a1 - 3, H], [e.a0 - 3, e.lin - e.a0 - 3, H]], PAREDE_FORA.t);
+        return caixaTela(e.a0 - 3, e.lin - e.a1 - 3, e.a1, e.lin - e.a0, 0, H);
+      }
+      if (h) { K.box(g, e.a0, e.lin - 4, e.a1, e.lin, 0, H, PAREDE_FORA); return caixaTela(e.a0, e.lin - 4, e.a1, e.lin, 0, H); }
+      K.box(g, e.lin - 4, e.a0, e.lin, e.a1, 0, H, PAREDE_FORA); return caixaTela(e.lin - 4, e.a0, e.lin, e.a1, 0, H);
+    }
     K.poly(g, [P(e.a0, 0), P(e.a1, 0), P(e.a1, H), P(e.a0, H)], h ? 'rgba(186,212,232,0.13)' : 'rgba(160,190,218,0.16)', false);
     // reflexo: faixas inclinadas bem leves, uma quente e uma branca, a cada ~3 tiles
     if (H > 7) for (let u = e.a0 + 10 + ((e.a0 / T) % 3) * 7; u < e.a1 - 8; u += 46) {
@@ -1104,6 +1130,7 @@
     for (let u = e.a0; u <= e.a1 + 0.1; u += 2 * T) K.line(g, P(Math.min(u, e.a1), 0), P(Math.min(u, e.a1), H), 'rgba(214,219,224,0.85)');
     K.line(g, P(e.a0, H), P(e.a1, H), 'rgba(230,234,238,0.55)'); // a borda de cima da placa (fina)
     K.line(g, P(e.a0, 0.5), P(e.a1, 0.5), '#b9bfc5');              // soleira fina
+    if (e.eixo === 'd') return caixaTela(e.a0, e.lin - e.a1, e.a1, e.lin - e.a0, 0, H);
     return caixaTela(h ? e.a0 : e.lin - 1, h ? e.lin - 1 : e.a0, h ? e.a1 : e.lin + 1, h ? e.lin + 1 : e.a1, 0, H);
   }
   // O lado de fora da vidraça: o motor pinta as casas de parede de fora como chão escuro e levanta ali umas
@@ -1124,6 +1151,9 @@
     for (let y = 0; y < w.H; y++) for (let x = 0; x < w.W; x++) if (w.tiles[y * w.W + x] !== '#') g.fillRect(x * T, y * T, T, T);
     g.globalCompositeOperation = 'source-over';
     for (let y = 0; y < w.H; y++) for (let x = 0; x < w.W; x++) if (foraDaVidraca(x, y)) g.clearRect(x * T, y * T, T, T);
+    // o canto cortado em diagonal: apaga a metade de fora dos tiles que ficam em cima da linha
+    g.save(); g.globalCompositeOperation = 'destination-out'; g.beginPath();
+    g.moveTo(21 * T, 37 * T); g.lineTo(25 * T, 33 * T); g.lineTo(26 * T, 33 * T); g.lineTo(26 * T, 38 * T); g.lineTo(21 * T, 38 * T); g.closePath(); g.fill(); g.restore();
     // sem as bordas baixas e a parede pintada que o motor levanta na linha da vidraça
     st.runs = st.runs.filter((r) => !(r.r[1] >= 34 * T - 4 && (r.face !== 's' && r.face !== 'e' ? true : r.face === 'e' && r.r[0] === 5 * T - 4)));
   }
@@ -1132,8 +1162,11 @@
     const K = DL.isoKit, w = sc.world, B = 3;
     const fora = (x, y) => x >= w.W || y >= w.H || foraDaVidraca(x, y);
     K.isoT(g, sc);
+    // a base da diagonal do canto (a linha reta, no lugar dos degraus dos tiles)
+    K.poly(g, [[21 * T, 37 * T, 0], [25 * T, 33 * T, 0], [25 * T, 33 * T, -B], [21 * T, 37 * T, -B]], '#34383f');
+    K.line(g, [21 * T, 37 * T, 0], [25 * T, 33 * T, 0], 'rgba(220,224,228,0.45)');
     for (let y = 0; y < w.H; y++) for (let x = 0; x < w.W; x++) {
-      if (fora(x, y)) continue;
+      if (fora(x, y) || (x + y === 57 && x >= 21 && y >= 33)) continue; // (os tiles da diagonal: a base é a de cima)
       const X = x * T, Y = y * T;
       if (fora(x, y + 1)) { K.poly(g, [[X, Y + T, 0], [X + T, Y + T, 0], [X + T, Y + T, -B], [X, Y + T, -B]], '#3c4048'); K.line(g, [X, Y + T, 0], [X + T, Y + T, 0], 'rgba(220,224,228,0.5)'); }
       if (fora(x + 1, y)) { K.poly(g, [[X + T, Y + T, 0], [X + T, Y, 0], [X + T, Y, -B], [X + T, Y + T, -B]], '#2c3037'); K.line(g, [X + T, Y, 0], [X + T, Y + T, 0], 'rgba(220,224,228,0.35)'); }
@@ -1175,7 +1208,8 @@
       let alvo;
       if (e.lado) alvo = alguem(andando, e.lado === 'l' ? e.px - 2 : e.px + T + 2, e.py + 8, 16) ? 1 : 0;
       else {
-        const v = e.axis === 'v', cx = v ? e.px + 2 : e.px + e.tw * 8, cy = v ? e.py + 16 : e.kind === 'porta-vidro' || e.front ? e.py + 2 : e.py + 14;
+        const v = e.axis === 'v', dg = e.axis === 'd';
+        const cx = dg ? e.px + T : v ? e.px + 2 : e.px + e.tw * 8, cy = dg ? e.py : v ? e.py + 16 : e.kind === 'porta-vidro' || e.front ? e.py + 2 : e.py + 14;
         alvo = alguem(todos, cx, cy, 34) ? 1 : 0;
       }
       e.open = (e.open || 0) + (alvo - (e.open || 0)) * Math.min(1, dt * 7);
@@ -1275,14 +1309,19 @@
     '#MMMMMMMMMMMMMMMMMMMGMMMMx',
     '#MMMMMMMMMMMMMMMMMMMGMMMMx',
     '#MMMMMMMMMMMMMMMMMMMGMMMMx',
-    '#MMMMMMMMMMMMMMMMMMMGMMMMo',
-    '#MMMMMMMMMMMMMMMMMMMGGGGMo', // (a faixa começa 1 tile antes da porta e vira na coluna 20; não passa rente às mesinhas)
-    '#MMMMMMMMMMMMMMMMMMMMMMMMx',
-    // o corredor de estudo (colunas 5 a 18) vai 3 linhas mais para fora: a vidraça fica na linha 37
-    // (a sala de vidro do fundo, colunas 1 a 4, e o saguão, colunas 19 a 24, continuam como antes)
-    '#####MMMMMMMMMMMMMM#######',
-    '#####MMMMMMMMMMMMMM#######',
-    '#####MMMMMMMMMMMMMM#######',
+    '#MMMMMMMMMMMMMMMMMMMGMMMMx',
+    '#MMMMMMMMMMMMMMMMMMMGMMMMx',
+    // a faixa desce o saguão na coluna 20 e vira à esquerda na linha 33: corre o corredor inteiro entre as
+    // cadeiras da mesa comprida (linha 32) e as do balcão da janela (linha 35), até a coluna 6
+    '#MMMMMGGGGGGGGGGGGGGGMMMMx',
+    // o corredor de estudo (colunas 5 a 18) vai 3 linhas mais para fora: a vidraça fica na linha 37.
+    // O saguão desce junto até a linha 37 e o canto de baixo à direita é cortado em DIAGONAL (como a esquina
+    // da fachada de fora): a vidraça vai de (21, 37) a (25, 33) e a porta de vidro fica no meio dela, de frente
+    // para a câmera. Os tiles em cima da diagonal ficam inteiros no mapa ('o' = soleira da porta); a metade de
+    // fora deles é apagada no desenho (ver ajustarFachada). (a sala de vidro do fundo, colunas 1 a 4, continua)
+    '#####MMMMMMMMMMMMMMMMMMo##',
+    '#####MMMMMMMMMMMMMMMMMo###',
+    '#####MMMMMMMMMMMMMMMMM####',
     '##########################',
   ];
 
@@ -1294,12 +1333,17 @@
   const assento = (o, face, tuck) => add(Object.assign(o, { face, tuck: tuck || 0, model: 'f' + face + '-' + (tuck || 0) }));
   const lustre = (host, tx, ty, variant) => add({ kind: 'pendente', host, tx, ty, variant, solid: false, glow: COR.ambar });
 
-  // 1. Entrada: porta de vidro na ponta direita, borda baixa da parede, plantas dos dois lados
-  const XE = 25; // coluna da porta de vidro (a ponta direita do mapa)
-  add({ id: 'ENTRADA', kind: 'porta-vidro', axis: 'v', tx: XE, ty: 19, th: 2, solid: false, drawIso: desenharVidro, isoRect: [XE * T, 19 * T, XE * T + 4, 21 * T], isoH: 44 });
-  add({ kind: 'borda', tx: XE, ty: 5, th: 14, drawIso: desenharBorda, isoRect: [XE * T, 5 * T, XE * T + 4, 19 * T], isoH: 8 });
-  add({ kind: 'planta-alta', tx: 24, ty: 18 });
-  add({ kind: 'planta-alta', tx: 24, ty: 21, variant: 'folhas' });
+  // 1. Entrada: o canto de baixo à direita cortado em diagonal (linha x + y = 58 tiles, de (21, 37) a (25, 33)),
+  //    com a porta de vidro no meio, de frente para a câmera, colada no vidro dos dois lados; borda baixa
+  //    contínua na ponta direita; plantas dos dois lados da porta.
+  const XE = 25; // a ponta direita do mapa (a borda baixa)
+  // (em px do mapa, já nas linhas finais) a diagonal e a porta: a porta vai de (22, 36) a (24, 34)
+  const DIAG = 58 * T, PORTA0 = [22 * T, 36 * T], PORTA1 = [24 * T, 34 * T];
+  const ret = (x, y) => [x - 1, y - 1 - DY * T, x + 1, y + 1 - DY * T]; // um retângulo de ordem de desenho bem pequeno, no ponto
+  add({ id: 'ENTRADA', kind: 'porta-vidro', axis: 'd', tx: 22, ty: 35 - DY, solid: false, drawIso: desenharVidro, isoRect: ret(23 * T, 35 * T), isoH: 44 });
+  add({ kind: 'borda', tx: XE, ty: 5, th: 11, drawIso: desenharBorda, isoRect: [XE * T, 5 * T, XE * T + 4, 16 * T], isoH: 8 }); // (até a pilastra da linha 28; dali para baixo é vidro)
+  add({ kind: 'planta-alta', tx: 21, ty: 35 - DY });
+  add({ kind: 'planta-alta', tx: 23, ty: 33 - DY, variant: 'folhas' });
 
   // 2. As mesas, em frente à porta
   // esquerda (sul): a vidraça é a parede da frente, de vidro
@@ -1312,12 +1356,19 @@
   const fachada = (eixo, lin, a0, a1, rect) => add({ kind: 'fachada', eixo, lin, a0, a1, tx: Math.floor((eixo === 'h' ? a0 : lin) / T), ty: Math.floor((eixo === 'h' ? lin : a0) / T) - DY, solid: false, drawIso: desenharFachada, isoRect: rect.map((v, k) => (k % 2 ? v - DY * T : v)), isoH: 34 });
   fachada('h', 34 * T, 1 * T, 5 * T, [1 * T, 34 * T, 5 * T, 34 * T + 1]);        // sala de vidro do fundo
   fachada('v', 5 * T, 34 * T, 37 * T, [5 * T - 1, 34 * T + 1, 5 * T, 37 * T]);     // ponta esquerda da faixa da janela
-  fachada('v', 19 * T, 34 * T, 37 * T, [19 * T, 34 * T, 19 * T + 1, 37 * T]);     // o degrau até a vidraça do saguão
-  fachada('h', 37 * T, 5 * T, 19 * T, [5 * T, 37 * T, 19 * T, 37 * T + 1]);       // corredor de estudo
-  fachada('h', 34 * T, 19 * T, 25 * T, [19 * T, 34 * T, 26 * T, 34 * T + 1]);     // saguão (até a borda da entrada)
-  // a quina depois da porta de vidro (antes um bloquinho da borda baixa sobrando no canto): só vidro
-  fachada('v', 25 * T, 33 * T, 34 * T, [25 * T, 33 * T, 25 * T + 1, 34 * T]);
-  itens[itens.length - 1].solid = true; // (o tile continua fechado, como era com a borda)
+  // a frente (linha 37), da esquerda para a direita: vidro, uma pilastra (x ≈ 14,8), vidro e um trecho de parede
+  // cheia (colunas 19 e 20) até o canto
+  fachada('h', 37 * T, 5 * T, 19 * T, [5 * T, 37 * T, 19 * T, 37 * T + 1]);       // corredor de estudo: vidro
+  add({ kind: 'fachada', pilar: [14.8 * T, 37 * T - 1], tx: 14, ty: 36 - DY, solid: false, drawIso: desenharFachada, isoRect: ret(14.8 * T, 37 * T + 1), isoH: 36 });
+  add({ kind: 'fachada', opaca: true, eixo: 'h', lin: 37 * T, a0: 19 * T, a1: 21 * T, tx: 19, ty: 37 - DY, solid: false, drawIso: desenharFachada, isoRect: [19 * T, 37 * T - DY * T, 21 * T, 37 * T + 1 - DY * T], isoH: 34 });
+  // a diagonal: um trecho de parede cheia de cada lado da porta (eixo 'd': corre de (a0, DIAG − a0) a (a1, DIAG − a1));
+  // o tile de cada pedaço fica fechado (a metade de dentro dele também)
+  for (const [x0, x1, cx, cy] of [[21 * T, 22 * T, 21, 36], [24 * T, 25 * T, 24, 33]])
+    add({ kind: 'fachada', opaca: true, eixo: 'd', lin: DIAG, a0: x0, a1: x1, tx: cx, ty: cy - DY, solid: true, drawIso: desenharFachada, isoRect: ret((x0 + x1) / 2, DIAG - (x0 + x1) / 2), isoH: 34 });
+  // a lateral direita (coluna 25), depois da porta: vidro das linhas 28 a 33, com uma pilastra na linha 28
+  // (acima dela continua a borda baixa). Os tiles do lado de fora do vidro ficam fechados.
+  add({ kind: 'fachada', eixo: 'v', lin: XE * T, a0: 28 * T, a1: 33 * T, tx: XE, ty: 28 - DY, th: 5, solid: true, drawIso: desenharFachada, isoRect: [XE * T, 28 * T - DY * T, XE * T + 1, 33 * T - DY * T], isoH: 34 });
+  add({ kind: 'fachada', pilar: [XE * T + 1, 28 * T], tx: XE, ty: 27 - DY, solid: false, drawIso: desenharFachada, isoRect: ret(XE * T + 2, 28 * T), isoH: 36 });
   //   (cada pedaço ocupa os seus 4 tiles: o balcão inteiro é sólido, ninguém atravessa ele)
   //   faixa da janela: um balcão branco contínuo encostado no vidro (colunas 6 a 17), com as cadeiras de
   //   escritório brancas viradas para ele, de costas para o corredor; cada mesinha desenha um pedaço de 4 tiles.
@@ -1373,8 +1424,9 @@
   // (as poltronas olham para a mesinha, cada uma num ângulo)
   assento({ kind: 'poltrona-vermelha', tx: 21, ty: 16 }, 326);
   assento({ kind: 'poltrona-vermelha', tx: 24, ty: 16 }, 214);
-  add({ kind: 'puff', tx: 22, ty: 17 });
+  // (os dois puffs à direita: o da coluna 22 ficava logo na frente da poltrona da esquerda e cobria quem senta nela)
   add({ kind: 'puff', tx: 23, ty: 17 });
+  add({ kind: 'puff', tx: 24, ty: 17 });
   lustre('MESINHA', 22.1, 15, 'a');
   lustre('MESINHA', 22.6, 15, 'b');
   lustre('MESINHA', 23.2, 15, 'c');
@@ -1455,7 +1507,7 @@
     items: itens,
     rooms: [
       { x: 16, y: 26, w: 3, h: 2, style: ESTILO },                                            // canto do logo
-      { x: 19, y: 17, w: 6, h: 17, style: ESTILO },                                           // saguão
+      { x: 19, y: 17, w: 6, h: 20, style: ESTILO },                                           // saguão (até a linha 37, com o canto em diagonal)
       { x: 16, y: 22, w: 3, h: 4, style: ESTILO },                                            // secretaria
       { x: 7, y: 17, w: 12, h: 4, style: ESTILO_CORREDOR },                                   // corredor
       { x: 12, y: 1, w: 3, h: 16, style: ESTILO_CORREDOR },                                   // corredor das salas
@@ -1464,27 +1516,31 @@
       // sala de vidro do fundo: painel de madeira escura em ripas atrás do vidro âmbar (foto 4), não mais vermelha
       { x: 1, y: 28, w: 4, h: 6, style: { wall: 'pintada', wallColor: '#6e4f38', ripas: true, light: 'warm' } },
     ],
-    spawn: [23, 32], // logo depois da porta de vidro, em cima da faixa tátil, olhando as mesas
+    spawn: [21.75, 33.6], // logo depois da porta de vidro (1 passo para dentro do meio dela), olhando as mesas
     spawnDir: 'left',
     portals: [
-      { tx: XE, ty: 31, to: SAIDA }, { tx: XE, ty: 32, to: SAIDA },
+      { tx: 22, ty: 35, to: SAIDA }, { tx: 23, ty: 34, to: SAIDA }, // (os 2 tiles da porta, na diagonal)
+      { tx: 22, ty: 36, to: SAIDA }, { tx: 23, ty: 35, to: SAIDA }, // (e os de fora logo atrás dela: o pé do jogador chega neles)
       { tx: 9, ty: 16, to: 'faculdade-sala2', spawn: [4, 4] },
     ],
     // (tela interna de 480 px de altura: numa tela Full HD cabe ~50% mais sala, com os pixels nítidos;
     //  minS 2: em telas menores nunca fica menor que antes)
-    camera: { tilesWide: 20, minTilesHigh: 9, pixelH: 480, minS: 2, noBase: true }, // (noBase: a base fina é desenhada aqui, ver baseFina) // (antes: tilesWide 15, pixelH 360) (tela interna de 360 px ampliada com pixels nítidos: mesma aparência, 4× menos pixels)
+    // lead: a câmera fica 3 tiles para a esquerda da tela em relação ao jogador (−x, +y no mapa), para o lado
+    // esquerdo do prédio (a sala de vidro do fundo) não ficar cortado
+    camera: { tilesWide: 20, minTilesHigh: 9, pixelH: 480, minS: 2, noBase: true, lead: [-48, 48] }, // (noBase: a base fina é desenhada aqui, ver baseFina) // (antes: tilesWide 15, pixelH 360) (tela interna de 360 px ampliada com pixels nítidos: mesma aparência, 4× menos pixels)
 
     enter(game) {
       prepararSalas(game);
       esconderMissao(true);
       afastarCamera(game.scene);
+      game.scene.cam.x += -48; game.scene.cam.y += 48; // já começa no lugar (camera.lead), sem deslizar ao entrar
       // o lado de fora da vidraça vazio e a base fina do prédio (ver ajustarFachada e baseFina)
       game.scene.underlay = (g, sc) => { ajustarFachada(sc); baseFina(g, sc); };
       const w = game.world;
       // a dica de saída aparece na frente da porta de vidro (o padrão seria do lado de fora)
       const ent = w.byId.ENTRADA;
-      ent.ix = ent.px - 8;
-      ent.iy = ent.py + 16;
+      ent.ix = ent.px + T - 8; // do lado de dentro do meio da porta (a porta está na diagonal)
+      ent.iy = ent.py - 8;
       const logo = w.byId.LOGO; // na frente da parede
       logo.ix = logo.px + 6;
       logo.iy = logo.py + 2 * T;

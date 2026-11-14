@@ -103,7 +103,7 @@
         const vx = 8 + k * 46, vw = 38, vy = alto + marq + 6, vh = 26;
         R(g, vx - 1, vy - 1, vw + 2, vh + 2, '#9aa3b0'); R(g, vx, vy, vw, vh, '#58606c'); R(g, vx + 19, vy, 1, vh, '#c8ced6');
         q.fillStyle = '#eccf9f'; q.fillRect(vx, vy, vw, vh); R(q, vx + 19, vy, 1, vh, '#e6dccb');
-        R(q, vx + 6 + k * 5, vy + 12, 12, 2, '#8a6a48'); R(q, vx + 9 + k * 5, vy + 6, 5, 6, '#5a4a40'); // mesas e alguém estudando, em silhueta
+        R(q, vx, vy, vw, 4, '#f6e2bb'); R(q, vx, vy + vh - 5, vw, 5, '#dfbf8e'); R(q, vx, vy + 10, vw, 1, '#e6dccb'); // janela acesa: luz mais clara em cima, travessa no meio
         for (let i = 0; i < 4; i++) { const px = vx + 3 + i * 10, h = 7 + ((i + k) * 5) % 6; for (let j = -2; j <= 2; j++) { R(g, px + j, hh - 4 - h + Math.abs(j) * 2, 1, h - Math.abs(j) * 2, j % 2 ? '#3c7a46' : '#2f6238'); R(q, px + j, hh - 4 - h + Math.abs(j) * 2, 1, h - Math.abs(j) * 2, j % 2 ? '#2a5a34' : '#1f4628'); } }
       }
       for (let i = 14; i < wl; i += 22) R(q, i, alto + marq, 2, 1, '#fff1cf');
@@ -115,9 +115,11 @@
       R(g, 0, alto, ws, marq, '#c9662f'); R(g, 0, alto, ws, 2, '#e58a4e'); R(g, 0, alto + marq - 3, ws, 3, '#8f4520');
       for (let i = 4; i < ws; i += 13) R(g, i, alto + 2, 1, marq - 5, '#b55a28');
       R(g, 0, alto + marq, ws, hh - alto - marq, '#d3d6da'); R(g, 0, alto + marq, ws, 3, '#a9adb4'); R(g, 0, hh - 4, ws, 4, '#b4b8be');
-      for (const px of [22, 86]) {
-        R(g, px - 1, alto + marq + 6, 46, 28, '#7d8590'); R(g, px, alto + marq + 7, 44, 26, '#e9ecef');
-        for (const G of [g, q]) { R(G, px, alto + marq + 7, 44, 26, '#f4f1e8'); R(G, px + 2, alto + marq + 9, 18, 14, px < 50 ? '#c9662f' : '#3c8a4a'); A.brasao(G, px + 6, alto + marq + 10, 1, '#ffffff'); A.text(G, 'SERRA', px + 23, alto + marq + 10, 1, '#3a3f4a'); A.text(G, px < 50 ? 'CURSOS' : '2026', px + 23, alto + marq + 17, 1, '#c8262e'); R(G, px + 3, alto + marq + 27, 36, 1, '#7d8590'); R(G, px + 3, alto + marq + 30, 24, 1, '#7d8590'); }
+      // dois cartazes simples: o brasão num bloco de cor e UMA palavra grande (letra 2×), para ler de longe
+      for (const [px, cor, palavra, tc] of [[12, '#c9662f', 'SERRA', '#3a3f4a'], [82, '#3c8a4a', '2026', '#c8262e']]) {
+        const top = alto + marq + 7;
+        R(g, px - 1, top - 1, 68, 28, '#7d8590');
+        for (const G of [g, q]) { R(G, px, top, 66, 26, '#f4f1e8'); R(G, px + 2, top + 2, 19, 22, cor); A.brasao(G, px + 4, top + 2, 1, '#ffffff'); A.text(G, palavra, px + 24, top + 8, 2, tc); }
       }
       for (let i = 10; i < ws; i += 22) R(q, i, alto + marq, 2, 1, '#fff1cf');
     });
@@ -284,13 +286,14 @@
     R(g, 1, 4, 24, 3, '#6b4a30'); R(g, 1, 4, 24, 1, '#8a6442'); R(g, 1, 0, 24, 3, '#5a3e28'); R(g, 3, 7, 2, 7, '#2a2d37'); R(g, 21, 7, 2, 7, '#2a2d37');
     return daNoite(c, 0.4);
   }
-  function fazMoto(cor) {
-    const c = DL.mk(24, 16), g = c.getContext('2d');
-    A.disc(g, 5, 12, 3, '#0e1014'); A.disc(g, 18, 12, 3, '#0e1014'); R(g, 6, 6, 11, 4, cor); R(g, 9, 4, 6, 2, '#16181d'); R(g, 17, 2, 1, 7, '#9aa3b0'); R(g, 16, 2, 3, 1, '#2a2f38');
-    return daNoite(c, 0.45);
+  // moto estacionada em perspectiva (o mesmo desenho do lago, sem piloto), de bico para a rua
+  function fazMoto(cor, ty) {
+    const L = DL.Lago && DL.Lago.L, x = 28 * T, y = (ty + 0.5) * T;
+    return isoSpr(x - 16, y - 8, x + 16, y + 8, 16, 8, (o, g) => { if (L) L.drawCarAt(g, x, y, 0, cor, { tipo: 4, semPiloto: true }); o.noite(0.45); });
   }
   // o carro do jogador (o mesmo desenho do lago), parado de frente para a câmera; 3 estados da porta
-  const CAR = { x: 28 * T, y: 49.5 * T, ang: Math.PI / 2 };
+  // (no meio da vaga 47–53, entre as duas linhas brancas)
+  const CAR = { x: 28 * T, y: 50 * T, ang: Math.PI / 2 };
   function fazCarro(porta) {
     const L = DL.Lago && DL.Lago.L, cor = (DL.Lago && DL.Lago.PAL.wa3) || '#3a6ea5';
     return isoSpr(CAR.x - 34, CAR.y - 44, CAR.x + 34, CAR.y + 44, 34, 20, (o, g) => { if (L) L.drawCarAt(g, CAR.x, CAR.y, CAR.ang, cor, { doorOpen: porta }); o.noite(0.42); });
@@ -310,16 +313,17 @@
   for (const ty of [9, 26, 40, 60]) obj('rua-poste', 26, ty, { lado: 1, drawIso: desenhaPoste, luz: true });
   for (const ty of [18, 34, 52]) obj('rua-poste', 37, ty, { lado: -1, drawIso: desenhaPoste, luz: true });
   obj('rua-poste', 12, 60, { lado: 1, drawIso: desenhaPoste, luz: true });
+  obj('rua-poste', 27, 69, { lado: 1, drawIso: desenhaPoste, luz: true }); // a esquina de baixo, do outro lado da transversal (o canto escuro)
   for (const [tx, ty, r] of [[26, 14, 15], [26, 22, 13], [26, 33, 15], [26, 45, 13], [38, 10, 14], [38, 26, 16], [38, 44, 14], [38, 58, 15], [8, 61, 14], [3, 61, 15]]) obj('rua-arvore', tx, ty, { raio: r, isoH: 90 });
   // em volta da faculdade: vasos, banco, o poste das câmeras e as motos paradas (foto 07)
   for (const [tx, ty] of [[14, 59], [22, 51], [22, 46], [22, 44], [10, 59], [6, 59]]) obj('rua-vaso', tx, ty, { isoH: 30 });
   obj('rua-camera', 26, 57, { isoH: 60 });
   obj('rua-banco', 22, 49, { isoH: 16 });
   obj('rua-banco', 22, 22, { isoH: 16 }); obj('rua-banco', 22, 11, { isoH: 16 }); obj('rua-vaso', 22, 31, { isoH: 30 }); obj('rua-vaso', 22, 40, { isoH: 30 });
-  for (const [ty, cor] of [[54, '#b8333a'], [55, '#2a2f38'], [56, '#c8262e']]) obj('rua-moto', 27, ty, { cor, isoH: 18, solid: false });
+  for (const [ty, cor] of [[54, '#b8333a'], [55, '#2a2f38'], [56, '#c8262e']]) obj('rua-moto', 27, ty, { cor, isoH: 18, solid: false, drawIso: desenha });
   // carros parados na vaga (o do jogador é o CARRO)
   items.push({ id: 'CARRO', kind: 'rua-carro', tx: 27, ty: 47, tw: 2, th: 5, isoH: 34, solid: false, drawIso: (g, sc, e) => { K.isoT(g, sc); const s = e.sprs[e.porta >= 1 ? 2 : e.porta > 0 ? 1 : 0]; g.drawImage(s.c, s.X0, s.Y0); if (e.luz > 0) { g.globalCompositeOperation = 'lighter'; const X = CAR.x - CAR.y, Y = (CAR.x + CAR.y) / 2; for (const dx of [-9, 9]) { g.globalAlpha = e.luz; g.drawImage(halo(), X + dx - 2 - 9, Y + 22 - 9, 18, 18); } g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; } } });
-  for (const [ty, cor, tipo] of [[36, '#c8ccd2', 1], [22, '#8a3038', 2], [10, '#e9ecef', 0]]) items.push({ kind: 'rua-parado', tx: 27, ty, tw: 2, th: 5, isoH: 34, solid: false, cor, tipo, drawIso: desenha });
+  for (const [ty, cor, tipo] of [[35, '#c8ccd2', 1], [23, '#8a3038', 2], [11, '#e9ecef', 0]]) items.push({ kind: 'rua-parado', tx: 27, ty, tw: 2, th: 5, isoH: 34, solid: false, cor, tipo, drawIso: desenha });
   // a porta de vidro (só o ponto de interação)
   const fS = () => A.serra();
   const PORTA = (() => { const k = (80 + 4) / 2 / T; return { x: (SERRA.x1 - SERRA.c + k + 0.55) * T, y: (SERRA.y1 - k + 0.55) * T }; })();
@@ -355,13 +359,15 @@
     for (let x = T; x < RUA[0] * T - 10; x += 30) R(g, x, ((TRANSV[0] + TRANSV[1]) / 2) * T - 1, 16, 2, C.amarelo);
     R(g, VAGA[1] * T - 1, 2 * T, 1, (SERRA.y1 - 1) * T, 'rgba(143,147,163,0.5)');
     for (let y = 5; y < SERRA.y1; y += 6) R(g, VAGA[0] * T + 2, y * T, 2 * T - 2, 1, C.faixa);
-    for (let x = 23 * T + 3; x < 27 * T - 4; x += 9) R(g, x, TRANSV[0] * T + 5, 5, (TRANSV[1] - TRANSV[0]) * T - 10, C.faixa);
-    for (let y = 60 * T - 2; y > 56 * T; y -= 9) R(g, RUA[0] * T + 5, y, (RUA[1] - RUA[0]) * T - 10, 5, C.faixa);
+    // faixas de pedestre: as listras correm no mesmo sentido da rua que atravessam
+    for (let y = TRANSV[0] * T + 5; y < TRANSV[1] * T - 9; y += 9) R(g, 23 * T + 3, y, 4 * T - 7, 5, C.faixa);
+    for (let x = RUA[0] * T + 5; x < RUA[1] * T - 9; x += 9) R(g, x, 56 * T + 3, 5, 4 * T - 6, C.faixa);
     // piso da entrada da faculdade: um tapete de pedra clara na frente da porta
     /* poças de luz, somadas (ficam "pintadas" no chão) */
     g.globalCompositeOperation = 'lighter';
     const poca = (x, y, r, rgb, a) => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(' + rgb + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + rgb + ',0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); };
     for (const e of items) if (e.luz) poca((e.tx + 0.5 + e.lado * 0.7) * T, (e.ty + 0.5) * T, 62, '255,196,120', 0.2);
+    poca(29.5 * T, 67 * T, 120, '255,196,120', 0.14);             // o cruzamento de baixo (o canto que ficava escuro demais)
     poca(PORTA.x + 8, PORTA.y + 8, 120, '255,190,120', 0.3);      // a luz quente da recepção na calçada
     poca(PORTA.x - 4, PORTA.y - 4, 56, '255,214,160', 0.22);
     poca((SERRA.x1 + 1) * T, 47.5 * T, 60, '255,200,140', 0.13);   // a vidraça da lateral
@@ -462,7 +468,7 @@
         else if (e.kind === 'rua-vaso') e.img = Pr.vaso[v++ % 3];
         else if (e.kind === 'rua-camera') e.img = Pr.camera;
         else if (e.kind === 'rua-banco') e.img = Pr.banco;
-        else if (e.kind === 'rua-moto') e.img = e._img || (e._img = fazMoto(e.cor));
+        else if (e.kind === 'rua-moto') e.spr = e._spr || (e._spr = fazMoto(e.cor, e.ty));
         else if (e.kind === 'rua-parado') e.spr = e._spr || (e._spr = isoSpr(28 * T - 34, (e.ty + 2.5) * T - 44, 28 * T + 34, (e.ty + 2.5) * T + 44, 34, 20, (o, g) => { if (L) L.drawCarAt(g, 28 * T, (e.ty + 2.5) * T, Math.PI / 2, e.cor, { tipo: e.tipo }); o.noite(0.5); }));
         else if (e.kind === 'rua-carro') { e.sprs = Pr.carro; e.porta = 0; e.luz = st.fase === 'chegada' ? 1 : 0; }
       }
@@ -487,8 +493,10 @@
       const pl = game.player;
       if (st.fase === 'chegada') { game.locked = true; pl.hidden = true; pl.x = SAIDA.x; pl.y = SAIDA.y; sc.cam.x = pl.x; sc.cam.y = pl.y; }
       else if (doLab) { pl.x = NA_PORTA_DL.x; pl.y = NA_PORTA_DL.y; pl.dir = 'right'; sc.cam.x = pl.x; sc.cam.y = pl.y; }
-      else if (deDentro) { pl.x = NA_PORTA.x; pl.y = NA_PORTA.y; pl.dir = 'down'; sc.cam.x = pl.x; sc.cam.y = pl.y; $('missionSteps').innerHTML = '<li class="is-ok">Ir pela calçada até a porta de vidro e entrar (E)</li>'; }
+      else if (deDentro) { pl.x = NA_PORTA.x; pl.y = NA_PORTA.y; pl.dir = 'down'; sc.cam.x = pl.x; sc.cam.y = pl.y; }
       else { pl.x = SAIDA.x - 8; pl.y = SAIDA.y + 20; sc.cam.x = pl.x; sc.cam.y = pl.y; }
+      // o quadradinho só fica verde se o jogador entrou mesmo pela porta de vidro (E na calçada)
+      if (st.entrou) $('missionSteps').innerHTML = '<li class="is-ok">Ir pela calçada até a porta de vidro e entrar (E)</li>';
       if (/[?&]debug=1(&|$)/.test(location.search)) setTimeout(() => validarRua(game), 0);
     },
 
@@ -523,6 +531,7 @@
     use(game, e) {
       if (e.id === 'PORTA-DL' && DL.MAPS.datalab) return game.goTo('datalab', [1, 5]); // a sala do DataLab (datalab.js), logo depois da porta
       if (e.id !== 'PORTA') return;
+      st.entrou = true;
       game.goTo(DL.MAPS.faculdade ? 'faculdade' : 'datalab'); // transição curta e o jogador aparece lá dentro, perto da porta
     },
 

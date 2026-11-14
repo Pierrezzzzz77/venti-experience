@@ -689,7 +689,7 @@
     const p = (u, v, z) => [x + u * ca - v * sa, y + u * sa + v * ca, z];
     const B = (u0, u1, v0, v1, z0, z1, cS, cE, cT) => obox(g, x, y, ca, sa, u0, u1, v0, v1, z0, z1, cS, cE, cT);
     const lado = ca - sa > 0 ? 1 : -1, frente = ca + sa > 0; // o lado comprido e a ponta que a câmera vê
-    if (tipo === 4) return drawMoto(g, p, B, col, frente);
+    if (tipo === 4) return drawMoto(g, p, B, col, frente, o.semPiloto);
     const d = shade(col, -0.3), dd = shade(col, -0.52), l = shade(col, 0.18), ll = shade(col, 0.36);
     const vid = P.wa0, vidL = P.wa2, vidB = P.wa3;
     // um detalhe "colado" no lado comprido que aparece / na ponta que aparece
@@ -741,13 +741,19 @@
     }
   }
   // a moto: duas rodas, tanque na cor, banco e o piloto de capacete
-  function drawMoto(g, p, B, col, frente) {
+  // (semPiloto: moto estacionada, só com o guidão)
+  function drawMoto(g, p, B, col, frente, semPiloto) {
     K.poly(g, [p(-12, -3, 0), p(13, -3, 0), p(13, 5, 0), p(-12, 5, 0)], 'rgba(0,0,0,0.3)', false);
     B(-13, -6, -1.2, 1.2, 0, 8, P.ne0, P.ne0, P.ne1);
     B(6, 13, -1.2, 1.2, 0, 8, P.ne0, P.ne0, P.ne1);
     B(-9, 9, -2, 2, 5, 10, P.ne1, P.ne0, P.ne2);                               // quadro e motor
     B(-1, 6, -2.6, 2.6, 9, 12.5, col, shade(col, -0.3), shade(col, 0.2));      // tanque
     B(-9, -1, -2.2, 2.2, 10, 11.6, P.ne0, P.ne0, P.ne1);                       // banco
+    if (semPiloto) {
+      B(6, 7, -4, 4, 14, 15, P.ne2, P.ne1, P.ne3);                             // guidão
+      B(6, 7, -0.6, 0.6, 9, 14, P.ne1, P.ne0, P.ne2);
+      return;
+    }
     B(-6, 0, -3.2, 3.2, 10, 15, P.wa1, P.wa0, P.wa2);                          // pernas
     B(-6, -1, -3.2, 3.2, 15, 23, col, shade(col, -0.3), shade(col, 0.18));     // tronco
     B(-1, 6, -3.4, 3.4, 18, 20, P.ne5, P.ne4, P.ne6);                          // braços no guidão

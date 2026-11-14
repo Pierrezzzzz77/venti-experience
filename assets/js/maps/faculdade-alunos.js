@@ -182,7 +182,9 @@
         }
       };
       if (this.mochila) mochilaChao(g, AX + 11, chao, this.corMochila);
-      if (dir === 'up') { corpo(); banco(); } else { banco(); corpo(); } // de costas: o encosto fica na frente
+      // de costas: o encosto fica na frente. O puff não tem encosto: o aluno fica sempre por cima dele
+      // (antes ele era desenhado por cima do aluno e o aluno sumia dentro do puff)
+      if (dir === 'up' && A.kind !== 'puff') { corpo(); banco(); } else { banco(); corpo(); }
       return c;
     }
   }
@@ -225,6 +227,9 @@
       // cadeira com direção: o aluno olha para o mesmo lado dela e senta onde ela está (empurrada para a mesa)
       assento.z = ASSENTOS_3D[s.kind];
       dir = dirDaFace(s.face);
+      // no balcão da janela não há mesa na frente para esconder as pernas: de frente ('down') o aluno parecia
+      // em pé na frente da cadeira. De lado ele aparece sentado, olhando o balcão e o vidro.
+      if (s.kind === 'banco-pedra' && dir === 'down') dir = 'left';
       const r = radDaFace(s.face), k = (s.tuck || 0) / T;
       x += Math.cos(r) * k;
       y += Math.sin(r) * k;
@@ -345,8 +350,8 @@
       // conversando em pé, no saguão
       grupo(game, 20, [[21.5, 24.6, 'right'], [22.9, 24.6, 'left']]);
       // entrando e saindo (das salas e da faculdade)
-      andante(game, 30, { pts: [[25.5, 32], [24.3, 32], [19.5, 32], [19.5, 18.5], [13.5, 18.5], [13.5, 11.5], [14.65, 11.5]], a: 'porta', b: 'porta', inicio: 'b', espera0: 2 });
-      andante(game, 31, { pts: [[9.5, 16.7], [9.5, 19.5], [20.5, 19.5], [20.5, 31.6], [24.3, 31.6], [25.5, 31.6]], a: 'porta', b: 'porta', espera0: 5 });
+      andante(game, 30, { pts: [[23.4, 35.4], [22.4, 34.4], [22.4, 32.6], [19.5, 32.6], [19.5, 18.5], [13.5, 18.5], [13.5, 11.5], [14.65, 11.5]], a: 'porta', b: 'porta', inicio: 'b', espera0: 2 });
+      andante(game, 31, { pts: [[9.5, 16.7], [9.5, 19.5], [20.5, 19.5], [20.5, 31.6], [22.4, 31.6], [22.4, 34.4], [23.4, 35.4]], a: 'porta', b: 'porta', espera0: 5 });
       andante(game, 33, { pts: [[14.65, 15.5], [13.6, 15.5], [13.6, 19.4], [19.3, 19.4], [19.3, 24.6], [17.4, 24.6]], a: 'porta', b: 'parar', olhar: 'up', espera0: 9 });
     },
     sala1(game) {

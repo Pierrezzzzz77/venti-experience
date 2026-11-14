@@ -125,9 +125,10 @@
       }
 
       // a câmera segue o jogador, suave (um pouco acima dos pés)
-      const kc = 1 - Math.exp(-dt * 5.5);
-      sc.cam.x += (p.x - 7 + p.vx * 0.22 - sc.cam.x) * kc;
-      sc.cam.y += (p.y - 12 + 4.9 + p.vy * 0.22 - sc.cam.y) * kc;
+      // (camera.lead do mapa: desloca o centro da câmera em px do mundo, ex. para mostrar mais de um lado do prédio)
+      const kc = 1 - Math.exp(-dt * 5.5), lead = (this.map.camera && this.map.camera.lead) || [0, 0];
+      sc.cam.x += (p.x - 7 + lead[0] + p.vx * 0.22 - sc.cam.x) * kc;
+      sc.cam.y += (p.y - 12 + 4.9 + lead[1] + p.vy * 0.22 - sc.cam.y) * kc;
 
       // portas para outros mapas: quem pisa no tile da porta troca de mapa (com a transição)
       const tx = Math.floor(p.x / DL.T), ty = Math.floor(p.y / DL.T);

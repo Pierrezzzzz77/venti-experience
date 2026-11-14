@@ -31,7 +31,7 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
 .carry { display: none; margin-top: 8px; padding: 6px 8px; border-radius: 4px; background: #1d2129; color: var(--breeze); font-size: 12px; }
 .carry.is-on { display: block; }
 
-.keys { position: fixed; right: 16px; top: 16px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--dim); font-size: 12px; }
+.keys { position: fixed; right: 16px; bottom: 16px; /* (embaixo à direita: em cima, tampava a porta das salas) */ max-width: 250px; line-height: 1.8; /* (em 2 linhas: não encosta na dica do meio) */ padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--dim); font-size: 12px; }
 
 /* dica "E · ..." e mensagens */
 .hint, .toast { position: fixed; left: 50%; transform: translateX(-50%); padding: 8px 14px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); opacity: 0; pointer-events: none; transition: opacity 0.15s; white-space: nowrap; max-width: calc(100vw - 32px); }
