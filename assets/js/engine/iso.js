@@ -799,8 +799,12 @@
   // A is drawn before B when it lies entirely west or north of it; when the footprints overlap,
   // hosted things go after their host, people after the furniture they stand in (sofas), else depth.
   function order(A, B) {
-    if (A.gx1 <= B.gx0 || A.gy1 <= B.gy0) return -1;
-    if (B.gx1 <= A.gx0 || B.gy1 <= A.gy0) return 1;
+    // (Venti) dois retângulos que só se tocam na quina (um a oeste, o outro ao norte) davam "A antes" e
+    // "B antes" ao mesmo tempo: isso criava um ciclo e a bancada do DataLab saía atrás da parede do fundo.
+    const aFirst = A.gx1 <= B.gx0 || A.gy1 <= B.gy0, bFirst = B.gx1 <= A.gx0 || B.gy1 <= A.gy0;
+    if (aFirst && bFirst) return A.key - B.key || A.n - B.n;
+    if (aFirst) return -1;
+    if (bFirst) return 1;
     if (A.host && A.host === B.o) return 1;
     if (B.host && B.host === A.o) return -1;
     if (A.t === 'actor' && B.t === 'item' && !WALLISH[B.o.kind]) return 1;
