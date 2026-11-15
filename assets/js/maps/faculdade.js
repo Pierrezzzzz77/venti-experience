@@ -458,21 +458,19 @@
   }
   // perto da janela: cadeira de escritório branca (encosto de tela, braços, base de 5 rodinhas).
   // (o tipo continua 'banco-pedra', nos mesmos tiles, para os alunos continuarem sentando nela)
+  // (sem face) a poltroninha da janela como era antes: bloco cinza arredondado (como uma pedra) com assento verde
   function bancoPedra(g, e) {
     if (e.face != null) return cadeiraEscritorio(g, e);
-    const { c, b } = chao(e), br = '#f1f1ee', cin = '#c9cbcc', esc = '#8d9093', tela = '#dfe1e2';
-    sombraChao(g, c, b, 14);
-    R(g, c - 6, b - 2, 13, 1, esc);                                         // base em estrela
-    for (const dx of [-6, -3, 0, 3, 6]) R(g, c + dx, b - 1, 1, 1, '#3a3c40'); // rodinhas
-    R(g, c, b - 7, 1, 5, esc);                                              // pistão
-    R(g, c - 5, b - 9, 11, 2, br); R(g, c - 5, b - 9, 11, 1, '#ffffff'); R(g, c - 5, b - 7, 11, 1, cin); // assento
-    R(g, c - 7, b - 12, 2, 1, br); R(g, c - 6, b - 11, 1, 3, cin);           // braços
-    R(g, c + 6, b - 12, 2, 1, br); R(g, c + 6, b - 11, 1, 3, esc);
-    R(g, c - 4, b - 21, 9, 1, br);                                          // encosto de tela
-    R(g, c - 5, b - 20, 11, 10, br);
-    R(g, c - 4, b - 19, 9, 8, tela);
-    for (let j = 0; j < 8; j += 2) for (let i = (j >> 1) & 1; i < 9; i += 2) R(g, c - 4 + i, b - 19 + j, 1, 1, cin);
-    R(g, c + 5, b - 20, 1, 10, cin);
+    const { c, b } = chao(e), base = '#c4c5c1', cl = '#d6d7d3', esc = '#9fa09c', vd = '#6f8a7b';
+    R(g, c - 5, b - 22, 10, 1, cl);
+    R(g, c - 6, b - 21, 12, 1, cl);
+    R(g, c - 7, b - 20, 14, 13, base);
+    R(g, c + 6, b - 20, 1, 13, esc);
+    for (let i = 0; i < 10; i++) R(g, c - 6 + Math.floor(hash(i * 5 + 3) * 12), b - 19 + Math.floor(hash(i * 9 + 4) * 11), 1, 1, i % 2 ? cl : esc);
+    R(g, c - 7, b - 7, 14, 6, vd);
+    R(g, c - 7, b - 7, 14, 1, '#86a091');
+    R(g, c + 6, b - 7, 1, 6, '#56705f');
+    R(g, c - 6, b - 1, 12, 1, '#56705f');
   }
   function puff(g, e) {
     // pufe cilíndrico azul-acinzentado (variant 'cinza': cinza), em 3/4 como os outros assentos
@@ -1467,10 +1465,11 @@
   //   escritório brancas viradas para ele, de costas para o corredor; cada mesinha desenha um pedaço de 4 tiles.
   //   isoRect do balcão (12 px de fundo, encostado no vidro) e das cadeiras um depois do outro, sem sobrepor:
   //   a cadeira sempre é desenhada antes do balcão (o assento entra embaixo do tampo, nunca por cima)
+  //   (de volta como era antes do balcão: mesinha branca com uma poltroninha "pedra" de cada lado, junto do vidro)
   for (const x of [8, 12, 16]) {
-    add({ id: 'MESINHA-' + x, kind: 'table', variant: 'office', color: COR.branco, tx: x - 2, tw: 4, ty: 24, drawIso: desenharBalcao, isoH: 14,
-      isoRect: [(x - 2) * T, 24 * T + 4, (x + 2) * T, 24 * T + 16], pernas: x === 8 ? 'E' : x === 16 ? 'D' : '' });
-    for (const cx of [x - 1, x + 1]) assento({ kind: 'banco-pedra', tx: cx, ty: 23, isoRect: [cx * T + 1, 23 * T + 7, cx * T + 15, 24 * T + 4] }, 'S', 6);
+    add({ id: 'MESINHA-' + x, kind: 'table', variant: 'office', color: COR.branco, tx: x, ty: 24 });
+    add({ kind: 'banco-pedra', tx: x - 1, ty: 24 });
+    add({ kind: 'banco-pedra', tx: x + 1, ty: 24 });
   }
   // meio: DUAS mesas compridas em fila (tampo cinza-claro, pernas de metal), 5 cadeiras de cada lado em cada
   // uma, uma por tile (alinhadas com a mesa), todas viradas para ela. Passagem de 2 tiles nas duas pontas,
@@ -1539,9 +1538,37 @@
 
   // 5. Fim do saguão: parede verde com a frase (a sala de ADS fica atrás dela), degrau de madeira,
   //    poltronas, puffs, mesa e violão. O caminho para o corredor fica livre nas colunas 19 e 20.
-  naParede({ id: 'FRASE', kind: 'parede-verde', tx: 19, ty: 5, tw: 6 });
-  add({ kind: 'degrau', tx: 19, ty: 5, tw: 5, drawIso: desenharDegrau, isoRect: [19 * T, 5 * T, 24 * T, 6 * T], isoH: 20 });
-  add({ kind: 'violao', tx: 24, ty: 5 });
+  add({ kind: 'tapete', rug: true, tx: 21, ty: 14, tw: 4, th: 4, solid: false });
+  add({ kind: 'luz-chao', rug: true, tx: 21, ty: 14, tw: 4, th: 4, solid: false, forca: 0.15 }); // a luz dos lustres no chão
+  add({ id: 'MESINHA', kind: 'table', variant: 'small', color: '#b07a45', tx: 22, ty: 15, tw: 2, drawIso: desenharMesinhaCentro, isoH: 16 });
+  // (as poltronas olham para a mesinha, cada uma num ângulo)
+  assento({ kind: 'poltrona-vermelha', tx: 21, ty: 16 }, 326);
+  assento({ kind: 'poltrona-vermelha', tx: 24, ty: 16 }, 214);
+  // (os dois puffs à direita: o da coluna 22 ficava logo na frente da poltrona da esquerda e cobria quem senta nela)
+  add({ kind: 'puff', tx: 23, ty: 17 });
+  add({ kind: 'puff', tx: 24, ty: 17 });
+  lustre('MESINHA', 22.1, 15, 'a');
+  lustre('MESINHA', 22.6, 15, 'b');
+  lustre('MESINHA', 23.2, 15, 'c');
+  // em frente à secretaria: poltronas de madeira com mesinha
+  add({ id: 'MESA-MADEIRA', kind: 'table', variant: 'small', color: '#b07a45', tx: 23, ty: 11, drawIso: desenharMesinhaCentro, isoH: 16 });
+  assento({ kind: 'poltrona-madeira', tx: 22, ty: 11 }, 'L');
+  assento({ kind: 'poltrona-madeira', tx: 24, ty: 11 }, 'O');
+  lustre('MESA-MADEIRA', 23, 11, 'b');
+  add({ kind: 'luz-chao', rug: true, tx: 22, ty: 10, tw: 3, th: 3, solid: false, forca: 0.14 });
+  add({ kind: 'planta-alta', tx: 24, ty: 9, variant: 'folhas' });
+
+  // 4. Secretaria (aberta para o saguão): mesa redonda com 3 notebooks
+  add({ id: 'MESA-SEC', kind: 'table', tx: 17, ty: 10, tw: 2, th: 2, drawIso: desenharMesaRedonda, isoH: 30, dica: 'Ver a mesa da secretaria', texto: 'Secretaria · mesa redonda com 3 notebooks.' });
+  // (posição de cada notebook: um de cada lado e um na frente, em cima do tampo redondo)
+  for (const [nx, ny] of [[17.1, 10.8], [17.8, 10.1], [17.8, 10.8]]) add({ kind: 'notebook', host: 'MESA-SEC', tx: nx, ty: ny, solid: false, glow: 'rgba(120,170,240,0.035)' });
+
+  // 5. Fim do saguão: parede verde com a frase (a sala de ADS fica atrás dela), degrau de madeira,
+  //    poltronas, puffs, mesa e violão. O caminho para o corredor fica livre nas colunas 19 e 20.
+  //    (parede e degrau 2 tiles mais para a esquerda; o violão logo depois do degrau, onde aparece)
+  naParede({ id: 'FRASE', kind: 'parede-verde', tx: 17, ty: 5, tw: 6 });
+  add({ kind: 'degrau', tx: 17, ty: 5, tw: 5, drawIso: desenharDegrau, isoRect: [17 * T, 5 * T, 22 * T, 6 * T], isoH: 20 });
+  add({ kind: 'violao', tx: 22, ty: 5 });
   add({ kind: 'tapete', rug: true, tx: 21, ty: 6, tw: 4, th: 3, solid: false });
   add({ kind: 'luz-chao', rug: true, tx: 20, ty: 6, tw: 5, th: 3, solid: false, forca: 0.13 });
   add({ id: 'MESA-VERDE', kind: 'table', variant: 'small', color: '#c49261', tx: 22, ty: 7, tw: 2, drawIso: desenharMesinhaCentro, isoH: 16 });
@@ -1564,7 +1591,7 @@
   // mesa comprida e nas mesinhas, na frente de quem estuda; mochilas largadas no chão
   for (const [kind, x, host, color] of [['caderno', 8, 'MESA-1', '#c4553c'], ['notebook', 9, 'MESA-1'], ['livro', 10, 'MESA-1', '#2f6a4a'],
     ['caderno', 13, 'MESA-2', '#3a6ea5'], ['notebook', 14, 'MESA-2'], ['livro', 12, 'MESINHA-12', '#8e5cc4'], ['caderno', 16, 'MESINHA-16', '#e8a33a']]) {
-    add({ kind, host, tx: x, ty: host.indexOf('MESA-') === 0 ? 31 : 36.45, // (na janela: em cima do balcão, junto do vidro)
+    add({ kind, host, tx: x, ty: host.indexOf('MESA-') === 0 ? 31 : 36, // (na janela: em cima da mesinha)
       color, solid: false, glow: kind === 'notebook' ? 'rgba(120,170,240,0.035)' : undefined });
   }
   add({ kind: 'mochila', tx: 10, ty: 35.1, color: '#2d3e5c', solid: false }); // (entre duas cadeiras da janela)
