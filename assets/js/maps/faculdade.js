@@ -1538,33 +1538,6 @@
 
   // 5. Fim do saguão: parede verde com a frase (a sala de ADS fica atrás dela), degrau de madeira,
   //    poltronas, puffs, mesa e violão. O caminho para o corredor fica livre nas colunas 19 e 20.
-  add({ kind: 'tapete', rug: true, tx: 21, ty: 14, tw: 4, th: 4, solid: false });
-  add({ kind: 'luz-chao', rug: true, tx: 21, ty: 14, tw: 4, th: 4, solid: false, forca: 0.15 }); // a luz dos lustres no chão
-  add({ id: 'MESINHA', kind: 'table', variant: 'small', color: '#b07a45', tx: 22, ty: 15, tw: 2, drawIso: desenharMesinhaCentro, isoH: 16 });
-  // (as poltronas olham para a mesinha, cada uma num ângulo)
-  assento({ kind: 'poltrona-vermelha', tx: 21, ty: 16 }, 326);
-  assento({ kind: 'poltrona-vermelha', tx: 24, ty: 16 }, 214);
-  // (os dois puffs à direita: o da coluna 22 ficava logo na frente da poltrona da esquerda e cobria quem senta nela)
-  add({ kind: 'puff', tx: 23, ty: 17 });
-  add({ kind: 'puff', tx: 24, ty: 17 });
-  lustre('MESINHA', 22.1, 15, 'a');
-  lustre('MESINHA', 22.6, 15, 'b');
-  lustre('MESINHA', 23.2, 15, 'c');
-  // em frente à secretaria: poltronas de madeira com mesinha
-  add({ id: 'MESA-MADEIRA', kind: 'table', variant: 'small', color: '#b07a45', tx: 23, ty: 11, drawIso: desenharMesinhaCentro, isoH: 16 });
-  assento({ kind: 'poltrona-madeira', tx: 22, ty: 11 }, 'L');
-  assento({ kind: 'poltrona-madeira', tx: 24, ty: 11 }, 'O');
-  lustre('MESA-MADEIRA', 23, 11, 'b');
-  add({ kind: 'luz-chao', rug: true, tx: 22, ty: 10, tw: 3, th: 3, solid: false, forca: 0.14 });
-  add({ kind: 'planta-alta', tx: 24, ty: 9, variant: 'folhas' });
-
-  // 4. Secretaria (aberta para o saguão): mesa redonda com 3 notebooks
-  add({ id: 'MESA-SEC', kind: 'table', tx: 17, ty: 10, tw: 2, th: 2, drawIso: desenharMesaRedonda, isoH: 30, dica: 'Ver a mesa da secretaria', texto: 'Secretaria · mesa redonda com 3 notebooks.' });
-  // (posição de cada notebook: um de cada lado e um na frente, em cima do tampo redondo)
-  for (const [nx, ny] of [[17.1, 10.8], [17.8, 10.1], [17.8, 10.8]]) add({ kind: 'notebook', host: 'MESA-SEC', tx: nx, ty: ny, solid: false, glow: 'rgba(120,170,240,0.035)' });
-
-  // 5. Fim do saguão: parede verde com a frase (a sala de ADS fica atrás dela), degrau de madeira,
-  //    poltronas, puffs, mesa e violão. O caminho para o corredor fica livre nas colunas 19 e 20.
   //    (parede e degrau 2 tiles mais para a esquerda; o violão logo depois do degrau, onde aparece)
   naParede({ id: 'FRASE', kind: 'parede-verde', tx: 17, ty: 5, tw: 6 });
   add({ kind: 'degrau', tx: 17, ty: 5, tw: 5, drawIso: desenharDegrau, isoRect: [17 * T, 5 * T, 22 * T, 6 * T], isoH: 20 });
@@ -1579,7 +1552,7 @@
   assento({ kind: 'poltrona-cinza', tx: 24, ty: 6 }, 146);
   lustre('MESA-VERDE', 22.6, 7, 'a');
 
-  naParede({ kind: 'extintor', tx: 18, ty: 5 });
+  naParede({ kind: 'extintor', tx: 16, ty: 5 });
 
   // "desce": tudo acima foi escrito com as linhas de antes do corredor das salas existir
   for (const o of itens) {
