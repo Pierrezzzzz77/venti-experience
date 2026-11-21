@@ -340,19 +340,27 @@
   /* ------------------------------------------------------------------ */
   const CENAS = {
     faculdade(game) {
+      // o mapa inteiro foi deslocado 3 colunas para a direita para a parede de trás das cadeiras recuar
+      const dx = 3;
+      const E = (i, tx, ty, dir, ritmo, o) => estudar(game, i, tx + dx, ty, dir, ritmo, o);
+      const G = (i, m) => grupo(game, i, m.map(([x, y, ...r]) => [x + dx, y, ...r]));
+      const A = (i, r) => andante(game, i, Object.assign({}, r, { pts: r.pts.map(([x, y]) => [x + dx, y]) }));
       // estudando na mesa comprida (cadeiras das linhas 30 e 32) e nos bancos "pedra"
-      estudar(game, 1, 8, 30, 'down', 0.42);
-      estudar(game, 5, 13, 32, 'up', 0.22);
-      estudar(game, 6, 11, 35, 'right', 0.4);
+      E(1, 8, 30, 'down', 0.42);
+      E(5, 13, 32, 'up', 0.22);
+      E(6, 11, 35, 'right', 0.4);
+      // sala do fundo: um aluno sentado na cadeira da parede recuada, digitando no notebook
+      // (esta cadeira já está em coordenada final, por isso não passa pelo wrapper E que soma dx)
+      estudar(game, 60, 2, 31, 'up', 0.3);
       // conversando sentados: nos bancos da mesinha e nas poltronas/puffs do saguão
-      grupo(game, 10, [[15, 35, 'right', true], [17, 35, 'left', true]]);
-      grupo(game, 12, [[21, 28, 'down', true], [23, 29, 'up', true]]);
+      G(10, [[15, 35, 'right', true], [17, 35, 'left', true]]);
+      G(12, [[21, 28, 'down', true], [23, 29, 'up', true]]);
       // conversando em pé, no saguão
-      grupo(game, 20, [[21.5, 24.6, 'right'], [22.9, 24.6, 'left']]);
+      G(20, [[21.5, 24.6, 'right'], [22.9, 24.6, 'left']]);
       // entrando e saindo (das salas e da faculdade)
-      andante(game, 30, { pts: [[23.4, 35.4], [22.4, 34.4], [22.4, 32.6], [19.5, 32.6], [19.5, 18.5], [13.5, 18.5], [13.5, 11.5], [14.65, 11.5]], a: 'porta', b: 'porta', inicio: 'b', espera0: 2 });
-      andante(game, 31, { pts: [[9.5, 16.7], [9.5, 19.5], [20.5, 19.5], [20.5, 31.6], [22.4, 31.6], [22.4, 34.4], [23.4, 35.4]], a: 'porta', b: 'porta', espera0: 5 });
-      andante(game, 33, { pts: [[14.65, 15.5], [13.6, 15.5], [13.6, 19.4], [19.3, 19.4], [19.3, 24.6], [17.4, 24.6]], a: 'porta', b: 'parar', olhar: 'up', espera0: 9 });
+      A(30, { pts: [[23.4, 35.4], [22.4, 34.4], [22.4, 32.6], [19.5, 32.6], [19.5, 18.5], [13.5, 18.5], [13.5, 11.5], [14.65, 11.5]], a: 'porta', b: 'porta', inicio: 'b', espera0: 2 });
+      A(31, { pts: [[9.5, 16.7], [9.5, 19.5], [20.5, 19.5], [20.5, 31.6], [22.4, 31.6], [22.4, 34.4], [23.4, 35.4]], a: 'porta', b: 'porta', espera0: 5 });
+      A(33, { pts: [[14.65, 15.5], [13.6, 15.5], [13.6, 19.4], [19.3, 19.4], [19.3, 24.6], [17.4, 24.6]], a: 'porta', b: 'parar', olhar: 'up', espera0: 9 });
     },
     sala1(game) {
       // laboratório de informática: digitando nos notebooks, de frente para o quadro
