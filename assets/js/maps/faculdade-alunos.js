@@ -39,15 +39,16 @@
     VISUAIS.set(i, v);
     return v;
   }
-  // os coordenadores (roupa social, crachá no pescoço e sem mochila)
-  const COORDENADORES = {
-    90: { skin: '#e0ac7e', hair: '#2a1c16', hairStyle: 'bob', shirt: '#f0f2f4', pants: '#232a36', shoes: '#1d1f24', body: 'f', glasses: true, earrings: true, badge: '#1f7f96', lanyard: '#1f7f96' },
-    91: { skin: '#a86b42', hair: '#121014', hairStyle: 'buzz', shirt: '#33527d', pants: '#3b3f47', shoes: '#1d1f24', body: 'm', glasses: false, badge: '#f4f7f8', lanyard: '#e8c15a' },
-    92: { skin: '#c68a5c', hair: '#4a2f1d', hairStyle: 'ponytail', shirt: '#7c3f5a', pants: '#1d1f24', shoes: '#1d1f24', body: 'f', glasses: false, earrings: true, badge: '#f4f7f8', lanyard: '#1f7f96' },
-    93: { skin: '#f2c8a0', hair: '#5b5f66', hairStyle: 'short', shirt: '#dfe6ee', pants: '#2d3e5c', shoes: '#3a2618', body: 'm', glasses: true, badge: '#c4553c', lanyard: '#1f7f96' },
+  // os funcionários da faculdade: camisa rosa (a mesma do professor da sala de ADS), crachá e sem mochila;
+  // o diretor usa camisa listrada. (cargo = como aparece na dica da tecla E; fala = a lista em FALAS)
+  const ROSA = '#e75480';
+  const FUNCIONARIOS = {
+    90: { cargo: 'a coordenadora', fala: 'coordena', skin: '#f2c8a0', hair: '#e3b552', hairStyle: 'long', shirt: ROSA, pants: '#232a36', shoes: '#1d1f24', body: 'f', glasses: true, earrings: true, badge: '#1f7f96', lanyard: '#1f7f96' },
+    91: { cargo: 'o coordenador', fala: 'coordena', skin: '#e0ac7e', hair: '#2a1c16', hairStyle: 'curly', shirt: ROSA, pants: '#3b3f47', shoes: '#1d1f24', body: 'm', glasses: true, badge: '#1f7f96', lanyard: '#1f7f96' },
+    93: { cargo: 'o diretor', fala: 'diretor', skin: '#6a4128', hair: '#1a100b', hairStyle: 'careca', shirt: '#eef3f8', listras: '#4f7fb5', pants: '#232a36', shoes: '#1d1f24', body: 'm', glasses: true, glassesColor: '#a7b0ba', gordinho: true },
   };
   function fazVisual(i) {
-    if (COORDENADORES[i]) return COORDENADORES[i];
+    if (FUNCIONARIOS[i]) return FUNCIONARIOS[i];
     const h = (k) => hash(i * 37 + k * 11 + 5), pick = (a, k) => a[Math.floor(h(k) * a.length)];
     const body = h(8) < 0.5 ? 'f' : 'm';
     return {
@@ -219,6 +220,7 @@
       'Hoje tem palestra no auditório, sabia?', 'Alguém fez o exercício da semana passada?', 'Semana que vem tem semana acadêmica!',
     ],
     anda: ['Tô atrasado pra aula!', 'Oi! Vou ali na sala e já volto.', 'Esqueci o caderno na sala…', 'Bom dia! A aula já começou?'],
+    diretor: ['Bem-vindo à Faculdade Serra Dourada!', 'Qualquer coisa, a minha porta está sempre aberta.', 'Estou passando para ver como estão as turmas hoje.', 'Estudar aqui é dar um passo a mais rumo aos seus sonhos!'],
     coordena: ['Bom dia! Precisa de ajuda com a matrícula?', 'Estou fechando o horário do próximo semestre.', 'Qualquer dúvida do curso, é só falar com a coordenação.', 'A reunião com os professores é daqui a pouco.'],
   };
   const sorteia = (lista) => lista[Math.floor(Math.random() * lista.length)];
@@ -235,7 +237,7 @@
 
   function professor(game, x, y, dir) {
     const look = Object.assign({}, visual(70), {
-      body: 'm', skin: '#e0ac7e', hair: '#1d1612', shirt: '#e75480', pants: '#6b4a2f', shoes: '#292929',
+      body: 'm', skin: '#e0ac7e', hair: '#1d1612', shirt: ROSA, pants: '#6b4a2f', shoes: '#292929',
       hairStyle: 'short', glasses: true, glassesColor: '#ffffff', earrings: false,
     });
     const a = novo(game.scene, 70, x, y, dir || 'down', { mochila: false, visual: look });
@@ -257,6 +259,7 @@
     const k = sc.drawables.findIndex((d) => !(d instanceof DL.Actor) && ASSENTOS[d.kind] != null && d.tx === tx && d.ty === ty);
     if (k < 0) { console.warn('Aluno sem assento em', tx, ty); return null; }
     const s = sc.drawables[k];
+    s.ocupado = true; // (o jogador não senta em cima de quem já está ali)
     sc.drawables.splice(k, 1);
     const assento = { kind: s.kind, rot: s.rot, color: s.color, variant: s.variant, face: s.face, z: ASSENTOS[s.kind] };
     let x = tx + 0.5, y = ty + 0.5;
@@ -287,8 +290,8 @@
     a.ritmo = ritmo || 0.3;
     a.pausa = Math.random() < 0.3;
     a.t = rnd(0.5, 3);
-    const c = COORDENADORES[i];
-    fala(game.world, c ? 'Falar com a coordenação' : 'Falar com o aluno', c ? 'coordena' : 'estuda', a.x, a.y);
+    const c = FUNCIONARIOS[i];
+    fala(game.world, 'Falar com ' + (c ? c.cargo : 'o aluno'), c ? c.fala : 'estuda', a.x, a.y);
   }
   // membros: [[x, y, dir], ...] em pé, ou [[tx, ty, dir, true], ...] sentado no assento do tile
   function grupo(game, i0, membros) {
@@ -308,7 +311,7 @@
   // olhar = para onde olha quando para na ponta b; inicio 'b' = começa na outra ponta
   function andante(game, i, r) {
     const pts = r.pts.map(([x, y]) => [x * T, y * T]);
-    const a = novo(game.scene, i, pts[0][0] / T, pts[0][1] / T, 'down', { mochila: !COORDENADORES[i], visual: r.look });
+    const a = novo(game.scene, i, pts[0][0] / T, pts[0][1] / T, 'down', { mochila: !FUNCIONARIOS[i], visual: r.look });
     a.acao = 'anda';
     a.rota = { pts, a: r.a, b: r.b, olhar: r.olhar };
     a.ida = r.inicio !== 'b';
@@ -319,7 +322,8 @@
     a.k = 1;
     if (ponta === 'porta') { a.estado = 'fora'; a.hidden = true; a.alpha = 0; a.t = r.espera0 != null ? r.espera0 : rnd(1, 8); }
     else { a.estado = 'para'; a.t = rnd(2, 6); }
-    a.e = fala(game.world, COORDENADORES[i] ? 'Falar com a coordenação' : 'Falar com o aluno', COORDENADORES[i] ? 'coordena' : 'anda', a.x, a.y);
+    const c = FUNCIONARIOS[i];
+    a.e = fala(game.world, 'Falar com ' + (c ? c.cargo : 'o aluno'), c ? c.fala : 'anda', a.x, a.y);
   }
   const caminho = (a) => (a.ida ? a.rota.pts : a.rota.pts.slice().reverse());
 
@@ -397,13 +401,12 @@
       G(12, [[21, 28, 'down', true], [23, 29, 'up', true]]);
       // conversando em pé, no saguão
       G(20, [[21.5, 24.6, 'right'], [22.9, 24.6, 'left']]);
-      // coordenação (em coordenadas finais, como a sala do fundo): 3 na mesa redonda e 1 que entra e sai pela
-      // porta da parede laranja
+      // coordenação (em coordenadas finais, como a sala do fundo): a coordenadora e o coordenador na mesa redonda, e
+      // o diretor, que entra e sai pela porta da parede laranja
       const semMochila = { mochila: false };
-      estudar(game, 90, 18, 22, 'left', 0.3, semMochila);
-      estudar(game, 91, 15, 22, 'right', 0.24, semMochila);
-      estudar(game, 92, 16, 23, 'up', 0.28, semMochila);
-      andante(game, 93, { pts: [[14.2, 23.6], [14.7, 24.5], [19.7, 24.5]], a: 'porta', b: 'parar', olhar: 'right', espera0: 3 });
+      estudar(game, 90, 15, 22, 'right', 0.3, semMochila);
+      estudar(game, 91, 18, 22, 'left', 0.24, semMochila);
+      andante(game, 93, { pts: [[14.2, 23.6], [14.7, 24.5], [19.7, 24.5]], a: 'porta', b: 'parar', olhar: 'down', espera0: 3 });
       // entrando e saindo (das salas e da faculdade)
       A(30, { pts: [[23.4, 35.4], [22.4, 34.4], [22.4, 32.6], [19.5, 32.6], [19.5, 18.5], [13.5, 18.5], [13.5, 11.5], [14.65, 11.5]], a: 'porta', b: 'porta', inicio: 'b', espera0: 2 });
       A(31, { pts: [[0.5, 16.7], [0.5, 19.5], [20.5, 19.5], [20.5, 31.6], [22.4, 31.6], [22.4, 34.4], [23.4, 35.4]], a: 'porta', b: 'porta', espera0: 5 });
@@ -503,13 +506,18 @@
         'Canaã dos Carajás hoje tá com um clima ótimo!',
         'Foca nos estudos, daqui a pouco tem intervalo!',
       ];
-      const msg = falas[Math.floor(Math.random() * falas.length)];
-      a.dir = DL.dirOf(game.player.x - a.x, game.player.y - a.y);
+      // os funcionários falam as frases deles; quem está sentado não vira (a cadeira não gira junto)
+      const f = FUNCIONARIOS[a.n], lista = f ? FALAS[f.fala] : a.acao === 'bemvindo' ? FALAS.bemvindo : falas;
+      const msg = lista[Math.floor(Math.random() * lista.length)];
+      if (!a.assento) a.dir = DL.dirOf(game.player.x - a.x, game.player.y - a.y);
       if (a.acao === 'anda') { a.estado = 'para'; a.t = 2.2; a.moving = false; }
       if (DL.sfx) DL.sfx.blip();
       if (DL.fx) DL.fx.burst(a.x, a.y, 26, 'spark');
-      game.toast('Aluno: “' + msg + '”');
+      const nome = f ? f.cargo.replace(/^[ao] /, '') : a.acao === 'bemvindo' ? 'recepção' : 'aluno';
+      game.toast(nome[0].toUpperCase() + nome.slice(1) + ': “' + msg + '”');
     },
+    // como o aluno/funcionário aparece na dica da tecla E
+    rotulo(a) { const f = FUNCIONARIOS[a.n]; return f ? 'Falar com ' + f.cargo : a.acao === 'bemvindo' ? 'Falar com a recepção' : 'Conversar com aluno'; },
     // o "..." em cima de quem está falando
     desenharFalas(g, sc) {
       if (!V) return;

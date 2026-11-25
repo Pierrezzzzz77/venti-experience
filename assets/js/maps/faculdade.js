@@ -1179,7 +1179,7 @@
     ]);
   }
   // os lugares da mesa redonda dos coordenadores: [tile x, tile y, para onde olha, notebook (dx, dy do centro)]
-  const LUGARES_COORD = [[15, 22, 351, -10, -3], [18, 22, 189, 10, -3], [16, 23, 270, -6.5, 9], [17, 23, 270, 6.5, 9]];
+  const LUGARES_COORD = [[15, 22, 351, -10, -3], [18, 22, 171, 10, -3], [16, 23, 270, -6.5, 9], [17, 23, 270, 6.5, 9]];
   // mesa redonda da coordenação (2 × 2 tiles): pé central, tampo branco redondo e um notebook em cada lugar
   function desenharMesaRedonda(g, sc, e) {
     const K = DL.isoKit, cx = e.px + T, cy = e.py + T + 4, Z = DL.isoSurfaceTop(e), r = 16; // (+4: a parede fina do corredor)
@@ -1728,8 +1728,8 @@
   let acordeIdx = 0;
 
   function useLabel(game, e) {
-    if (e.id === 'ALUNO-PROXIMO') return e.aluno ? 'Conversar com aluno' : null;
-    if (ASSENTOS_OK[e.kind]) return game.player && game.player.sitting === e ? 'Levantar' : 'Sentar';
+    if (e.id === 'ALUNO-PROXIMO') return e.aluno ? DL.FacAlunos.rotulo(e.aluno) : null;
+    if (ASSENTOS_OK[e.kind]) return e.ocupado ? null : game.player && game.player.sitting === e ? 'Levantar' : 'Sentar';
     if (e.kind === 'notebook' || e.kind === 'notebook-ads') return 'Abrir notebook';
     if (e.dica) return e.dica;
     if (e.kind === 'placa') return 'Ler a placa';

@@ -80,6 +80,8 @@
     const hair = L.hair, hairD = shade(hair, -0.35), hairL = shade(hair, 0.22);
     const eye = '#121218';
     const blush = 'rgba(224,110,100,0.45)';
+    // (Venti) L.gordinho: tronco mais largo e barriga; L.listras: cor das listras verticais da camisa
+    const gd = L.gordinho ? 1 : 0;
 
     const leg = (x, dy, col) => {
       R(g, x, ay - 6 + dy, 3, 4, col);
@@ -99,9 +101,10 @@
     } else if (!side) {
       const lDy = pose === 'B' || pose === 'danceB' ? -1 : 0;
       const rDy = pose === 'A' || pose === 'danceA' ? -1 : 0;
-      leg(ax - 3, lDy, L.pants);
-      leg(ax, rDy, L.pants);
-      R(g, ax - 1, ay - 6 + lDy, 1, 4, pantsD);
+      leg(ax - 3 - gd, lDy, L.pants);
+      leg(ax + gd, rDy, L.pants);
+      if (gd) R(g, ax - 1, ay - 6, 2, 1, pantsD);
+      else R(g, ax - 1, ay - 6 + lDy, 1, 4, pantsD);
     } else {
       let back = ax - 2, front = ax - 1;
       if (pose === 'A') { back = ax - 4; front = ax + 1; }
@@ -116,13 +119,15 @@
     const ty = ay - 13 + bob;
     if (!side) {
       const sw = pose === 'A' ? -1 : pose === 'B' ? 1 : 0;
-      R(g, ax - 4, ty, 8, 8, shirt);
-      R(g, ax - 4, ty, 1, 8, shirtL);
-      R(g, ax + 3, ty, 1, 8, shirtD);
-      R(g, ax - 4, ty + 7, 8, 1, shirtD);
+      R(g, ax - 4 - gd, ty, 8 + 2 * gd, 8, shirt);
+      R(g, ax - 4 - gd, ty, 1, 8, shirtL);
+      R(g, ax + 3 + gd, ty, 1, 8, shirtD);
+      R(g, ax - 4 - gd, ty + 7, 8 + 2 * gd, 1, shirtD);
+      if (L.listras) for (let x = ax - 3 - gd; x < ax + 3 + gd; x += 2) R(g, x, ty, 1, 7, L.listras);
       const arm = (x, dy) => {
         R(g, x, ty + 1 + dy, 2, 5, shirt);
         R(g, x, ty + 1 + dy, 2, 1, shirtL);
+        if (L.listras) R(g, x < ax ? x + 1 : x, ty + 1 + dy, 1, 5, L.listras);
         hand(x, ty + 6 + dy, 2, 2);
         R(g, x, ty + 7 + dy, 2, 1, handD);
       };
@@ -154,9 +159,9 @@
         hand(ux, ty - 7, 2, 3);
         arm(low, 1);
       } else if (!sit) {
-        arm(ax - 6, sw);
-        arm(ax + 4, -sw);
-        R(g, ax + 5, ty + 1 - sw, 1, 5, shirtD);
+        arm(ax - 6 - gd, sw);
+        arm(ax + 4 + gd, -sw);
+        R(g, ax + 5 + gd, ty + 1 - sw, 1, 5, shirtD);
       } else if (dir === 'down') {
         // facing the viewer: upper arms at the sides, hands forward on the keyboard
         const ly = pose === 'sitA' ? -1 : 0, ry = pose === 'sitB' ? -1 : 0;
@@ -208,6 +213,8 @@
       R(g, ax - 3, ty, 1, 8, shirtD);
       R(g, ax + 2, ty, 1, 8, shirtL);
       R(g, ax - 3, ty + 7, 6, 1, shirtD);
+      if (gd) { R(g, ax - 4, ty + 2, 1, 6, shirtD); R(g, ax + 3, ty + 2, 1, 6, shirt); R(g, ax + 4, ty + 3, 1, 4, shirtL); R(g, ax + 3, ty + 7, 1, 1, shirtD); } // a barriga
+      if (L.listras) for (let x = ax - 2; x < ax + 3 + gd; x += 2) R(g, x, ty + (x > ax + 2 ? 2 : 0), 1, x > ax + 2 ? 5 : 7, L.listras);
       if (L.vest) R(g, ax - 3, ty + 4, 6, 1, shade(L.vest, 0.35));
       if (L.badge) R(g, ax + 2, ty + 3, 1, 2, L.badge);
       if (sit) {
@@ -229,6 +236,7 @@
         R(g, ax - 1 + sw, ty + 1, 2, 5, shirt);
         R(g, ax - 2 + sw, ty + 1, 1, 5, shirtD);
         R(g, ax - 1 + sw, ty + 1, 2, 1, shirtL);
+        if (L.listras) R(g, ax - 1 + sw, ty + 1, 1, 5, L.listras);
         hand(ax - 1 + sw, ty + 6, 2, 2);
       }
     }
@@ -292,6 +300,8 @@
     // hair
     const H = (x, y, w, h, c) => R(g, hx + x, hy + y, w, h, c || hair);
     const style = L.hairStyle;
+    if (style === 'careca' && dir !== 'up') { H(dir === 'down' ? -2 : -1, 1, 3, 1, shade(L.skin, 0.28)); H(dir === 'down' ? -3 : -2, 2, 1, 1, shade(L.skin, 0.16)); } // (o brilho)
+    else if (style === 'careca') H(-2, 1, 3, 1, shade(L.skin, 0.28));
     if (style === 'short' || style === 'bun' || style === 'long') {
       if (dir === 'down') {
         H(-4, -1, 8, 1); H(-5, 0, 10, 3); H(-5, 3, 1, 3); H(4, 3, 1, 3);
@@ -376,7 +386,7 @@
       } else if (side) {
         R(g, ax + 1, hy + 4, 4, 1, f); R(g, ax + 1, hy + 7, 3, 1, f); R(g, ax + 4, hy + 5, 1, 2, f);
         R(g, ax - 2, hy + 5, 3, 1, f); R(g, ax + 3, hy + 5, 1, 1, lens);
-      } else {
+      } else if (style !== 'long' && style !== 'bob') { // (de costas, o cabelo comprido cobre a haste)
         R(g, hx - 5, hy + 5, 1, 1, f); R(g, hx + 4, hy + 5, 1, 1, f);
       }
     }
