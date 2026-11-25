@@ -194,21 +194,6 @@
           g.fillRect(Math.round(sx), Math.round(sy), p.size, p.size);
         }
       }
-      if (near && near.ix != null) {
-        const bob = Math.sin(sc.t * 4.5) * 1.8;
-        const wx = near.px + (near.tw || 1) * 8, wy = near.py + (near.th || 1) * 8;
-        const z = (near.isoH || 24) + 8 + bob;
-        const sx = wx - wy, sy = (wx + wy) / 2 - z;
-        g.globalAlpha = 0.92;
-        g.fillStyle = '#0d0f14';
-        g.fillRect(sx - 5, sy - 6, 10, 9);
-        g.fillStyle = '#7ee0a1';
-        g.fillRect(sx - 4, sy - 5, 8, 7);
-        g.fillStyle = '#0d0f14';
-        g.font = 'bold 6px monospace';
-        g.textAlign = 'center';
-        g.fillText('E', sx, sy + 0.5);
-      }
       const p = DL.game && DL.game.player, held = DL.game && DL.game.held;
       if (p && !p.hidden) {
         const px = p.x - p.y, py = (p.x + p.y) / 2 - (p.z || 0), anim = p.anim;

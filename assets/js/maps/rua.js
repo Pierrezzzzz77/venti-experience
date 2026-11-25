@@ -765,25 +765,17 @@
     },
 
     overlay(g, sc) {
-      if (st.vendedora && st.fase === 'jogo') {
+      const vb = $('vendorBubble');
+      if (vb) {
         const comprando = st.clientes.some((k) => k.estado === 'comprando');
-        if (comprando || st.falaT > 1.8) {
-          g.save();
-          K.isoT(g, sc);
-          const v = st.vendedora, X = Math.round(v.x - v.y), Y = Math.round((v.x + v.y) / 2) - 42;
-          const txt = FALAS_VENDEDORA[st.falaIdx];
-          g.font = '4px monospace';
-          const w = Math.max(46, txt.length * 2.5 + 8), h = 10, l = X - w / 2, t0 = Y - h;
-          g.fillStyle = '#fffdf6';
-          g.fillRect(l, t0, w, h);
-          g.strokeStyle = '#29313b';
-          g.lineWidth = 0.8;
-          g.strokeRect(l, t0, w, h);
-          g.fillStyle = '#29313b';
-          g.textAlign = 'center';
-          g.textBaseline = 'middle';
-          g.fillText(txt, X, t0 + h / 2);
-          g.restore();
+        if (st.vendedora && st.fase === 'jogo' && (comprando || st.falaT > 1.8)) {
+          const pt = sc.worldToScreen(st.vendedora.x, st.vendedora.y, 42);
+          vb.textContent = FALAS_VENDEDORA[st.falaIdx];
+          vb.style.left = Math.round(pt.x) + 'px';
+          vb.style.top = Math.round(pt.y) + 'px';
+          vb.hidden = false;
+        } else {
+          vb.hidden = true;
         }
       }
       g.save();
@@ -799,6 +791,8 @@
       document.body.classList.remove('in-cutscene');
       const lp = $('lanchePanel');
       if (lp) lp.classList.remove('is-open');
+      const vb = $('vendorBubble');
+      if (vb) vb.hidden = true;
       if (missaoAntes != null) { $('mission').querySelector('p').textContent = missaoAntes; $('missionSteps').innerHTML = ''; }
     },
   });
