@@ -333,11 +333,11 @@
         }
         return nb || p.sitting;
       }
-      let best = null, bd = USE_DIST;
+      let best = null, bd = 1e9;
       for (const e of this.world.items) {
         if (e.ix == null || !def.useLabel(this, e)) continue;
-        const d = Math.hypot(e.ix - p.x, e.iy - p.y);
-        if (d < bd) { bd = d; best = e; }
+        const d = Math.hypot(e.ix - p.x, e.iy - p.y), lim = e.useDist || USE_DIST;
+        if (d < lim && d < bd) { bd = d; best = e; }
       }
       return best;
     },

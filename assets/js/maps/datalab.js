@@ -91,6 +91,10 @@
     enter(game) {
       reset();
       S.preparar(game); // paredes claras, as 3 áreas e a porta verde (datalab-sala.js)
+      for (const id of ['BOX-SERVER', 'BOX-SWITCH']) {
+        const b = game.world.byId[id];
+        if (b) { b.ix = b.px + 8; b.iy = b.py + 8; b.useDist = 28; }
+      }
       // os 3 funcionários (datalab-gente.js); quem está em pé também abre a porta da sala técnica
       if (DL.DCGente) { DL.DCGente.iniciar(game); S.gente = () => DL.DCGente.emPe(); }
       if (DL.DCSom) DL.DCSom.enter(); // zumbido dos servidores e teclado (datalab-som.js), botão Som do lago
