@@ -39,7 +39,15 @@
     VISUAIS.set(i, v);
     return v;
   }
+  // os coordenadores (roupa social, crachá no pescoço e sem mochila)
+  const COORDENADORES = {
+    90: { skin: '#e0ac7e', hair: '#2a1c16', hairStyle: 'bob', shirt: '#f0f2f4', pants: '#232a36', shoes: '#1d1f24', body: 'f', glasses: true, earrings: true, badge: '#1f7f96', lanyard: '#1f7f96' },
+    91: { skin: '#a86b42', hair: '#121014', hairStyle: 'buzz', shirt: '#33527d', pants: '#3b3f47', shoes: '#1d1f24', body: 'm', glasses: false, badge: '#f4f7f8', lanyard: '#e8c15a' },
+    92: { skin: '#c68a5c', hair: '#4a2f1d', hairStyle: 'ponytail', shirt: '#7c3f5a', pants: '#1d1f24', shoes: '#1d1f24', body: 'f', glasses: false, earrings: true, badge: '#f4f7f8', lanyard: '#1f7f96' },
+    93: { skin: '#f2c8a0', hair: '#5b5f66', hairStyle: 'short', shirt: '#dfe6ee', pants: '#2d3e5c', shoes: '#3a2618', body: 'm', glasses: true, badge: '#c4553c', lanyard: '#1f7f96' },
+  };
   function fazVisual(i) {
+    if (COORDENADORES[i]) return COORDENADORES[i];
     const h = (k) => hash(i * 37 + k * 11 + 5), pick = (a, k) => a[Math.floor(h(k) * a.length)];
     const body = h(8) < 0.5 ? 'f' : 'm';
     return {
@@ -93,9 +101,9 @@
   /* O aluno                                                             */
   /* ------------------------------------------------------------------ */
   // altura do assento (px): onde fica o quadril de quem senta
-  const ASSENTOS = { cadeira: 7, 'poltrona-vermelha': 10, 'poltrona-madeira': 8, puff: 11, 'banco-pedra': 8 }; // (banco-pedra agora é a cadeira de escritório)
+  const ASSENTOS = { cadeira: 7, 'poltrona-vermelha': 10, 'poltrona-madeira': 8, puff: 11, 'banco-pedra': 8, 'cadeira-preta': 10, banqueta: 13 }; // (banco-pedra agora é a cadeira de escritório)
   // assentos em 3/4 com direção (face, ver pecas3d em faculdade.js): outra altura de assento
-  const ASSENTOS_3D = { cadeira: 8, 'poltrona-vermelha': 9, 'poltrona-madeira': 9.5, 'poltrona-cinza': 9, 'banco-pedra': 10 };
+  const ASSENTOS_3D = { cadeira: 8, 'poltrona-vermelha': 9, 'poltrona-madeira': 9.5, 'poltrona-cinza': 9, 'banco-pedra': 10, 'cadeira-preta': 10, banqueta: 13 };
   const FACE = { L: 0, S: 90, O: 180, N: 270 };
   const radDaFace = (face) => ((typeof face === 'number' ? face : FACE[face]) * Math.PI) / 180;
   // para onde o aluno sentado olha na tela: o mesmo lado da cadeira (de frente, de costas ou de lado)
@@ -184,7 +192,7 @@
       if (this.mochila) mochilaChao(g, AX + 11, chao, this.corMochila);
       // de costas: o encosto fica na frente. O puff não tem encosto: o aluno fica sempre por cima dele
       // (antes ele era desenhado por cima do aluno e o aluno sumia dentro do puff)
-      if (dir === 'up' && A.kind !== 'puff') { corpo(); banco(); } else { banco(); corpo(); }
+      if (dir === 'up' && A.kind !== 'puff' && A.kind !== 'banqueta') { corpo(); banco(); } else { banco(); corpo(); }
       return c;
     }
   }
@@ -211,6 +219,7 @@
       'Hoje tem palestra no auditório, sabia?', 'Alguém fez o exercício da semana passada?', 'Semana que vem tem semana acadêmica!',
     ],
     anda: ['Tô atrasado pra aula!', 'Oi! Vou ali na sala e já volto.', 'Esqueci o caderno na sala…', 'Bom dia! A aula já começou?'],
+    coordena: ['Bom dia! Precisa de ajuda com a matrícula?', 'Estou fechando o horário do próximo semestre.', 'Qualquer dúvida do curso, é só falar com a coordenação.', 'A reunião com os professores é daqui a pouco.'],
   };
   const sorteia = (lista) => lista[Math.floor(Math.random() * lista.length)];
 
@@ -224,12 +233,12 @@
     return a;
   }
 
-  function professor(game, x, y) {
+  function professor(game, x, y, dir) {
     const look = Object.assign({}, visual(70), {
       body: 'm', skin: '#e0ac7e', hair: '#1d1612', shirt: '#e75480', pants: '#6b4a2f', shoes: '#292929',
       hairStyle: 'short', glasses: true, glassesColor: '#ffffff', earrings: false,
     });
-    const a = novo(game.scene, 70, x, y, 'down', { mochila: false, visual: look });
+    const a = novo(game.scene, 70, x, y, dir || 'down', { mochila: false, visual: look });
     a.acao = 'professor';
     a.localFixo = { x: a.x, y: a.y };
     a.e = fala(game.world, 'Falar com o professor', 'professor', a.x, a.y);
@@ -278,7 +287,8 @@
     a.ritmo = ritmo || 0.3;
     a.pausa = Math.random() < 0.3;
     a.t = rnd(0.5, 3);
-    fala(game.world, 'Falar com o aluno', 'estuda', a.x, a.y);
+    const c = COORDENADORES[i];
+    fala(game.world, c ? 'Falar com a coordenação' : 'Falar com o aluno', c ? 'coordena' : 'estuda', a.x, a.y);
   }
   // membros: [[x, y, dir], ...] em pé, ou [[tx, ty, dir, true], ...] sentado no assento do tile
   function grupo(game, i0, membros) {
@@ -298,7 +308,7 @@
   // olhar = para onde olha quando para na ponta b; inicio 'b' = começa na outra ponta
   function andante(game, i, r) {
     const pts = r.pts.map(([x, y]) => [x * T, y * T]);
-    const a = novo(game.scene, i, pts[0][0] / T, pts[0][1] / T, 'down', r.look ? { visual: r.look } : {});
+    const a = novo(game.scene, i, pts[0][0] / T, pts[0][1] / T, 'down', { mochila: !COORDENADORES[i], visual: r.look });
     a.acao = 'anda';
     a.rota = { pts, a: r.a, b: r.b, olhar: r.olhar };
     a.ida = r.inicio !== 'b';
@@ -309,7 +319,7 @@
     a.k = 1;
     if (ponta === 'porta') { a.estado = 'fora'; a.hidden = true; a.alpha = 0; a.t = r.espera0 != null ? r.espera0 : rnd(1, 8); }
     else { a.estado = 'para'; a.t = rnd(2, 6); }
-    a.e = fala(game.world, 'Falar com o aluno', 'anda', a.x, a.y);
+    a.e = fala(game.world, COORDENADORES[i] ? 'Falar com a coordenação' : 'Falar com o aluno', COORDENADORES[i] ? 'coordena' : 'anda', a.x, a.y);
   }
   const caminho = (a) => (a.ida ? a.rota.pts : a.rota.pts.slice().reverse());
 
@@ -334,7 +344,7 @@
         if (a.alpha > 0) return;
         a.hidden = true; a.estado = 'fora'; a.t = rnd(6, 16); a.ida = !a.ida;
         return;
-      case 'para': // na ponta da rota (ex.: no balcão da secretaria): conversa um pouco e volta
+      case 'para': // na ponta da rota (ex.: na mesa da coordenação): conversa um pouco e volta
         a.moving = false;
         a.t -= dt;
         a.pose = Math.floor(V.t * 5) % 2 && a.t > 1 ? 'talk' : null;
@@ -369,7 +379,7 @@
   const CENAS = {
     faculdade(game) {
       bemVindo(game, 80, 22.0, 34.3, { skin: '#c68a5c', hair: '#1d1612', hairStyle: 'short', shirt: '#161616', pants: '#e8c15a', shoes: '#292929', body: 'm', hat: 'cap', capColor: '#6b4a2f' });
-      bemVindo(game, 81, 23.0, 34.0, { skin: '#f5d3b3', hair: '#b8864a', hairStyle: 'long', shirt: '#161616', pants: '#e8c15a', shoes: '#eceff3', body: 'f' });
+      bemVindo(game, 81, 22.9, 33.1, { skin: '#f5d3b3', hair: '#b8864a', hairStyle: 'long', shirt: '#161616', pants: '#e8c15a', shoes: '#eceff3', body: 'f' });
       // o mapa inteiro foi deslocado 3 colunas para a direita para a parede de trás das cadeiras recuar
       const dx = 3;
       const E = (i, tx, ty, dir, ritmo, o) => estudar(game, i, tx + dx, ty, dir, ritmo, o);
@@ -378,35 +388,46 @@
       // estudando na mesa comprida (cadeiras das linhas 30 e 32) e nos bancos "pedra"
       E(1, 8, 30, 'down', 0.42);
       E(5, 13, 32, 'up', 0.22);
-      E(6, 11, 35, 'right', 0.4);
+      E(6, 11, 36, 'right', 0.4);
       // sala do fundo: um aluno sentado na cadeira da parede recuada, digitando no notebook
       // (esta cadeira já está em coordenada final, por isso não passa pelo wrapper E que soma dx)
       estudar(game, 60, 2, 31, 'up', 0.3);
       // conversando sentados: nos bancos da mesinha e nas poltronas/puffs do saguão
-      G(10, [[15, 35, 'right', true], [17, 35, 'left', true]]);
+      G(10, [[15, 36, 'right', true], [17, 36, 'left', true]]);
       G(12, [[21, 28, 'down', true], [23, 29, 'up', true]]);
       // conversando em pé, no saguão
       G(20, [[21.5, 24.6, 'right'], [22.9, 24.6, 'left']]);
+      // coordenação (em coordenadas finais, como a sala do fundo): 3 na mesa redonda e 1 que entra e sai pela
+      // porta da parede laranja
+      const semMochila = { mochila: false };
+      estudar(game, 90, 18, 22, 'left', 0.3, semMochila);
+      estudar(game, 91, 15, 22, 'right', 0.24, semMochila);
+      estudar(game, 92, 16, 23, 'up', 0.28, semMochila);
+      andante(game, 93, { pts: [[14.2, 23.6], [14.7, 24.5], [19.7, 24.5]], a: 'porta', b: 'parar', olhar: 'right', espera0: 3 });
       // entrando e saindo (das salas e da faculdade)
       A(30, { pts: [[23.4, 35.4], [22.4, 34.4], [22.4, 32.6], [19.5, 32.6], [19.5, 18.5], [13.5, 18.5], [13.5, 11.5], [14.65, 11.5]], a: 'porta', b: 'porta', inicio: 'b', espera0: 2 });
-      A(31, { pts: [[9.5, 16.7], [9.5, 19.5], [20.5, 19.5], [20.5, 31.6], [22.4, 31.6], [22.4, 34.4], [23.4, 35.4]], a: 'porta', b: 'porta', espera0: 5 });
-      A(33, { pts: [[14.65, 15.5], [13.6, 15.5], [13.6, 19.4], [19.3, 19.4], [19.3, 24.6], [17.4, 24.6]], a: 'porta', b: 'parar', olhar: 'up', espera0: 9 });
+      A(31, { pts: [[0.5, 16.7], [0.5, 19.5], [20.5, 19.5], [20.5, 31.6], [22.4, 31.6], [22.4, 34.4], [23.4, 35.4]], a: 'porta', b: 'porta', espera0: 5 });
+      A(33, { pts: [[14.65, 15.5], [13.6, 15.5], [13.6, 19.4], [19.3, 19.4], [19.3, 22.6], [16.6, 22.6]], a: 'porta', b: 'parar', olhar: 'left', espera0: 9 });
       A(82, { pts: [[23.4, 35.4], [22.4, 34.4], [22.4, 31.6], [20.5, 31.6], [20.5, 25.0], [18.0, 25.0]], a: 'porta', b: 'parar', olhar: 'left', espera0: 4,
         look: { skin: '#e0ac7e', hair: '#1d1612', hairStyle: 'short', shirt: '#f05a28', pants: '#6b4a2f', shoes: '#292929', body: 'm' } });
     },
     sala1(game) {
-      professor(game, 4, 1.85);
-      // laboratório de informática: digitando nos notebooks, de frente para o quadro
-      estudar(game, 40, 1, 3, 'up', 0.16);
-      estudar(game, 41, 6, 3, 'up', 0.2);
-      estudar(game, 43, 5, 5, 'up', 0.24);
-      andante(game, 45, { pts: [[4.5, 7.3], [4.5, 6.0], [3.6, 2.0]], a: 'porta', b: 'parar', olhar: 'up', espera0: 3 });
+      professor(game, 1.7, 12.2, 'right'); // ao lado da projeção, virado para a turma
+      // sala de ADS: estudando nas fileiras de mesas pretas (cadeiras dos 2 lados)
+      estudar(game, 40, 4, 8, 'up', 0.16);
+      estudar(game, 41, 5, 11, 'up', 0.2);
+      estudar(game, 43, 6, 12, 'down', 0.24);
+      estudar(game, 44, 5, 17, 'up', 0.3);
+      grupo(game, 46, [[6, 6, 'down', true], [6, 8, 'up', true]]);
+      andante(game, 45, { pts: [[2.5, 1.7], [2.5, 3.4], [2.2, 9.5]], a: 'porta', b: 'parar', olhar: 'left', espera0: 3 });
     },
     sala2(game) {
-      // laboratório da saúde: anotando nas bancadas; dois conversando perto da vitrine
-      estudar(game, 51, 6, 4, 'up', 0.45);
-      grupo(game, 52, [[5.0, 2.2, 'right'], [6.3, 2.2, 'left']]);
-      andante(game, 54, { pts: [[4.5, 7.3], [4.5, 5.0], [3.5, 2.6]], a: 'porta', b: 'parar', olhar: 'left', espera0: 4 });
+      // laboratório da saúde: anotando nas banquetas; dois conversando perto da pia
+      estudar(game, 51, 8, 4, 'up', 0.45);
+      estudar(game, 50, 9, 3, 'down', 0.4);
+      estudar(game, 55, 14, 3, 'up', 0.35);
+      grupo(game, 52, [[10.2, 7.4, 'right'], [11.6, 7.4, 'left']]);
+      andante(game, 54, { pts: [[8.5, 9.3], [8.5, 7.6], [2.6, 7.6], [2.6, 3.0]], a: 'porta', b: 'parar', olhar: 'left', espera0: 4 });
     },
   };
 

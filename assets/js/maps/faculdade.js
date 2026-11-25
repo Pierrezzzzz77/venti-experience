@@ -13,8 +13,9 @@
      1. Em frente: as mesas, com a faixa tátil reta para dentro delas
      2. À direita: o saguão comprido. Primeiro o logo, na parede reta à esquerda do saguão, virada
         para a entrada, com o tapete e as poltronas na frente
-     3. Depois do logo: a secretaria, aberta para o saguão, com a mesa redonda e 3 notebooks
-     4. Depois da secretaria: o corredor, que passa atrás dela e cruza com o corredor das salas
+     3. Depois do logo: a coordenação (foto coordenacao), uma sala aberta para o saguão: 2 portas de madeira na
+        parede do lado do logo, a parede laranja no fundo com a porta de visor e a mesa redonda com os notebooks
+     4. Depois da coordenação: o corredor, que passa atrás dela e cruza com o corredor das salas
      5. No fim do saguão: a parede verde com a frase; atrás dela fica a sala de ADS
      6. Corredor das salas: 4 salas de cada lado, cada porta logo depois da parede que separa as salas.
         Sala 1 = sala de ADS (1ª à direita); Sala 2 = 1ª à esquerda, com a porta no corredor de baixo;
@@ -648,13 +649,13 @@
     R(g, x0, top, W, 1, '#c97a4e');
     R(g, x0, e.py + 7, W, 1, '#4a2412');
     // escudo branco com uma folha
-    const lx = x0 + 9, ly = e.py - 22, bco = '#f4efe6';
+    const lx = x0 + 2, ly = e.py - 22, bco = '#f4efe6';
     [9, 9, 9, 9, 9, 7, 7, 5, 3, 1].forEach((w, j) => R(g, lx + (9 - w) / 2, ly + j, w, 1, bco));
     [[4, 1], [3, 2], [5, 2], [2, 3], [6, 3], [2, 4], [6, 4], [3, 5], [5, 5], [4, 6]].forEach(([i, j]) => R(g, lx + i, ly + j, 1, 1, COR.ripa[1]));
     R(g, lx + 4, ly + 2, 1, 6, COR.ripa[1]);
-    texto(g, 'FACULDADE', x0 + 22, ly, bco);
-    texto(g, 'SERRA', x0 + 22, ly + 7, bco);
-    texto(g, 'DOURADA', x0 + 22, ly + 13, bco);
+    texto(g, 'FACULDADE', x0 + 12, ly, bco);
+    texto(g, 'SERRA', x0 + 12, ly + 7, bco);
+    texto(g, 'DOURADA', x0 + 12, ly + 13, bco);
   }
   // placa azul ao lado da porta: "SALA n"
   function placa(g, e) {
@@ -721,6 +722,50 @@
     R(g, x0 + 1, y0 + 1, W - 2, 16, '#f2f3f4');
     for (let k = 0; k < 4; k++) R(g, x0 + 4, y0 + 4 + k * 3, 6 + Math.floor(hash(e.tx * 7 + k) * (W - 14)), 1, k ? '#3a6ea5' : '#c4553c');
     R(g, x0 + 2, y0 + 18, W - 4, 1, '#7d8590');
+  }
+  // quadro preto bem largo no corredor da Sala 2, com assinaturas, nomes e desenhos com giz
+  function quadroGiz(g, e) {
+    const x0 = e.px + 2, W = e.tw * T - 4, y0 = e.py - 35, H = 31;
+    R(g, x0 + 1, y0 + 1, W, H, 'rgba(0,0,0,0.12)');
+    R(g, x0, y0, W, H, '#7a5434');                              // moldura de madeira
+    R(g, x0, y0, W, 1, '#9b7049');
+    R(g, x0 + 1, y0 + 1, W - 2, H - 2, '#1d2221');              // lousa preta fosca
+    // poeira leve de giz apagado
+    for (let i = 0; i < 28; i++) {
+      const dx = 3 + Math.floor(hash(i * 19 + 3) * (W - 10));
+      const dy = 3 + Math.floor(hash(i * 29 + 7) * (H - 8));
+      R(g, x0 + dx, y0 + dy, 5, 2, 'rgba(235,240,238,0.06)');
+    }
+    const giz = ['#eef2ef', '#f2e59a', '#9fd3e8', '#e8a8b8', '#a8e0b8'];
+    // assinaturas e nomes curtos em giz espalhados por toda a lousa
+    const assinaturas = [
+      [5, 5, 12, 0], [21, 6, 13, 1], [38, 5, 11, 2], [54, 6, 14, 3], [72, 5, 12, 4], [89, 6, 13, 0],
+      [7, 13, 13, 2], [25, 12, 11, 0], [42, 13, 12, 4], [60, 12, 11, 1], [77, 13, 13, 3], [92, 12, 10, 2],
+      [6, 20, 12, 3], [23, 21, 14, 1], [44, 20, 12, 2], [62, 21, 11, 0], [78, 20, 13, 4], [93, 21, 9, 1],
+      [12, 26, 13, 0], [31, 26, 12, 4], [49, 26, 14, 3], [69, 26, 12, 1], [86, 26, 13, 2],
+    ];
+    for (const [ax, ay, len, c] of assinaturas) {
+      if (ax + len >= W - 2) continue;
+      const cor = giz[c];
+      for (let i = 0; i < len; i++) {
+        const py = y0 + ay + ((i % 3 === 1) ? -1 : 0);
+        if (i % 4 !== 3) R(g, x0 + ax + i, py, 1, 1, cor);
+      }
+      R(g, x0 + ax + 1, y0 + ay + 1, len - 2, 1, 'rgba(238,242,239,0.35)');
+    }
+    // desenhos em giz: coração, estrela, florzinha, carinha e sol
+    [[21, 15], [23, 15], [20, 16], [22, 16], [24, 16], [21, 17], [23, 17], [22, 18]].forEach(([dx, dy]) => R(g, x0 + dx, y0 + dy, 1, 1, giz[3])); // coração
+    [[57, 15], [56, 16], [57, 16], [58, 16], [55, 17], [57, 17], [59, 17], [56, 18], [58, 18]].forEach(([dx, dy]) => R(g, x0 + dx, y0 + dy, 1, 1, giz[1])); // estrela
+    [[8, 16], [8, 18], [7, 17], [9, 17]].forEach(([dx, dy]) => R(g, x0 + dx, y0 + dy, 1, 1, giz[2])); // flor
+    R(g, x0 + 8, y0 + 17, 1, 1, giz[1]);
+    [[74, 15], [76, 15], [74, 17], [75, 17], [76, 17]].forEach(([dx, dy]) => R(g, x0 + dx, y0 + dy, 1, 1, giz[4])); // carinha
+    [[96, 15], [95, 16], [96, 16], [97, 16], [96, 17], [94, 15], [98, 15], [94, 17], [98, 17]].forEach(([dx, dy]) => R(g, x0 + dx, y0 + dy, 1, 1, giz[1])); // sol
+    // aparador de giz embaixo, com pedacinhos de giz coloridos
+    R(g, x0 + 1, y0 + H, W - 2, 2, '#624227');
+    R(g, x0 + 10, y0 + H - 1, 4, 1, giz[0]);
+    R(g, x0 + 22, y0 + H - 1, 3, 1, giz[1]);
+    R(g, x0 + 58, y0 + H - 1, 3, 1, giz[3]);
+    R(g, x0 + 84, y0 + H - 1, 4, 1, giz[2]);
   }
 
   // parede verde-acinzentada com a frase e os veios de madeira em linhas brancas (parede-verde.jpg)
@@ -790,7 +835,7 @@
     R(g, x0 + W - 3, top + 8, 1, 6, 'rgba(255,255,255,0.6)');    // reflexo no acrílico
   }
 
-  /* ---------- Sala 1: laboratório de informática ---------- */
+  /* ---------- notebook (sala do fundo) ---------- */
   // em cima de uma mesa (host): a linha e.py − 1 é o tampo
   function notebook(g, e) {
     const c = e.px + 8, r = e.py - 1;
@@ -802,109 +847,12 @@
     R(g, c - 2, r - 4, 4, 1, '#7ee0a1');
   }
 
-  /* ---------- Sala 2: laboratório da área da saúde ---------- */
-  const OSSO = '#e6dfcc', OSSO_E = '#b5ab92';
-  // esqueleto humano no suporte
-  function esqueleto(g, e) {
-    const { c, b } = chao(e);
-    R(g, c - 4, b - 1, 8, 1, '#5d6573');
-    R(g, c, b - 4, 1, 3, '#7d8590');
-    R(g, c - 2, b - 33, 5, 4, '#efe9da');
-    R(g, c - 1, b - 32, 1, 1, '#2a2622'); R(g, c + 1, b - 32, 1, 1, '#2a2622');
-    R(g, c - 1, b - 29, 3, 1, OSSO_E);
-    R(g, c, b - 28, 1, 13, OSSO);
-    for (let k = 0; k < 5; k++) R(g, c - 3, b - 26 + k * 2, 7, 1, k % 2 ? OSSO_E : OSSO);
-    R(g, c - 5, b - 27, 1, 11, OSSO); R(g, c + 5, b - 27, 1, 11, OSSO);
-    R(g, c - 4, b - 28, 9, 1, OSSO);
-    R(g, c - 3, b - 15, 7, 2, OSSO);
-    R(g, c - 2, b - 13, 1, 10, OSSO); R(g, c + 2, b - 13, 1, 10, OSSO);
-    R(g, c - 3, b - 4, 2, 1, OSSO); R(g, c + 2, b - 4, 2, 1, OSSO);
-  }
-  // fóssil de animal (um pequeno dinossauro) num pedestal, 2 tiles
-  function fossil(g, e) {
-    const { c, b } = chao(e);
-    R(g, c - 14, b - 4, 28, 4, '#3a3f47');
-    R(g, c - 14, b - 4, 28, 1, '#5d6573');
-    const costas = (i) => b - 15 - Math.round(3 * Math.sin(((i + 11) / 22) * Math.PI));
-    for (let i = -11; i <= 9; i++) R(g, c + i, costas(i), 1, 1, '#d8cfb8');
-    for (let i = -6; i <= 5; i += 2) R(g, c + i, costas(i) + 1, 1, 4, OSSO_E);
-    R(g, c - 14, b - 14, 3, 1, '#d8cfb8'); R(g, c - 12, b - 15, 2, 1, '#d8cfb8');
-    R(g, c + 9, b - 17, 2, 1, '#d8cfb8'); R(g, c + 10, b - 18, 1, 1, '#d8cfb8');
-    R(g, c + 10, b - 21, 6, 3, '#d8cfb8'); R(g, c + 12, b - 20, 1, 1, '#4a3f30');
-    R(g, c + 11, b - 18, 5, 1, '#f0ead8');
-    R(g, c - 7, b - 13, 1, 9, '#d8cfb8'); R(g, c - 5, b - 13, 1, 9, OSSO_E);
-    R(g, c + 4, b - 14, 1, 10, '#d8cfb8'); R(g, c + 6, b - 14, 1, 10, OSSO_E);
-    R(g, c, b - 4, 1, 1, '#9aa3b0');
-  }
-  // vitrine de vidro com órgãos em potes
-  function vitrine(g, e) {
-    const { c, b } = chao(e), alu = '#c8ccd2';
-    R(g, c - 7, b - 32, 14, 32, alu);
-    R(g, c - 6, b - 31, 12, 29, '#2c3d4c');
-    for (const prat of [b - 22, b - 12, b - 3]) {
-      R(g, c - 6, prat, 12, 1, alu);
-      for (let k = 0; k < 3; k++) {
-        const x = c - 5 + k * 4;
-        R(g, x, prat - 6, 3, 6, '#9fc7c0');
-        R(g, x, prat - 6, 3, 1, '#d8e8e4');
-        R(g, x + 1, prat - 4, 1, 3, ['#c4553c', '#e7a0b0', '#b8322b'][(k + prat) % 3]);
-      }
-    }
-    R(g, c + 6, b - 31, 1, 29, '#9aa3b0');
-  }
-  // modelos em cima das bancadas (host): torso de anatomia, coração, cérebro, crânio fóssil, microscópio
-  function torso(g, e) {
-    const c = e.px + 8, r = e.py - 1, pele = '#e8b896';
-    R(g, c - 4, r, 8, 1, '#3a3f47');
-    R(g, c - 1, r - 2, 2, 2, '#3a3f47');
-    R(g, c - 3, r - 13, 6, 11, pele);
-    R(g, c, r - 12, 3, 4, '#e08a8a');
-    R(g, c, r - 8, 3, 3, '#b8322b');
-    R(g, c, r - 5, 3, 3, '#c98a4a');
-    R(g, c - 2, r - 17, 4, 4, pele);
-    R(g, c, r - 17, 2, 2, '#e7a0b0');
-  }
-  function coracao(g, e) {
-    const c = e.px + 8, r = e.py - 1;
-    R(g, c - 2, r, 4, 1, '#3a3f47');
-    R(g, c - 3, r - 7, 2, 1, '#b8322b'); R(g, c + 1, r - 7, 2, 1, '#b8322b');
-    R(g, c - 3, r - 6, 6, 4, '#b8322b');
-    R(g, c - 2, r - 2, 4, 1, '#8f2620');
-    R(g, c - 2, r - 6, 1, 1, '#e06a5a');
-    R(g, c, r - 9, 2, 2, '#d65a4a');
-  }
-  function cerebro(g, e) {
-    const c = e.px + 8, r = e.py - 1;
-    R(g, c - 2, r, 4, 1, '#3a3f47');
-    R(g, c - 4, r - 6, 8, 5, '#e7a0b0');
-    R(g, c - 3, r - 7, 6, 1, '#efb6c3');
-    R(g, c - 2, r - 5, 3, 1, '#c97a8e'); R(g, c + 1, r - 3, 2, 1, '#c97a8e'); R(g, c - 3, r - 3, 2, 1, '#c97a8e');
-    R(g, c, r - 7, 1, 5, '#c97a8e');
-  }
-  function cranio(g, e) {
-    const c = e.px + 8, r = e.py - 1;
-    R(g, c - 5, r, 11, 1, '#5a4430');
-    R(g, c - 5, r - 5, 8, 4, '#d8cfb8');
-    R(g, c + 3, r - 4, 3, 2, '#d8cfb8');
-    R(g, c - 3, r - 4, 2, 2, '#4a3f30');
-    R(g, c + 1, r - 1, 5, 1, '#f0ead8');
-    R(g, c - 5, r - 5, 8, 1, '#efe9da');
-  }
-  function microscopio(g, e) {
-    const c = e.px + 8, r = e.py - 1;
-    R(g, c - 3, r, 7, 1, '#2a2e35');
-    R(g, c + 1, r - 9, 2, 9, '#e9ecef');
-    R(g, c - 3, r - 5, 5, 1, '#5d6573');
-    R(g, c - 1, r - 11, 2, 6, '#3a3f47');
-    R(g, c - 1, r - 12, 2, 1, '#9aa3b0');
-  }
-
   const ARTE = {
     'poltrona-vermelha': poltronaVermelha, 'poltrona-cinza': poltronaCinza, 'poltrona-madeira': poltronaMadeira,
     'banco-pedra': bancoPedra, puff, cadeira, violao, sofa,
     'planta-alta': plantaAlta, pendente, globos, tapete, 'luz-chao': luzChao,
-    logo, placa, 'ar-parede': arCondicionado, extintor, interruptor, hidrante, quadro, 'parede-verde': paredeVerde, 'vidro-sala': vidroSala, avisos,
-    notebook, esqueleto, fossil, vitrine, torso, coracao, cerebro, cranio, microscopio,
+    logo, placa, 'ar-parede': arCondicionado, extintor, interruptor, hidrante, quadro, 'quadro-giz': quadroGiz, 'parede-verde': paredeVerde, 'vidro-sala': vidroSala, avisos,
+    notebook,
   };
   // o motor desenha os tipos dele; os da faculdade vêm daqui
   const desenhoDoMotor = DL.drawItem;
@@ -923,6 +871,27 @@
     return { rect: [Math.min(...ps.map((p) => p[0])), Math.min(...ps.map((p) => p[1])), Math.max(...ps.map((p) => p[0])), Math.max(...ps.map((p) => p[1]))] };
   }
   // porta de madeira de uma sala; front: true = numa parede da frente (baixa), senão na parede do fundo
+  function desenharBebedouro(g, sc, e) {
+    const K = DL.isoKit;
+    const x0 = e.px + 2, x1 = e.px + 14, y0 = e.py + 1, y1 = e.py + 9;
+    const inox = { s: '#c5cbd3', e: '#969da6', t: '#e4e8ee' };
+    const escuro = { s: '#7d8590', e: '#5d646e', t: '#9aa2ad' };
+    K.isoT(g, sc);
+    // corpo inox encostado na parede
+    K.box(g, x0, y0, x1, y1, 0, 17, inox);
+    // base escura rente ao piso
+    K.box(g, x0, y0, x1, y1, 0, 2, escuro);
+    // cuba / aparador em cima
+    K.box(g, x0 + 1, y0 + 1, x1 - 1, y1 - 1, 17, 18, escuro);
+    // torneiras e botão azul na frente
+    K.box(g, x0 + 3, y0 + 2, x0 + 5, y0 + 4, 18, 21, inox);
+    K.box(g, x1 - 5, y0 + 2, x1 - 3, y0 + 4, 18, 22, inox);
+    K.poly(g, [[x0 + 6, y1, 13], [x0 + 10, y1, 13], [x0 + 10, y1, 15], [x0 + 6, y1, 15]], '#4a9fd8');
+    // detalhe de grade frontal inferior
+    K.line(g, [x0 + 2, y1, 6], [x1 - 2, y1, 6], '#7d8590');
+    K.line(g, [x0 + 2, y1, 8], [x1 - 2, y1, 8], '#7d8590');
+    return caixaTela(x0, y0, x1, y1, 0, 22);
+  }
   function desenharPorta(g, sc, e) {
     const K = DL.isoKit, front = !!e.front;
     const x0 = e.px, x1 = e.px + 16, y0 = front ? e.py : e.py + 12, y1 = y0 + 4, ym = y0 + 2;
@@ -949,28 +918,33 @@
   // lado 'l': na parede baixa da direita (batente em pé, como a porta de vidro da entrada).
   // e.open (0 a 1): quando um aluno entra ou sai, a folha gira para o lado do corredor e mostra o vão escuro.
   function desenharPortaLado(g, sc, e) {
-    const K = DL.isoKit, Hd = 28, Hb = 31, ya = e.py, yb = e.py + T, cor = e.to ? COR.porta : COR.portaEscura;
+    const K = DL.isoKit, Hd = 28, Hb = 31, ya = e.py, yb = e.py + T, cor = e.to || e.visor ? COR.porta : COR.portaEscura;
     const bat = { s: '#cfc8bb', e: '#a9a296', t: '#efe9df' };
     const ab = clamp(e.open || 0, 0, 1) * 1.35, sx = e.lado === 'o' ? 1 : -1;
     const folha = (X) => {
       if (ab > 0.02) K.poly(g, [[X, ya + 2, 0], [X, yb - 2, 0], [X, yb - 2, Hd], [X, ya + 2, Hd]], '#17120e'); // a sala lá dentro
       // dobradiça: no lado 'o' fica no fundo do vão; no lado 'l', na frente (assim a folha aberta nunca
       // é pintada por cima de quem está passando pela porta)
-      const sy = e.lado === 'o' ? 1 : -1, y0 = e.lado === 'o' ? ya + 2 : yb - 2;
+      const atras = e.lado === 'o' && !e.visor; // (a porta com visor, como na foto, abre para o outro lado)
+      const sy = atras ? 1 : -1, y0 = atras ? ya + 2 : yb - 2;
       const A = [X, y0], B = [X + sx * 12 * Math.sin(ab), y0 + sy * 12 * Math.cos(ab)];
       const at = (k) => [A[0] + (B[0] - A[0]) * k, A[1] + (B[1] - A[1]) * k];
       K.poly(g, [[A[0], A[1], 0], [B[0], B[1], 0], [B[0], B[1], Hd], [A[0], A[1], Hd]], ab > 0.7 ? shade(cor, -0.18) : cor);
-      for (const k of [4 / 12, 8 / 12]) { const p = at(k); K.line(g, [p[0], p[1], 1], [p[0], p[1], Hd - 1], 'rgba(90,40,15,0.35)'); }
+      const faixa = (k0, k1, z0, z1, c) => { const p = at(k0), q = at(k1); K.poly(g, [[p[0], p[1], z0], [q[0], q[1], z0], [q[0], q[1], z1], [p[0], p[1], z1]], c); };
+      if (e.visor) {
+        faixa(0.16, 0.42, 4, 23, '#7c3f1a'); faixa(0.2, 0.38, 5, 22, '#dfe7e4');  // visor de vidro fosco
+        faixa(0.54, 0.86, 17, 25, COR.placa); faixa(0.64, 0.76, 21, 23, '#e8c15a'); // placa azul
+      } else for (const k of [4 / 12, 8 / 12]) { const p = at(k); K.line(g, [p[0], p[1], 1], [p[0], p[1], Hd - 1], 'rgba(90,40,15,0.35)'); }
       K.line(g, [A[0], A[1], Hd], [B[0], B[1], Hd], '#d98a52');
-      const m = at(10 / 12);
+      const m = at(e.visor ? 0.92 : 10 / 12);
       K.line(g, [m[0], m[1], 12], [m[0], m[1], 14], '#e3cf9a', 1);
     };
     K.isoT(g, sc);
     if (e.lado === 'o') {
       const X = e.px + T;
-      K.poly(g, [[X, ya, 0], [X, yb, 0], [X, yb, Hb], [X, ya, Hb]], bat.e);
+      K.poly(g, [[X, ya, 0], [X, yb, 0], [X, yb, Hb], [X, ya, Hb]], e.visor ? '#7c3f1a' : bat.e);
       folha(X);
-      K.poly(g, [[X, yb + 3, 15], [X, yb + 9, 15], [X, yb + 9, 22], [X, yb + 3, 22]], COR.placa);
+      if (!e.visor) K.poly(g, [[X, yb + 3, 15], [X, yb + 9, 15], [X, yb + 9, 22], [X, yb + 3, 22]], COR.placa);
       return caixaTela(X, ya, X + 1, yb + 9, 0, Hb);
     }
     const x0 = e.px, x1 = e.px + 4;
@@ -1035,12 +1009,26 @@
     g.drawImage(LOGO_IMG, 0, 0);
     return caixaTela(e.px, e.py, e.px + 1, y1, 0, 44);
   }
-  // mesa redonda da secretaria (2 × 2 tiles): pé central e tampo branco redondo
+  // notebook aberto em 3D, em cima de uma mesa: (x, y) no mapa, z = tampo, face = para onde olha quem usa, k = tamanho
+  // (assim a tela fica virada para a cadeira: de trás vê-se só a tampa)
+  function notebook3d(g, x, y, z, face, tela, k) {
+    const cx = (a0, a1, d0, d1) => caixa(a0 * (k || 1), a1 * (k || 1), d0 * (k || 1), d1 * (k || 1)), zt = (v) => 0.8 + (v - 0.8) * (k || 1);
+    pecas3d(g, Math.round(IX(x, y)), Math.round(IY(x, y, z)), face, 0, [
+      { p: cx(-4.5, 4.5, -3.2, 3), z0: 0, z1: 0.8, cor: '#8b929b', topo: '#a9b0b8' },
+      { p: cx(-3.6, 3.6, -1.2, 2), z0: 0.8, z1: 0.8, cor: '#3b4250', topo: '#3b4250' },              // teclado
+      { p: cx(-4.5, 4.5, 3, 3.8), z0: 0.8, z1: zt(8), cor: '#5d6573', topo: '#9aa3b0', lado: -0.12 },    // tampa
+      { p: cx(-3.7, 3.7, 2.8, 3), z0: zt(1.6), z1: zt(7.2), cor: tela || '#4f93d8', topo: '#1a1d22', lado: 0.02 }, // tela
+    ]);
+  }
+  // os lugares da mesa redonda dos coordenadores: [tile x, tile y, para onde olha, notebook (dx, dy do centro)]
+  const LUGARES_COORD = [[15, 22, 351, -10, -3], [18, 22, 189, 10, -3], [16, 23, 270, -6.5, 9], [17, 23, 270, 6.5, 9]];
+  // mesa redonda da coordenação (2 × 2 tiles): pé central, tampo branco redondo e um notebook em cada lugar
   function desenharMesaRedonda(g, sc, e) {
-    const K = DL.isoKit, cx = e.px + T, cy = e.py + T, Z = DL.isoSurfaceTop(e), r = 13;
+    const K = DL.isoKit, cx = e.px + T, cy = e.py + T + 4, Z = DL.isoSurfaceTop(e), r = 16; // (+4: a parede fina do corredor)
     const X = IX(cx, cy), Y = IY(cx, cy, 0);
     const disco = (z, raio, cor) => { g.beginPath(); g.ellipse(X, Y - z, raio * 1.414, raio * 0.707, 0, 0, Math.PI * 2); g.fillStyle = cor; g.fill(); };
     K.isoT(g, sc);
+    disco(0, 12, 'rgba(48,26,12,0.16)');
     disco(0, 6, '#6c6e6d');
     disco(1, 6, '#8c8e8d');
     g.fillStyle = '#7d8590'; g.fillRect(X - 2, Y - Z + 1, 4, Z - 2);
@@ -1050,7 +1038,56 @@
     disco(Z, r, COR.branco);
     g.beginPath(); g.ellipse(X, Y - Z, r * 1.414 - 2, r * 0.707 - 1, 0, Math.PI * 1.05, Math.PI * 1.75);
     g.strokeStyle = 'rgba(255,255,255,0.7)'; g.stroke();
-    return caixaTela(e.px, e.py, e.px + 2 * T, e.py + 2 * T, 0, Z);
+    // os notebooks, do fundo para a frente (e, no meio, uma caneca e uns papéis)
+    const nb = LUGARES_COORD.map(([, , f, dx, dy], k) => ({ f, x: cx + dx, y: cy + dy, tela: ['#4f93d8', '#5fbf8f', '#4f93d8', '#4f93d8'][k] }));
+    nb.sort((p, q) => p.x + p.y - q.x - q.y);
+    const meio = () => {
+      R(g, X - 3, Y - Z - 1, 5, 2, '#dfe3e8'); R(g, X - 2, Y - Z - 2, 5, 2, '#f7f8fa'); R(g, X - 1, Y - Z - 1, 3, 1, '#b8bec7');
+    };
+    nb.slice(0, 2).forEach((n) => notebook3d(g, n.x, n.y, Z, n.f, n.tela, 0.8));
+    meio();
+    nb.slice(2).forEach((n) => notebook3d(g, n.x, n.y, Z, n.f, n.tela, 0.8));
+    return caixaTela(e.px, e.py, e.px + 2 * T, e.py + 2 * T + 4, 0, Z + 9);
+  }
+  // o ar-condicionado e o interruptor na parede clara da coordenação (face virada para a câmera)
+  let AR_COORD = null;
+  function desenharArCoord(g, sc, e) {
+    const W = e.tw * T, y = e.py + 4;
+    if (!AR_COORD) {
+      AR_COORD = DL.mk(W, 44);
+      const c = AR_COORD.getContext('2d');
+      arCondicionado(c, { px: 24, py: 37 });
+      interruptor(c, { px: 58, py: 40 });
+    }
+    DL.isoKit.setMap(g, sc, [e.px, y, 44], [1, 0, 0], [0, 0, -1]);
+    g.drawImage(AR_COORD, 0, 0);
+    return caixaTela(e.px, y, e.px + W, y + 1, 0, 44);
+  }
+  // as raízes vermelho-escuras que descem pintadas na parede laranja (na ponta de lá, perto da mesa)
+  function desenharRaizes(g, sc, e) {
+    const K = DL.isoKit, X = e.px;
+    K.isoT(g, sc);
+    for (const [y0, f, a] of [[e.py + 13, 0, 1.4], [e.py + 18, 1.7, 1.1], [e.py + 21, 3.1, 0.7]]) {
+      let ant = null;
+      for (let z = 38; z >= 4; z -= 2) {
+        const p = [X, y0 + Math.sin(z * 0.55 + f) * a + Math.sin(z * 0.21 + f) * 0.8, z];
+        if (ant) K.line(g, ant, p, f > 3 ? '#b8461a' : '#8e2f16', f > 3 ? 0.6 : 1);
+        ant = p;
+      }
+    }
+    return caixaTela(X, e.py, X + 1, e.py + 2 * T, 0, 44);
+  }
+  // a parede do lado do logo (a das 2 portas), cortada baixa para não esconder a sala; as portas ficam em pé
+  // (kind 'porta', front). e.placa = x (px) da plaquinha azul, presa no batente da porta ao lado
+  function desenharParedeBaixa(g, sc, e) {
+    const K = DL.isoKit, [x0, y0, x1, y1] = e.isoRect;
+    K.isoT(g, sc);
+    K.box(g, x0, y0, x1, y1, 0, 7, { s: COR.parede, e: shade(COR.parede, -0.2), t: '#f4f1ea' });
+    if (e.placa != null) {
+      K.box(g, e.placa, y0 + 1, e.placa + 5, y0 + 3, 18, 28, { s: COR.placa, e: shade(COR.placa, -0.3), t: shade(COR.placa, 0.25) });
+      K.poly(g, [[e.placa + 1.5, y0 + 3, 23], [e.placa + 3.5, y0 + 3, 23], [e.placa + 3.5, y0 + 3, 25], [e.placa + 1.5, y0 + 3, 25]], '#e8c15a');
+    }
+    return caixaTela(x0, y0, x1, y1, 0, 28);
   }
   // mesa do corredor: tampo cinza-claro e pernas finas de metal cinza (o mesmo tamanho e a mesma altura
   // de tampo da mesa do motor, 12, para as coisas em cima continuarem no lugar)
@@ -1247,7 +1284,9 @@
     // (e a parede escura que o motor levantava na coluna 25, do lado de fora, atrás da parede da direita do lounge)
     st.runs = st.runs.filter((r) => !(r.r[0] >= 25 * T + OX && r.r[1] < 17 * T + 4));
     // (e a borda baixa do lado de baixo do corredor de trás, linha 21: a parede alta 'parede-corredor' fica no lugar)
-    st.runs = st.runs.filter((r) => !(r.face === 'n' && r.r[1] === 21 * T && r.r[0] >= 7 * T + OX && r.r[2] <= 16 * T + OX));
+    st.runs = st.runs.filter((r) => !(r.face === 'n' && r.r[1] === 21 * T && r.r[0] >= 1 * T + OX && r.r[2] <= 16 * T + OX));
+    // (e a borda baixa da parede das 2 portas da coordenação, linha 25: a parede baixa clara fica no lugar)
+    st.runs = st.runs.filter((r) => !(r.face === 'n' && r.r[1] === 25 * T && r.r[0] >= 14 * T && r.r[2] <= 19 * T));
   }
   // a base fina do prédio: 3 px de altura embaixo da borda do piso, onde o lado de fora (ou o fim do mapa) começa
   function baseFina(g, sc) {
@@ -1310,7 +1349,7 @@
       else {
         const v = e.axis === 'v', dg = e.axis === 'd';
         const cx = dg ? e.px + T : v ? e.px + (e.dx || 0) + 2 : e.px + e.tw * 8, cy = dg ? e.py : v ? e.py + 16 : e.kind === 'porta-vidro' || e.front ? e.py + 2 : e.py + 14;
-        alvo = alguem(todos, cx, cy, 34) ? 1 : 0;
+        alvo = !e.travada && alguem(todos, cx, cy, 34) ? 1 : 0;
       }
       e.open = (e.open || 0) + (alvo - (e.open || 0)) * Math.min(1, dt * 7);
     }
@@ -1381,10 +1420,11 @@
          fundo     uma sala de vidro (parede vermelha lá dentro, como na foto)
        à direita   o saguão (colunas 19 a 24), comprido, que passa por:
                    o logo (tapete e poltronas vermelhas na frente),
-                   a secretaria (linhas 22 a 25), aberta para o saguão, com a mesa redonda e 3 notebooks,
+                   a coordenação (linhas 21 a 24), uma sala aberta para o saguão: 2 portas do lado do
+                   logo, parede laranja no fundo com uma porta e a mesa redonda com notebooks,
                    o corredor (linhas 17 a 20), que entra para a esquerda da tela
                    e, no fim, a parede verde com a frase (atrás dela fica a sala de ADS)
-       corredor    passa atrás da secretaria e cruza com o corredor das salas (colunas 12 a 14, linhas
+       corredor    passa atrás da coordenação e cruza com o corredor das salas (colunas 12 a 14, linhas
                    1 a 16), que sobe à direita: 4 salas de cada lado, cada porta logo depois da parede
                    que separa as salas. A 1ª do lado direito é a sala de ADS (Sala 1). O corredor de
                    baixo continua um pouco para a esquerda; ali fica a porta da 1ª sala do outro lado
@@ -1394,15 +1434,16 @@
     '##########################',
     '############MMM###########', // (a faixa para 1 tile antes da parede do fim do corredor)
     ...Array(14).fill('############MGM###########'),
-    '#########P##MGM###########',
-    '#######MMMMMMGMMMMMMMMMMMx',
-    '#######MMMMMMGGGGGGGGMMMMx',
-    '#######MMMMMMMMMMMMMGMMMMx',
-    '#######MMMMMMMMMMMMMGMMMMx',
-    '################MMMMGMMMMx', // (a parede curta atrás da secretaria, colunas 16 a 18, saiu: ela terminava num toco)
-    '################MMMMGMMMMx',
-    '################MMMMGMMMMx',
-    '################MMMMGMMMMx',
+    'P###########MGM###########',
+    '#MMMMMMMMMMMMGMMMMMMMMMMMx',
+    '#MMMMMMMMMMMMGGGGGGGGMMMMx',
+    '#MMMMMMMMMMMMMMMMMMMGMMMMx',
+    '#MMMMMMMMMMMMMMMMMMMGMMMMx',
+    // a coordenação: uma sala aberta para o saguão, que entra 5 colunas para a esquerda (linhas 21 a 24)
+    '###########MMMMMMMMMGMMMMx',
+    '###########MMMMMMMMMGMMMMx',
+    '###########MMMMMMMMMGMMMMx',
+    '###########MMMMMMMMMGMMMMx',
     '################MMMMGMMMMx',
     '################MMMMGMMMMx',
     '################MMMMGMMMMx',
@@ -1428,7 +1469,13 @@
   // As 3 colunas novas ficam à esquerda do mapa: a coluna 0 continua sendo a parede de trás das cadeiras
   // (agora na borda), as colunas 1, 2 e 3 são chão novo. A sala passa a ter 7 colunas (4 + 3), sempre
   // com o mesmo comprimento de 9 linhas, igual à parede da porta.
-  TILES_FAC = TILES_FAC.map((row, y) => (y >= 28 && y <= 36 ? '#MMM' + row.slice(1) : '###' + row));
+  // O corredor do quadro (linhas 17-20) também ganha as 3 colunas à esquerda, e no final dele (perto do banheiro)
+  // abre um corredor para a esquerda (linhas 21-26, colunas 1-3) até a parede da linha 27.
+  TILES_FAC = TILES_FAC.map((row, y) => {
+    if (y >= 28 && y <= 36) return '#MMM' + row.slice(1);
+    if (y >= 17 && y <= 26) return '#MMM' + row.slice(1);
+    return '###' + row;
+  });
 
   const itens = [];
   const add = (o) => itens.push(o);
@@ -1468,9 +1515,9 @@
   add({ kind: 'fachada', opaca: true, eixo: 'v', lin: 4 * T + 10, a0: 33 * T, a1: 37 * T - 4, tx: 4, ty: 33 - DY, th: 4, solid: true, drawIso: desenharFachada, isoRect: [4 * T + 6, 33 * T - DY * T, 4 * T + 10, 37 * T - 4 - DY * T], isoH: 34 });
   add({ id: 'PORTA-REUNIAO', kind: 'porta-vidro', axis: 'v', dx: 6, semPlaca: true, tx: 4, ty: 31 - DY, th: 2, solid: false, drawIso: desenharVidro, isoRect: [4 * T + 6, 31 * T - DY * T, 4 * T + 10, 33 * T - DY * T], isoH: 44 });
   add({ kind: 'fachada', opaca: true, branca: true, eixo: 'h', lin: 37 * T, a0: 1 * T, a1: 5 * T, tx: 1, ty: 36 - DY, tw: 4, solid: false, drawIso: desenharFachada, isoRect: [1 * T, 37 * T - 4 - DY * T, 5 * T, 37 * T - DY * T], isoH: 34 });
-  // a parede comprida do lado de baixo do corredor de trás (linha 21, colunas 7 a 15): alta como as outras, no
+  // a parede comprida do lado de baixo do corredor de trás (linha 21, colunas 1 a 15): alta como as outras, no
   // lugar da borda baixa (o vão escuro entre o corredor e a parede dos avisos fica atrás dela)
-  add({ kind: 'parede-corredor', tx: 7, ty: 21 - DY, tw: 9, solid: false, drawIso: desenharParedeCorredor, isoRect: [7 * T, 21 * T - DY * T, 16 * T, 21 * T + 4 - DY * T], isoH: 46 });
+  add({ kind: 'parede-corredor', tx: 1, ty: 21 - DY, tw: 15, solid: false, drawIso: desenharParedeCorredor, isoRect: [1 * T, 21 * T - DY * T, 16 * T, 21 * T + 4 - DY * T], isoH: 46 });
   // a frente (linha 37), da esquerda para a direita: vidro, uma pilastra (x ≈ 14,8), vidro e um trecho de parede
   // cheia (colunas 19 e 20) até o canto
   fachada('h', 37 * T, 5 * T, 19 * T, [5 * T, 37 * T, 19 * T, 37 * T + 1]);       // corredor de estudo: vidro
@@ -1527,15 +1574,15 @@
   naParede({ kind: 'avisos', tx: 11, ty: 16, tw: 2 });
   naParede({ kind: 'vidro-sala', tx: 13, ty: 16, tw: 2 });
   // (hidrante embaixo do ar-condicionado, dentro da faixa da mesa: na coluna 15, encostado na ponta da mesa,
-  //  ele deixava a ordem de desenho em ciclo e 2 notebooks da secretaria sumiam atrás da mesa redonda)
+  //  ele deixava a ordem de desenho em ciclo e 2 notebooks da mesa redonda sumiam atrás da mesa redonda)
   naParede({ kind: 'hidrante', tx: 9, ty: 16 });
   // fundo: sala vazia (a mesa, as cadeiras e a planta foram retiradas; só ficam as paredes e a porta)
 
   // 3. Saguão, à direita de quem entra
-  // o logo fica na parede reta à esquerda do saguão (coluna 15, linhas 23 a 26), virado para a entrada.
-  // isoRect: bem fino (só a face da parede) e comprido até a linha 27½, para o motor sempre desenhar o
+  // o logo fica na parede reta à esquerda do saguão (coluna 15, linhas 25 a 27), virado para a entrada.
+  // isoRect: bem fino (só a face da parede) e comprido até o canto, para o motor sempre desenhar o
   // logo DEPOIS da parede branca (senão, com o jogador perto, a parede era pintada por cima e o logo sumia)
-  add({ id: 'LOGO', kind: 'logo-parede', tx: 16, ty: 11, th: 4, solid: false, drawIso: desenharLogoParede, isoRect: [16 * T, 11 * T, 16 * T + 0.5, 15.5 * T], isoH: 50, glow: 'rgba(255,170,110,0.05)' });
+  add({ id: 'LOGO', kind: 'logo-parede', tx: 16, ty: 13, th: 3, solid: false, drawIso: desenharLogoParede, isoRect: [16 * T, 13 * T, 16 * T + 0.5, 15.95 * T], isoH: 50, glow: 'rgba(255,170,110,0.05)' });
   // na frente do logo: tapete, poltronas vermelhas, puffs, lustres
   add({ kind: 'tapete', rug: true, tx: 21, ty: 14, tw: 4, th: 4, solid: false });
   add({ kind: 'luz-chao', rug: true, tx: 21, ty: 14, tw: 4, th: 4, solid: false, forca: 0.15 }); // a luz dos lustres no chão
@@ -1549,7 +1596,7 @@
   lustre('MESINHA', 22.1, 15, 'a');
   lustre('MESINHA', 22.6, 15, 'b');
   lustre('MESINHA', 23.2, 15, 'c');
-  // em frente à secretaria: poltronas de madeira com mesinha
+  // em frente à coordenação: poltronas de madeira com mesinha
   add({ id: 'MESA-MADEIRA', kind: 'table', variant: 'small', color: '#b07a45', tx: 23, ty: 11, drawIso: desenharMesinhaCentro, isoH: 16 });
   assento({ kind: 'poltrona-madeira', tx: 22, ty: 11 }, 'L');
   assento({ kind: 'poltrona-madeira', tx: 24, ty: 11 }, 'O');
@@ -1557,10 +1604,7 @@
   add({ kind: 'luz-chao', rug: true, tx: 22, ty: 10, tw: 3, th: 3, solid: false, forca: 0.14 });
   add({ kind: 'planta-alta', tx: 24, ty: 9, variant: 'folhas' });
 
-  // 4. Secretaria (aberta para o saguão): mesa redonda com 3 notebooks
-  add({ id: 'MESA-SEC', kind: 'table', tx: 17, ty: 10, tw: 2, th: 2, drawIso: desenharMesaRedonda, isoH: 30, dica: 'Ver a mesa da secretaria', texto: 'Secretaria · mesa redonda com 3 notebooks.' });
-  // (posição de cada notebook: um de cada lado e um na frente, em cima do tampo redondo)
-  for (const [nx, ny] of [[17.1, 10.8], [17.8, 10.1], [17.8, 10.8]]) add({ kind: 'notebook', host: 'MESA-SEC', tx: nx, ty: ny, solid: false, glow: 'rgba(120,170,240,0.035)' });
+  // 4. Coordenação: ver o fim da lista (já em coordenadas finais)
 
   // 5. Fim do saguão: parede verde com a frase (a sala de ADS fica atrás dela), degrau de madeira,
   //    poltronas, puffs, mesa e violão. O caminho para o corredor fica livre nas colunas 19 e 20.
@@ -1599,7 +1643,7 @@
 
   // 6. Corredor das salas (já nas linhas finais). Cada sala que abre é um mapa próprio.
   const NOME_SALA = { 1: 'Sala de ADS · laboratório de informática', 2: 'Laboratório da área da saúde' };
-  const VOLTA = { 1: [14 + SX, 15], 2: [9 + SX, 17] }; // onde o jogador aparece ao sair da sala
+  const VOLTA = { 1: [14 + SX, 15], 2: [0 + SX, 17] }; // onde o jogador aparece ao sair da sala
   // portas nas paredes dos lados do corredor: lado 'l' = direita de quem sobe (parede baixa, coluna 15),
   // lado 'o' = esquerda (parede alta, coluna 11). Abrem com E (o tile continua sendo parede).
   for (const [n, lado, y] of [[1, 'l', 15], [4, 'l', 11], [6, 'l', 7], [8, 'l', 3], [3, 'o', 11], [5, 'o', 7], [7, 'o', 3]]) {
@@ -1607,12 +1651,16 @@
     add({ id: 'PORTA-' + n, kind: 'porta', lado, sala: n, tx: x, ty: y, solid: false, drawIso: desenharPortaLado,
       // (lado 'o': retângulo fino e comprido até passar o fim da parede, para o motor sempre desenhar a
       //  porta DEPOIS da parede — o mesmo truque que o logo usava)
-      isoRect: lado === 'l' ? [rx, y * T, rx + 4, y * T + T] : [rx, y * T, rx + 0.5, 17.2 * T], isoH: 36, to: n === 1 ? 'faculdade-sala1' : null, toSpawn: [4, 4] });
+      isoRect: lado === 'l' ? [rx, y * T, rx + 4, y * T + T] : [rx, y * T, rx + 0.5, 17.2 * T], isoH: 36, to: n === 1 ? 'faculdade-sala1' : null });
   }
-  // Sala 2: porta na parede do fundo do corredor de baixo (dá para entrar andando)
-  add({ id: 'PORTA-2', kind: 'porta', sala: 2, tx: 9, ty: 16, solid: false, drawIso: desenharPorta, isoRect: [9 * T, 16 * T + 12, 9 * T + 16, 16 * T + 16], isoH: 48, to: 'faculdade-sala2', toSpawn: [4, 4] });
+  // Corredor da Sala 2: quadro preto bem largo com assinaturas/desenhos de giz, bebedouro logo depois,
+  // depois a porta da Sala 2 e, no fim, o banheiro e o corredor para a esquerda
+  naParede({ id: 'QUADRO-GIZ', kind: 'quadro-giz', tx: 4, ty: 17, tw: 7, dica: 'Ver o quadro de giz', texto: 'Quadro preto cheio de assinaturas, nomes e desenhos feitos com giz.' });
+  add({ id: 'BEBEDOURO', kind: 'bebedouro', tx: 3, ty: 17, solid: true, drawIso: desenharBebedouro, isoRect: [3 * T + 2, 17 * T + 1, 3 * T + 14, 17 * T + 9], isoH: 24, dica: 'Beber água', texto: 'Bebedouro · água gelada.' });
+  // Sala 2: porta na parede do fundo do corredor de baixo, depois do bebedouro (dá para entrar andando)
+  add({ id: 'PORTA-2', kind: 'porta', sala: 2, tx: 0, ty: 16, solid: false, drawIso: desenharPorta, isoRect: [0, 16 * T + 12, 16, 16 * T + 16], isoH: 48, to: 'faculdade-sala2' });
   // (isoRect só um pouco mais comprido, até a quina da parede ao lado: sem ciclo na ordem de desenho)
-  naParede({ kind: 'placa', variant: '2', tx: 10, ty: 17, text: 'Sala 2 · ' + NOME_SALA[2], isoRect: [10 * T, 17 * T, 11 * T + 14, 17 * T + 0.5] });
+  naParede({ kind: 'placa', variant: '2', tx: 1, ty: 17, text: 'Sala 2 · ' + NOME_SALA[2], isoRect: [1 * T, 17 * T, 2 * T + 14, 17 * T + 0.5] });
 
   // o que fica em cima de uma mesa (globos, cadernos, notebooks, pendentes) usa o mesmo retângulo dela no chão:
   // sempre depois da mesa e na mesma ordem que ela em relação às cadeiras (sem ciclo na ordem de desenho; só
@@ -1672,6 +1720,30 @@
   add({ kind: 'puff', variant: 'verde', tx: 8, ty: 35 });
   add({ kind: 'puff', variant: 'verde', tx: 8, ty: 36 });
 
+  // Banheiro no final do corredor do quadro (parede da esquerda, col 0) e porta no fim do corredor à esquerda (linha 27).
+  add({ id: 'PORTA-BANHEIRO', kind: 'porta', lado: 'o', tx: 0, ty: 18, solid: false, drawIso: desenharPortaLado, isoRect: [T, 18 * T, T + 0.5, 20.9 * T], isoH: 36, dica: 'Banheiro', texto: 'Banheiro · fechado.' });
+  add({ id: 'PORTA-CORREDOR-ESQ', kind: 'porta', front: true, tx: 2, ty: 27, solid: false, drawIso: desenharPorta, isoRect: [2 * T, 27 * T, 3 * T, 27 * T + 4], isoH: 36, dica: 'Porta', texto: 'Porta · fechada.' });
+
+  // 4. Coordenação (em coordenadas finais), como na foto: a sala aberta ao lado do painel do logo (colunas 14 a 18,
+  // linhas 21 a 24). A frente é o saguão, sem parede.
+  // a mesa redonda lá dentro, do lado da parede do corredor, com cadeiras escuras e um notebook em cada lugar
+  // (o caminho fica livre na linha 24)
+  add({ id: 'MESA-COORD', kind: 'table', tx: 16, ty: 21, tw: 2, th: 2, drawIso: desenharMesaRedonda, isoH: 30, isoRect: [16 * T + 1, 21 * T + 6, 18 * T - 1, 23 * T - 1],
+    glow: 'rgba(120,170,240,0.05)', dica: 'Ver a mesa dos coordenadores', texto: 'Coordenação · a mesa redonda onde os coordenadores trabalham.' });
+  LUGARES_COORD.forEach(([x, y, f], k) => assento({ id: 'CADEIRA-COORD-' + (k + 1), kind: 'cadeira', tx: x, ty: y, color: '#4a3d36' }, f, y === 22 ? 4 : 1));
+  // a parede clara do corredor, com o ar-condicionado. Ela é fina: o item fecha a linha 21 (ninguém a atravessa)
+  add({ kind: 'ar-coord', tx: 14, ty: 21, tw: 5, solid: true, drawIso: desenharArCoord, isoRect: [14 * T, 21 * T + 4, 19 * T, 21 * T + 4.5], isoH: 46 });
+  // no fundo, a parede laranja: as raízes pintadas e a porta com o visor de vidro comprido e a placa azul
+  add({ kind: 'raizes', tx: 14, ty: 21, solid: false, drawIso: desenharRaizes, isoRect: [14 * T, 21 * T + 5, 14 * T + 0.5, 22.9 * T], isoH: 46 });
+  add({ id: 'PORTA-COORD', kind: 'porta', lado: 'o', visor: true, tx: 13, ty: 23, solid: false, drawIso: desenharPortaLado, isoRect: [14 * T, 23 * T, 14 * T + 0.5, 24.9 * T], isoH: 36,
+    dica: 'Porta da coordenação', texto: 'Coordenação · sala só dos coordenadores.' });
+  // do lado do logo, a parede das 2 portas de madeira (fechadas), cada uma com a sua placa azul
+  const XP = [14 * T + 7, 16 * T + 4], YP = 25 * T;
+  XP.forEach((x, k) => add({ id: 'PORTA-COORD-' + (k + 2), kind: 'porta', front: true, travada: true, tx: x / T, ty: 25, solid: false, drawIso: desenharPorta,
+    isoRect: [x, YP, x + T, YP + 4], isoH: 36, dica: 'Porta da coordenação', texto: 'Coordenação · porta fechada.' }));
+  for (const [x0, x1, placa] of [[14 * T, XP[0], XP[0] - 6], [XP[0] + T, XP[1]], [XP[1] + T, 19 * T - 4, XP[1] + T + 1]])
+    add({ kind: 'parede-baixa', tx: Math.floor(x0 / T), ty: 25, solid: false, placa, drawIso: desenharParedeBaixa, isoRect: [x0, YP, x1, YP + 4], isoH: 30 });
+
   const mapa = {
     id: 'faculdade',
     name: 'Faculdade Serra Dourada',
@@ -1680,21 +1752,23 @@
     rooms: [
       { x: 16, y: 26, w: 3, h: 2, style: ESTILO },                                            // canto do logo
       { x: 19, y: 17, w: 6, h: 20, style: ESTILO },                                           // saguão (até a linha 37, com o canto em diagonal)
-      { x: 16, y: 22, w: 3, h: 4, style: ESTILO },                                            // secretaria
-      { x: 7, y: 17, w: 12, h: 4, style: ESTILO_CORREDOR },                                   // corredor
+      { x: 16, y: 22, w: 3, h: 4, style: ESTILO },                                            // em frente à coordenação
+      { x: 11, y: 21, w: 5, h: 4, style: { wall: 'pintada', wallColor: '#e2701c', light: 'warm' } }, // coordenação: a parede do fundo é laranja
+      { x: 1, y: 17, w: 18, h: 4, style: ESTILO_CORREDOR },                                   // corredor
       { x: 12, y: 1, w: 3, h: 16, style: ESTILO_CORREDOR },                                   // corredor das salas
       { x: 5, y: 28, w: 14, h: 6, style: ESTILO_CORREDOR },                                   // mesas
       { x: 5, y: 34, w: 14, h: 3, style: ESTILO_CORREDOR },                                   // faixa da janela (corredor alargado)
-      { x: 16, y: 21, w: 3, h: 1, style: ESTILO },                                            // onde ficava a parede curta atrás da secretaria
+      { x: 16, y: 21, w: 3, h: 1, style: ESTILO },                                            // onde ficava a parede curta atrás da mesa redonda
       // sala do fundo: paredes pintadas de branco, sem ripas (a antiga sala de vidro âmbar virou parede cheia)
       { id: 'SALA-FUNDO', x: 1, y: 28, w: 4 + SX, h: 9, style: { wall: 'pintada', wallColor: '#ffffff', light: 'bright' } }, // (linhas 28 a 36; 7 colunas após o recuo da parede esquerda)
+      { id: 'CORREDOR-ESQ', x: 1, y: 17, w: 3, h: 10, style: ESTILO_CORREDOR }, // extensão do corredor do quadro + corredor à esquerda até a linha 26
     ],
     spawn: [21.75, 33.6], // logo depois da porta de vidro (1 passo para dentro do meio dela), olhando as mesas
     spawnDir: 'left',
     portals: [
       { tx: 22, ty: 35, to: SAIDA }, { tx: 23, ty: 34, to: SAIDA }, // (os 2 tiles da porta, na diagonal)
       { tx: 22, ty: 36, to: SAIDA }, { tx: 23, ty: 35, to: SAIDA }, // (e os de fora logo atrás dela: o pé do jogador chega neles)
-      { tx: 9, ty: 16, to: 'faculdade-sala2', spawn: [4, 4] },
+      { tx: 0, ty: 16, to: 'faculdade-sala2' },
     ],
     // (tela interna de 480 px de altura: numa tela Full HD cabe ~50% mais sala, com os pixels nítidos;
     //  minS 2: em telas menores nunca fica menor que antes)
@@ -1716,16 +1790,19 @@
       ent.iy = ent.py - 8;
       const logo = w.byId.LOGO; // na frente da parede
       logo.ix = logo.px + 6;
-      logo.iy = logo.py + 2 * T;
-      const mesa = w.byId['MESA-SEC']; // do lado do saguão
-      mesa.ix = mesa.px + 2 * T + 6;
-      mesa.iy = mesa.py + T + 4;
+      logo.iy = logo.py + 1.5 * T;
+      const mesa = w.byId['MESA-COORD']; // do lado do caminho
+      mesa.ix = mesa.px + T;
+      mesa.iy = mesa.py + 3 * T + 6;
+      for (const id of ['PORTA-COORD-2', 'PORTA-COORD-3']) { const d = w.byId[id]; d.ix = d.px + 8; d.iy = d.py - 5; }
       const tx = Math.floor(game.player.x / T), ty = Math.floor(game.player.y / T);
       // portas dos lados do corredor das salas: a dica aparece do lado de dentro do corredor
       for (const e of w.items) if (e.lado) { e.ix = e.lado === 'l' ? e.px - 7 : e.px + T + 7; e.iy = e.py + 10; }
+      const pEsq = w.byId['PORTA-CORREDOR-ESQ'];
+      if (pEsq) { pEsq.ix = pEsq.px + 8; pEsq.iy = pEsq.py - 6; }
       if (tx === VOLTA[1][0] && ty === VOLTA[1][1]) game.player.dir = 'left'; // voltou da sala de ADS
       else if (tx === VOLTA[2][0] && ty === VOLTA[2][1]) game.player.dir = 'down'; // voltou da Sala 2
-      else game.toast('Faculdade Serra Dourada · em frente, as mesas; à direita, o logo, a secretaria e o corredor das salas');
+      else game.toast('Faculdade Serra Dourada · em frente, as mesas; à direita, o logo, a coordenação e o corredor das salas');
       alunos.iniciar(game, 'faculdade');
     },
     leave() { esconderMissao(false); },
@@ -1737,107 +1814,18 @@
   for (const r of mapa.rooms) {
     // a sala marrom ganhou as 3 colunas à esquerda: ela começa no chão novo (x = 1), não no antigo x deslocado
     if (r.id === 'SALA-FUNDO') r.x = 1;
-    else r.x += SX;
+    else if (r.id !== 'CORREDOR-ESQ') r.x += SX;
   }
   mapa.spawn[0] += SX;
   for (const p of mapa.portals) p.tx += SX;
   DL.registerMap(mapa);
 
   /* ------------------------------------------------------------------ */
-  /* As 2 salas                                                          */
-  /*   Sala 1: sala de ADS, laboratório de informática (mesas e notebooks) */
-  /*   Sala 2: laboratório da área da saúde (esqueleto, fóssil, órgãos)   */
+  /* As 2 salas (Sala 1 = ADS, Sala 2 = saúde) ficam em faculdade-salas.js, */
+  /* que usa estas peças                                                  */
   /* ------------------------------------------------------------------ */
-  const PRETA = '#1e2126';
-  // mesa de 2 tiles com uma cadeira atrás de cada lugar (o corredor do meio, x 3 e 4, fica livre)
-  const bancada = (id, tx, ty, cor, cadeira) => [
-    { id, kind: 'table', variant: 'office', color: cor, tx, ty, tw: 2 },
-    { kind: 'cadeira', rot: 1, color: cadeira, tx, ty: ty + 1 },
-    { kind: 'cadeira', rot: 1, color: cadeira, tx: tx + 1, ty: ty + 1 },
-  ];
-  const sobre = (host, kind, tx, ty, extra) => Object.assign({ kind, host, tx, ty, solid: false }, extra);
-
-  const SALAS = {
-    1: {
-      nome: 'Sala de ADS · laboratório de informática',
-      quadro: 'No quadro: "Aula de hoje: lógica de programação".',
-      itens: () => {
-        const out = [];
-        // 4 mesas pretas, 2 notebooks em cada
-        [[1, 2], [5, 2], [1, 4], [5, 4]].forEach(([x, y], k) => {
-          const id = 'INFO-' + k;
-          out.push(...bancada(id, x, y, PRETA, '#3a3f47'));
-          for (const nx of [x, x + 1]) {
-            out.push(sobre(id, 'notebook', nx, y, { glow: 'rgba(120,170,240,0.035)', dica: 'Ver o notebook', texto: 'Notebook do laboratório (provisório: ainda não liga).' }));
-          }
-        });
-        out.push({ kind: 'planta-alta', tx: 7, ty: 6 });
-        return out;
-      },
-    },
-    2: {
-      nome: 'Laboratório da área da saúde',
-      quadro: 'No quadro: "Anatomia: sistema circulatório".',
-      itens: () => {
-        const ver = (dica, texto) => ({ dica, texto });
-        return [
-          Object.assign({ kind: 'esqueleto', tx: 1, ty: 2 }, ver('Ver o esqueleto', 'Esqueleto humano para as aulas de anatomia.')),
-          Object.assign({ kind: 'vitrine', tx: 7, ty: 2 }, ver('Ver a vitrine', 'Vitrine com órgãos conservados em potes.')),
-          Object.assign({ kind: 'vitrine', tx: 7, ty: 3 }, ver('Ver a vitrine', 'Vitrine com órgãos conservados em potes.')),
-          Object.assign({ kind: 'fossil', tx: 5, ty: 6, tw: 2 }, ver('Ver o fóssil', 'Fóssil de um pequeno dinossauro, montado no pedestal.')),
-          ...bancada('SAUDE-1', 1, 4, COR.branco, '#c9cdd2'),
-          sobre('SAUDE-1', 'torso', 1, 4, ver('Ver o modelo', 'Modelo de anatomia: metade pele, metade órgãos.')),
-          sobre('SAUDE-1', 'coracao', 2, 4, ver('Ver o coração', 'Modelo de coração humano.')),
-          ...bancada('SAUDE-2', 5, 3, COR.branco, '#c9cdd2'),
-          sobre('SAUDE-2', 'cranio', 5, 3, ver('Ver o crânio', 'Crânio fóssil de um animal.')),
-          sobre('SAUDE-2', 'microscopio', 6, 3, ver('Usar o microscópio', 'No microscópio: células de uma folha.')),
-          { id: 'SAUDE-3', kind: 'table', variant: 'office', color: COR.branco, tx: 2, ty: 2 },
-          sobre('SAUDE-3', 'cerebro', 2, 2, ver('Ver o cérebro', 'Modelo de cérebro humano.')),
-        ];
-      },
-    },
+  DL.FacKit = {
+    pecas3d, sombra3d, caixa, roda, chao, caixaTela, desenharPorta, prepararSalas, esconderMissao, afastarCamera,
+    animarPortas, useLabel, use, VOLTA, NOME_SALA,
   };
-
-  [1, 2].forEach((n) => {
-    const S = SALAS[n], volta = VOLTA[n];
-    DL.registerMap({
-      id: 'faculdade-sala' + n,
-      name: 'Sala ' + n + ' · ' + S.nome,
-      tiles: [
-        '#########',
-        '#MMMMMMM#',
-        '#MMMMMMM#',
-        '#MMMMMMM#',
-        '#MMMMMMM#',
-        '#MMMMMMM#',
-        '#MMMMMMM#',
-        '####o####',
-      ],
-      items: [
-        { kind: 'quadro', wall: true, solid: false, tx: 3, ty: 1, tw: 3, dica: 'Ler o quadro', texto: S.quadro },
-        { kind: 'placa', wall: true, solid: false, variant: String(n), tx: 1, ty: 1, text: 'Sala ' + n + ' · ' + S.nome },
-        { kind: 'ar-parede', wall: true, solid: false, tx: 6, ty: 1, tw: 2 },
-        ...S.itens(),
-        { id: 'PORTA', kind: 'porta', front: true, sala: n, tx: 4, ty: 7, solid: false, drawIso: desenharPorta, isoRect: [64, 112, 80, 116], isoH: 36, to: 'faculdade', toSpawn: volta },
-      ],
-      rooms: [{ x: 1, y: 1, w: 7, h: 6, style: ESTILO }],
-      spawn: [4, 4],
-      spawnDir: 'up',
-      portals: [{ tx: 4, ty: 7, to: 'faculdade', spawn: volta }],
-      camera: { tilesWide: 11, minTilesHigh: 8, pixelH: 360, minS: 1 },
-      enter(game) {
-        prepararSalas(game);
-        esconderMissao(true);
-        const porta = game.world.byId.PORTA;
-        porta.iy = porta.py - 4;
-        game.toast('Sala ' + n + ' · ' + S.nome);
-        alunos.iniciar(game, 'sala' + n);
-      },
-      leave() { esconderMissao(false); },
-      update(game, dt) { alunos.atualizar(game, dt); animarPortas(game, dt); },
-      overlay(g, sc) { alunos.desenharFalas(g, sc); },
-      useLabel,
-      use,
-    });
-  });
 })();

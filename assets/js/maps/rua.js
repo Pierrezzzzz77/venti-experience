@@ -332,14 +332,17 @@
   items.push({ id: 'PORTA-DL', kind: 'rua-porta', tx: Math.floor(DL_PORTA.x / T), ty: Math.floor(DL_PORTA.y / T) - 1, tw: 1, th: 1, solid: false, isoH: 2, drawIso: desenhaNeon });
   // Barraca de pastel na calçada em frente à faculdade.
   items.push({ id: 'MESA-PASTEL', kind: 'table', variant: 'office', color: '#f4f1e8', tx: 24, ty: 54, tw: 1, th: 1, solid: false });
-  items.push({ id: 'PASTEIS', kind: 'rua-pasteis', tx: 24, ty: 54, tw: 1, th: 1, solid: false, drawIso: (g, sc, e) => {
+  items.push({ id: 'PASTEIS', kind: 'rua-pasteis', host: 'MESA-PASTEL', tx: 24, ty: 54, tw: 1, th: 1, solid: false, drawIso: (g, sc, e) => {
+    // (em coordenadas de tela isométrica, em cima do tampo da mesa: senão os pastéis apareciam longe dela)
+    const x = e.px + 8, y = e.py + 8, X = Math.round(x - y) - 8, Y = Math.round((x + y) / 2) - 12 + 5;
     K.isoT(g, sc);
-    R(g, e.px + 1, e.py - 6, 14, 4, '#d8dce1');
-    R(g, e.px + 2, e.py - 7, 12, 1, '#ffffff');
-    R(g, e.px + 3, e.py - 5, 4, 2, '#e8c477');
-    R(g, e.px + 8, e.py - 5, 4, 2, '#e8c477');
-    R(g, e.px + 4, e.py - 4, 2, 1, '#b96d32');
-    R(g, e.px + 9, e.py - 4, 2, 1, '#b96d32');
+    R(g, X + 1, Y - 6, 14, 4, '#d8dce1');
+    R(g, X + 2, Y - 7, 12, 1, '#ffffff');
+    R(g, X + 3, Y - 5, 4, 2, '#e8c477');
+    R(g, X + 8, Y - 5, 4, 2, '#e8c477');
+    R(g, X + 4, Y - 4, 2, 1, '#b96d32');
+    R(g, X + 9, Y - 4, 2, 1, '#b96d32');
+    return { rect: [X, Y - 8, X + 16, Y] };
   } });
 
   /* ------------------------------------------------------------------ */

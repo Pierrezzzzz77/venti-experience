@@ -25,7 +25,8 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
    Vista de lado pela PA-160 (SkyFit, casas, comércios, árvores em camadas); na rotatória o carro vira e a
    câmera vai para trás dele, pela Av. Carajás em perspectiva, até encostar em frente à faculdade.
 2. Faculdade por dentro, seguindo a planta real: entrada com porta de vidro e faixa tátil; em frente, as mesas;
-   à direita, o saguão com o logo numa parede em diagonal, a secretaria (mesa redonda com 3 notebooks),
+   à direita, o saguão com o logo numa parede em diagonal, a coordenação (sala aberta: 2 portas
+   ao lado do logo, parede laranja no fundo com uma porta e a mesa redonda dos notebooks),
    a parede verde no fim e o corredor das salas (4 portas de cada lado) — **pronto** (`?mapa=faculdade`)
    (Sala 1: sala de ADS, laboratório de informática · Sala 2: laboratório da área da saúde · Salas 3 a 8: portas fechadas)
    Alunos (bots) pela faculdade e nas 2 salas: estudando nas mesas, conversando em grupinhos (em pé e sentados),
@@ -63,7 +64,8 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 | `assets/js/maps/abertura-pecas.js` | Parte 1: as peças da viagem, cada uma num sprite pronto — árvores, 23 modelos de casa/comércio, SkyFit (foto 15), prédios ao longe, carros. |
 | `assets/js/maps/abertura.js` | Parte 1: a viagem — plano de lado com camadas em paralaxe, a curva na rotatória e o plano em perspectiva até a faculdade. |
 | `assets/js/maps/faculdade-alunos.js` | Os alunos (bots) da faculdade: quem estuda, conversa e anda; mochila, caderno e livro. Carregado antes de `faculdade.js`. |
-| `assets/js/maps/faculdade.js` | Parte 2: a faculdade por dentro (mesas, saguão com o logo, secretaria, corredor) e as 2 salas (mapas `faculdade-sala1` e `faculdade-sala2`). |
+| `assets/js/maps/faculdade.js` | Parte 2: a faculdade por dentro (mesas, saguão com o logo, coordenação, corredor). |
+| `assets/js/maps/faculdade-salas.js` | Parte 2: as 2 salas, feitas pelas fotos (pasta `foto sala`): Sala 1 = ADS (`faculdade-sala1`) e Sala 2 = saúde (`faculdade-sala2`). Carregado depois de `faculdade.js`. |
 | `assets/js/maps/rua.js` | Parte 3: a rua da Serra Dourada e do DataLab (isométrica, noite): prédios e chão pintados uma vez, carro parado, pedestres, as portas da faculdade e do DataLab. |
 | `assets/js/maps/datalab.js` | Parte 4: a sala do DataLab e a missão. |
 
