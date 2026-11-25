@@ -108,8 +108,8 @@
   const QUADROS = new Map();
   class Aluno extends DL.Actor {
     constructor(i, x, y, dir, o) {
-      super(visual(i), x, y, dir);
       o = o || {};
+      super(o.visual || visual(i), x, y, dir);
       this.n = i;
       this.corMochila = MOCHILA[Math.floor(hash(i * 13 + 7) * MOCHILA.length)];
       this.mochila = o.mochila !== false;
@@ -194,6 +194,14 @@
   /* O que cada um faz                                                   */
   /* ------------------------------------------------------------------ */
   const FALAS = {
+    bemvindo: ['Boa noite, seja bem-vindo.'],
+    professor: [
+      'Pessoal, isso é conteúdo de prova.',
+      'Aurisnei, que fala aqui na frente?',
+      'Bora lá, pessoal,',
+      'Não esqueçam de entregar o trabalho na próxima aula.',
+      "A prova vai ser na próxima semana, estudem bastante.",
+    ],
     estuda: [
       'Shhh… prova de lógica amanhã!', 'Tô terminando o trabalho de banco de dados.', 'Revisando a matéria, depois a gente conversa.',
       'Esse exercício de algoritmo tá difícil…', 'Me empresta uma caneta? A minha acabou.', 'Faltam 3 páginas do resumo!',
@@ -213,6 +221,26 @@
     a.blinkIn = 0.5 + hash(i * 9) * 3;
     sc.drawables.push(a);
     V.alunos.push(a);
+    return a;
+  }
+
+  function professor(game, x, y) {
+    const look = Object.assign({}, visual(70), {
+      body: 'm', skin: '#e0ac7e', hair: '#1d1612', shirt: '#e75480', pants: '#6b4a2f', shoes: '#292929',
+      hairStyle: 'short', glasses: true, glassesColor: '#ffffff', earrings: false,
+    });
+    const a = novo(game.scene, 70, x, y, 'down', { mochila: false, visual: look });
+    a.acao = 'professor';
+    a.localFixo = { x: a.x, y: a.y };
+    a.e = fala(game.world, 'Falar com o professor', 'professor', a.x, a.y);
+    return a;
+  }
+  function bemVindo(game, i, x, y, look) {
+    const a = novo(game.scene, i, x, y, 'down', { mochila: false, visual: look });
+    a.acao = 'bemvindo';
+    a.localFixo = { x: a.x, y: a.y };
+    a.e = fala(game.world, 'Falar com o personagem', 'bemvindo', a.x, a.y);
+    V.bemVindos.push(a);
     return a;
   }
   // senta no assento que já existe no mapa (tile tx, ty); o assento passa a ser desenhado com o aluno
@@ -270,7 +298,7 @@
   // olhar = para onde olha quando para na ponta b; inicio 'b' = começa na outra ponta
   function andante(game, i, r) {
     const pts = r.pts.map(([x, y]) => [x * T, y * T]);
-    const a = novo(game.scene, i, pts[0][0] / T, pts[0][1] / T, 'down', {});
+    const a = novo(game.scene, i, pts[0][0] / T, pts[0][1] / T, 'down', r.look ? { visual: r.look } : {});
     a.acao = 'anda';
     a.rota = { pts, a: r.a, b: r.b, olhar: r.olhar };
     a.ida = r.inicio !== 'b';
@@ -340,6 +368,8 @@
   /* ------------------------------------------------------------------ */
   const CENAS = {
     faculdade(game) {
+      bemVindo(game, 80, 22.0, 34.3, { skin: '#c68a5c', hair: '#1d1612', hairStyle: 'short', shirt: '#161616', pants: '#e8c15a', shoes: '#292929', body: 'm', hat: 'cap', capColor: '#6b4a2f' });
+      bemVindo(game, 81, 23.0, 34.0, { skin: '#f5d3b3', hair: '#b8864a', hairStyle: 'long', shirt: '#161616', pants: '#e8c15a', shoes: '#eceff3', body: 'f' });
       // o mapa inteiro foi deslocado 3 colunas para a direita para a parede de trás das cadeiras recuar
       const dx = 3;
       const E = (i, tx, ty, dir, ritmo, o) => estudar(game, i, tx + dx, ty, dir, ritmo, o);
@@ -361,8 +391,11 @@
       A(30, { pts: [[23.4, 35.4], [22.4, 34.4], [22.4, 32.6], [19.5, 32.6], [19.5, 18.5], [13.5, 18.5], [13.5, 11.5], [14.65, 11.5]], a: 'porta', b: 'porta', inicio: 'b', espera0: 2 });
       A(31, { pts: [[9.5, 16.7], [9.5, 19.5], [20.5, 19.5], [20.5, 31.6], [22.4, 31.6], [22.4, 34.4], [23.4, 35.4]], a: 'porta', b: 'porta', espera0: 5 });
       A(33, { pts: [[14.65, 15.5], [13.6, 15.5], [13.6, 19.4], [19.3, 19.4], [19.3, 24.6], [17.4, 24.6]], a: 'porta', b: 'parar', olhar: 'up', espera0: 9 });
+      A(82, { pts: [[23.4, 35.4], [22.4, 34.4], [22.4, 31.6], [20.5, 31.6], [20.5, 25.0], [18.0, 25.0]], a: 'porta', b: 'parar', olhar: 'left', espera0: 4,
+        look: { skin: '#e0ac7e', hair: '#1d1612', hairStyle: 'short', shirt: '#f05a28', pants: '#6b4a2f', shoes: '#292929', body: 'm' } });
     },
     sala1(game) {
+      professor(game, 4, 1.85);
       // laboratório de informática: digitando nos notebooks, de frente para o quadro
       estudar(game, 40, 1, 3, 'up', 0.16);
       estudar(game, 41, 6, 3, 'up', 0.2);
@@ -379,7 +412,7 @@
 
   DL.FacAlunos = {
     iniciar(game, cena) {
-      V = { t: 0, alunos: [], grupos: [] };
+      V = { t: 0, alunos: [], grupos: [], bemVindos: [] };
       if (CENAS[cena]) CENAS[cena](game);
     },
     atualizar(game, dt) {
@@ -403,6 +436,22 @@
           a.t -= dt;
           if (a.t <= 0) { a.pausa = !a.pausa; a.t = a.pausa ? rnd(1.2, 3.5) : rnd(2, 6); }
           a.pose = a.pausa ? 'sitR' : Math.floor((V.t + a.n * 0.37) / a.ritmo) % 2 ? 'sitA' : 'sitB';
+        } else if (a.acao === 'professor') {
+          a.x = a.localFixo.x;
+          a.y = a.localFixo.y;
+          a.moving = false;
+          a.pose = Math.floor(V.t * 0.8) % 2 ? 'talk' : null;
+          a.e.ix = a.x;
+          a.e.iy = a.y;
+          a.e.py = a.y - 8;
+        } else if (a.acao === 'bemvindo') {
+          a.x = a.localFixo.x;
+          a.y = a.localFixo.y;
+          a.moving = false;
+          a.pose = Math.floor(V.t * 0.8) % 2 ? 'talk' : null;
+          a.e.ix = a.x;
+          a.e.iy = a.y;
+          a.e.py = a.y - 8;
         } else if (a.acao === 'anda') {
           passo(a, dt, game);
           a.e.ix = a.hidden || a.estado === 'sai' ? null : a.x;
@@ -418,13 +467,65 @@
       const quem = [];
       for (const gr of V.grupos) if (!gr.pausa && gr.membros[gr.fala]) quem.push(gr.membros[gr.fala]);
       for (const a of V.alunos) if (a.acao === 'anda' && a.estado === 'para') quem.push(a);
-      if (!quem.length) return;
+      const professores = V.alunos.filter((a) => a.acao === 'professor');
+      const bemVindos = V.bemVindos || [];
+      if (!quem.length && !professores.length && !bemVindos.length) return;
       DL.isoKit.isoT(g, sc);
       const branco = 'rgba(255,255,255,0.88)';
       for (const a of quem) {
         const X = Math.round(IX(a.x, a.y)), Y = Math.round(IY(a.x, a.y, a.z || 0)) - (a.assento ? 30 : 38);
         R(g, X - 5, Y - 4, 11, 6, branco); R(g, X - 1, Y + 2, 2, 1, branco);
         for (let k = 0; k < 3; k++) R(g, X - 3 + k * 3, Y - 2, 1, 1, Math.floor(V.t * 3) % 3 >= k ? '#3b4250' : '#b8bec7');
+      }
+      for (const a of professores) {
+        const frase = FALAS.professor[Math.floor(V.t / 4) % FALAS.professor.length];
+        const palavras = frase.split(' '), linhas = [''], limite = 30;
+        for (const palavra of palavras) {
+          const atual = linhas[linhas.length - 1];
+          if ((atual + ' ' + palavra).trim().length > limite) linhas.push(palavra);
+          else linhas[linhas.length - 1] = (atual + ' ' + palavra).trim();
+        }
+        const X = Math.round(IX(a.x, a.y)), Y = Math.round(IY(a.x, a.y, a.z || 0)) - 42;
+        const W = Math.min(88, Math.max(48, Math.max(...linhas.map((l) => l.length)) * 2.6 + 7));
+        const H = linhas.length * 6 + 5, L = X - W / 2, T0 = Y - H, raio = 4;
+        g.beginPath();
+        g.moveTo(L + raio, T0);
+        g.lineTo(L + W - raio, T0); g.quadraticCurveTo(L + W, T0, L + W, T0 + raio);
+        g.lineTo(L + W, T0 + H - raio); g.quadraticCurveTo(L + W, T0 + H, L + W - raio, T0 + H);
+        g.lineTo(L + raio, T0 + H); g.quadraticCurveTo(L, T0 + H, L, T0 + H - raio);
+        g.lineTo(L, T0 + raio); g.quadraticCurveTo(L, T0, L + raio, T0);
+        g.closePath();
+        g.fillStyle = '#fffdf6'; g.fill();
+        g.strokeStyle = '#29313b'; g.lineWidth = 1; g.stroke();
+        R(g, X - 2, Y, 4, 2, '#fffdf6');
+        g.save();
+        g.fillStyle = '#29313b';
+        g.font = '4px monospace';
+        g.textAlign = 'center';
+        g.textBaseline = 'top';
+        linhas.forEach((linha, k) => g.fillText(linha, X, Y - H + 2 + k * 6));
+        g.restore();
+      }
+      if (bemVindos.length) {
+        const bx = bemVindos.reduce((s, a) => s + a.x, 0) / bemVindos.length;
+        const by = bemVindos.reduce((s, a) => s + a.y, 0) / bemVindos.length;
+        const X = Math.round(IX(bx, by)), Y = Math.round(IY(bx, by)) - 38;
+        const L = X - 38, T0 = Y - 14, W = 76, H = 16, raio = 5;
+        g.beginPath();
+        g.moveTo(L + raio, T0);
+        g.lineTo(L + W - raio, T0); g.quadraticCurveTo(L + W, T0, L + W, T0 + raio);
+        g.lineTo(L + W, T0 + H - raio); g.quadraticCurveTo(L + W, T0 + H, L + W - raio, T0 + H);
+        g.lineTo(L + raio, T0 + H); g.quadraticCurveTo(L, T0 + H, L, T0 + H - raio);
+        g.lineTo(L, T0 + raio); g.quadraticCurveTo(L, T0, L + raio, T0);
+        g.closePath();
+        g.fillStyle = '#fffdf6'; g.fill();
+        g.strokeStyle = '#29313b'; g.lineWidth = 1; g.stroke();
+        R(g, X - 2, Y + 2, 4, 2, '#fffdf6');
+        g.save();
+        g.fillStyle = '#29313b'; g.font = '4px monospace'; g.textAlign = 'center'; g.textBaseline = 'top';
+        g.fillText('Boa noite,', X, T0 + 3);
+        g.fillText('seja bem-vindo', X, T0 + 9);
+        g.restore();
       }
     },
   };

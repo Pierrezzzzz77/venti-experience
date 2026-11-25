@@ -367,7 +367,7 @@
       H(-3, -1, 3, 1, bL);
     }
     if (L.glasses) {
-      const f = '#1c1f26', lens = 'rgba(160,195,236,0.35)';
+      const f = L.glassesColor || '#1c1f26', lens = 'rgba(160,195,236,0.35)';
       if (dir === 'down') {
         R(g, ax - 4, hy + 4, 8, 1, f);
         R(g, ax - 4, hy + 5, 1, 2, f); R(g, ax - 1, hy + 5, 1, 1, f); R(g, ax, hy + 5, 1, 1, f); R(g, ax + 3, hy + 5, 1, 2, f);

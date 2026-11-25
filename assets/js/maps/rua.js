@@ -330,6 +330,17 @@
   items.push({ id: 'PORTA', kind: 'rua-porta', tx: Math.floor(PORTA.x / T), ty: Math.floor(PORTA.y / T), tw: 1, th: 1, solid: false, isoH: 2, drawIso: (g, sc) => luzDaPorta(g, sc) });
   // a porta do DataLab, que também desenha o brilho do néon a cada quadro (pulsa de leve e, às vezes, pisca)
   items.push({ id: 'PORTA-DL', kind: 'rua-porta', tx: Math.floor(DL_PORTA.x / T), ty: Math.floor(DL_PORTA.y / T) - 1, tw: 1, th: 1, solid: false, isoH: 2, drawIso: desenhaNeon });
+  // Barraca de pastel na calçada em frente à faculdade.
+  items.push({ id: 'MESA-PASTEL', kind: 'table', variant: 'office', color: '#f4f1e8', tx: 24, ty: 54, tw: 1, th: 1, solid: false });
+  items.push({ id: 'PASTEIS', kind: 'rua-pasteis', tx: 24, ty: 54, tw: 1, th: 1, solid: false, drawIso: (g, sc, e) => {
+    K.isoT(g, sc);
+    R(g, e.px + 1, e.py - 6, 14, 4, '#d8dce1');
+    R(g, e.px + 2, e.py - 7, 12, 1, '#ffffff');
+    R(g, e.px + 3, e.py - 5, 4, 2, '#e8c477');
+    R(g, e.px + 8, e.py - 5, 4, 2, '#e8c477');
+    R(g, e.px + 4, e.py - 4, 2, 1, '#b96d32');
+    R(g, e.px + 9, e.py - 4, 2, 1, '#b96d32');
+  } });
 
   /* ------------------------------------------------------------------ */
   /* O chão pronto: juntas, guias, faixas, vagas e as poças de luz        */
@@ -386,7 +397,11 @@
     { look: { skin: '#e0ac7e', hair: '#2a1c16', hairStyle: 'curly', shirt: '#f2c14e', pants: '#1f2430', shoes: '#c8262e' }, x: 38.2, a: 3, b: 60, v: -21, y: 20 },
     { look: { skin: '#a86f4c', hair: '#1a1210', hairStyle: 'short', shirt: '#4a7ac8', pants: '#2a2f38', shoes: '#eceff3' }, eixo: 'x', y: 60.4, a: 2, b: 21, v: 16, x: 9 },
   ];
-  const st = { t: 0, fase: 'jogo', gente: [], msg: 0 };
+  const st = { t: 0, fase: 'jogo', gente: [], msg: 0, vendedora: null };
+  const VENDEDORA = {
+    look: { skin: '#f5d3b3', hair: '#b8864a', hairStyle: 'long', shirt: '#f0a5b8', pants: '#6b5a45', shoes: '#eceff3', body: 'f' },
+    x: 25.5, y: 55.2,
+  };
 
   /* ------------------------------------------------------------------ */
   /* validarMapa() também vale aqui                                      */
@@ -407,7 +422,7 @@
       if (e.solid && e.kind !== 'rua-predio' && e.tx > FRENTE && e.tx < VAGA[0] - 1 && e.ty < SERRA.y1) err(e.kind, 'no meio da calçada', e.tx, e.ty);
     }
     // nada em cima de nada (só o que ocupa lugar)
-    const ocupa = lista.filter((e) => e.kind !== 'rua-porta');
+    const ocupa = lista.filter((e) => e.kind !== 'rua-porta' && e.kind !== 'rua-pasteis');
     for (let i = 0; i < ocupa.length; i++) for (let j = i + 1; j < ocupa.length; j++) {
       const a = ocupa[i], b = ocupa[j];
       if (a.tx < b.tx + b.tw && b.tx < a.tx + a.tw && a.ty < b.ty + b.th && b.ty < a.ty + a.th) {
@@ -578,6 +593,10 @@
         sc.drawables.push(a);
         st.gente.push({ a, p, v: p.v });
       }
+      const vendedora = new DL.Actor(VENDEDORA.look, VENDEDORA.x * T, VENDEDORA.y * T, 'down');
+      vendedora.moving = false;
+      sc.drawables.push(vendedora);
+      st.vendedora = vendedora;
       // a caixa de missão
       const box = $('mission'), txt = box.querySelector('p');
       if (missaoAntes == null) missaoAntes = txt.textContent;
@@ -605,6 +624,10 @@
         if (a[eixo] > p.b * T) q.v = -Math.abs(q.v); else if (a[eixo] < p.a * T) q.v = Math.abs(q.v);
         a.dir = eixo === 'y' ? (q.v > 0 ? DL.dirOf(0, 1) : DL.dirOf(0, -1)) : (q.v > 0 ? DL.dirOf(1, 0) : DL.dirOf(-1, 0));
         a.moving = true; a.dist += Math.abs(q.v) * dt; a.tick(dt);
+      }
+      if (st.vendedora) {
+        st.vendedora.moving = false;
+        st.vendedora.tick(dt);
       }
       if (st.fase === 'chegada') {
         car.porta = t < CH.abre[0] ? 0 : t < CH.abre[1] ? 0.5 : t < CH.fecha[0] ? 1 : t < CH.fecha[1] ? 0.5 : 0;
