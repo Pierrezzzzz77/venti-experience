@@ -24,7 +24,8 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 1. Viagem: do Lago da Prefeitura até a Faculdade Serra Dourada, de carro (botão Pular) — **pronto**
    Vista de lado pela PA-160 (SkyFit, casas, comércios, árvores em camadas); na rotatória o carro vira e a
    câmera vai para trás dele, pela Av. Carajás em perspectiva, até encostar em frente à faculdade.
-2. Faculdade por dentro, seguindo a planta real: entrada com porta de vidro e faixa tátil; em frente, as mesas;
+2. Faculdade por dentro, seguindo a planta real: entrada com porta de vidro e faixa tátil; em frente, as mesas
+   (do lado, 3 salas de estudo de vidro; no fundo, a sala branca com cabines);
    à direita, o saguão com o logo numa parede em diagonal, a coordenação (sala aberta: 2 portas
    ao lado do logo, parede laranja no fundo com uma porta e a mesa redonda dos notebooks),
    a parede verde no fim e o corredor das salas (4 portas de cada lado) — **pronto** (`?mapa=faculdade`)
