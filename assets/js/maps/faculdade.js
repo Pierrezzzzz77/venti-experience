@@ -1801,6 +1801,7 @@
       this.canvas.classList.add('is-pixel');
       this.autoS = S;
       this.S = S;
+      if (DL.zoomAplicar) DL.zoomAplicar(this, r, k, S, true); // o zoom do jogador (iso.js)
     };
     sc.resize();
   }

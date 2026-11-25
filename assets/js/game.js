@@ -377,6 +377,8 @@
         if (!f.id && f.t >= FADE) this.fade = null;
       }
       const p = this.player, sc = this.scene;
+      // (zoom) um filme começou ou acabou, ou o menu abriu/fechou: refaz a escala (sem zoom no filme)
+      if (DL.zoomAtivo && sc._zoomAtivo !== undefined && sc._zoomAtivo !== DL.zoomAtivo()) sc.resize();
       let ix = 0, iy = 0;
       if (!this.locked) {
         if (this.keys.has('left')) ix -= 1;
@@ -494,9 +496,31 @@
   };
   DL.game = game;
 
+  /* ---------- zoom: roda do mouse, + e − (também os do teclado numérico), 0 volta ao normal ---------- */
+  // (desligado com painel aberto, nos filmes e com o menu; a conta dos pixels fica em iso.js: DL.zoomPasso)
+  const podeZoom = () => game.scene && !game.locked && !game.fade && DL.zoomAtivo && DL.zoomAtivo();
+  const ZOOM_KEYS = { Equal: 1, NumpadAdd: 1, Minus: -1, NumpadSubtract: -1, Digit0: 0, Numpad0: 0 };
+  const ZOOM_CHARS = { '+': 1, '=': 1, '-': -1, '0': 0 };
+  let rodaT = 0;
+  window.addEventListener('wheel', (ev) => {
+    if (!podeZoom() || ev.target !== $('game')) return;
+    ev.preventDefault();
+    const agora = performance.now();
+    if (agora - rodaT < 70 || !ev.deltaY) return; // (o touchpad manda muitos eventos seguidos: um passo por vez)
+    rodaT = agora;
+    DL.zoomPasso(game.scene, ev.deltaY < 0 ? 1 : -1);
+  }, { passive: false });
+
   window.addEventListener('keydown', (ev) => {
     // um painel aberto (rack, terminal) fica com o teclado; ele mesmo decide o que bloquear
     if (game.map && game.map.key && game.map.key(game, ev)) return;
+    const tag = ev.target && ev.target.tagName;
+    const zk = ev.code in ZOOM_KEYS ? ZOOM_KEYS[ev.code] : ZOOM_CHARS[ev.key];
+    if (zk !== undefined && tag !== 'INPUT' && tag !== 'TEXTAREA' && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      if (podeZoom()) DL.zoomPasso(game.scene, zk);
+      ev.preventDefault();
+      return;
+    }
     const k = KEYMAP[ev.code];
     if (k) { game.keys.add(k); ev.preventDefault(); }
     else if (USE_KEYS[ev.code] && !ev.repeat) { game.use(); ev.preventDefault(); }

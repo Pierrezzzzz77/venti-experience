@@ -10,7 +10,8 @@
   const DL = window.DL, T = DL.T;
   const $ = (id) => document.getElementById(id);
 
-  const SLOT_SWITCH = 0, SLOT_SERVER = 4; // switch no topo do rack (top-of-rack), servidor no meio
+  const SLOT_SWITCH = 0, SLOT_SERVER = 4; // posições no rack do aluno (9, 0 = topo): switch no topo, servidor no meio
+  const S = DL.DCSala, RACK = S.ALUNO; // switch no topo do rack (top-of-rack), servidor no meio
   // estado da missão (zerado em enter; o mesmo objeto, porque os painéis guardam a referência)
   const st = {};
   let panel, term, monitor;
@@ -28,7 +29,7 @@
 
   /* ---------- o que aparece no rack, no mundo ---------- */
   function syncRack(game) {
-    const rack = game.world.byId['RACK-01'];
+    const rack = game.world.byId[RACK];
     rack.units = new Array(9).fill(null);
     rack.unitState = new Array(9).fill(null);
     if (st.installed.switch) rack.units[SLOT_SWITCH] = 'switch';
@@ -39,6 +40,8 @@
     }
     rack.cableLook = st.cable ? 'tidy' : null;
     rack.glow = st.server === 'online' ? 'rgba(126,224,161,0.10)' : null;
+    // (o motor guarda o desenho do rack pelos campos simples do item; sem isto ele não vê a peça nova)
+    rack.pecas = rack.units.join(',') + '|' + rack.unitState.join(',');
   }
 
   /* ---------- texto da missão na tela ---------- */
@@ -75,33 +78,22 @@
   DL.registerMap({
     id: 'datalab',
     name: 'DataLab',
-    // '#' parede · '.' piso · ',' piso perfurado na frente do rack (corredor frio)
-    tiles: [
-      '############',
-      '#..........#',
-      '#....,,,...#',
-      '#..........#',
-      '#..........#',
-      '#..........#',
-      '#..........#',
-      '#..........#',
-      '############',
-    ],
-    items: [
-      { id: 'BANCADA', kind: 'table', variant: 'bench', tx: 1, ty: 1, tw: 2 },
-      { id: 'BOX-SERVER', kind: 'unit-server', tx: 1, ty: 1, host: 'BANCADA', solid: false, take: 'server' },
-      { id: 'BOX-SWITCH', kind: 'unit-switch', tx: 2, ty: 1, host: 'BANCADA', solid: false, take: 'switch' },
-      { id: 'RACK-01', kind: 'rack', tx: 6, ty: 1, tag: '#a0c3ec', units: new Array(9).fill(null) },
-      { id: 'CRAC-01', kind: 'crac', tx: 9, ty: 1 },
-      { kind: 'plant', tx: 10, ty: 1 },
-      { kind: 'plant', tx: 1, ty: 7 },
-    ],
-    spawn: [6, 6],
-    spawnDir: 'up',
-    camera: { tilesWide: 13, minTilesHigh: 9 },
+    // a sala inteira (piso, racks, NOC) vem de datalab-sala.js
+    tiles: S.tiles,
+    items: S.itens().concat([
+      { id: 'BOX-SERVER', kind: 'unit-server', tx: 16, ty: 7, host: 'BANCADA', solid: false, take: 'server' },
+      { id: 'BOX-SWITCH', kind: 'unit-switch', tx: 17, ty: 7, host: 'BANCADA', solid: false, take: 'switch' },
+    ]),
+    spawn: [1, 5],
+    spawnDir: 'right',
+    camera: { tilesWide: 15, minTilesHigh: 10 },
 
     enter(game) {
       reset();
+      S.preparar(game); // paredes claras, as 3 áreas e a porta verde (datalab-sala.js)
+      // os 3 funcionários (datalab-gente.js); quem está em pé também abre a porta da sala técnica
+      if (DL.DCGente) { DL.DCGente.iniciar(game); S.gente = () => DL.DCGente.emPe(); }
+      if (DL.DCSom) DL.DCSom.enter(); // zumbido dos servidores e teclado (datalab-som.js), botão Som do lago
       // os painéis são criados uma vez só (voltar ao mapa não duplica os cliques)
       if (!panel) {
         panel = DL.createRackPanel(st, {
@@ -129,13 +121,22 @@
       renderMission();
     },
 
+    leave() {
+      if (DL.DCSom) DL.DCSom.leave();
+    },
+
     update(game, dt) {
       monitor.update(dt);
+      if (DL.DCGente) DL.DCGente.atualizar(game, dt);
+      if (DL.DCSom) DL.DCSom.update(game, dt);
+      S.atualizar(game, dt);
     },
 
     useLabel(game, e) {
+      if (e.func) return 'Falar com ' + (e.func.nome === 'Lucas' ? 'o ' : 'a ') + e.func.nome;
       if (e.take) return 'Pegar o ' + NAME[e.take];
-      if (e.id === 'RACK-01') {
+      if (e.id === 'MESA-NOC') return 'Abrir o monitoramento (NOC)';
+      if (e.id === RACK) {
         if (st.carry) return 'Instalar o ' + NAME[st.carry] + ' no rack';
         return 'Abrir o rack';
       }
@@ -143,6 +144,7 @@
     },
 
     use(game, e) {
+      if (e.func) return DL.DCGente.conversar(game, e.func, st);
       if (e.take) {
         if (st.carry) return game.toast('Você já está carregando o ' + NAME[st.carry] + '. Leve até o rack primeiro.', 'bad');
         st.carry = e.take;
@@ -151,7 +153,8 @@
         renderMission();
         return;
       }
-      if (e.id === 'RACK-01') {
+      if (e.id === 'MESA-NOC') return monitor.open();
+      if (e.id === RACK) {
         if (st.carry) {
           st.installed[st.carry] = true;
           game.toast((st.carry === 'server' ? 'Servidor' : 'Switch') + ' instalado no rack.', 'ok');
@@ -173,6 +176,8 @@
 
     // o equipamento que o jogador carrega aparece em cima da cabeça
     overlay(g, sc) {
+      S.overlay(g, sc);
+      if (DL.DCGente) { g.save(); DL.DCGente.desenhar(g, sc); g.restore(); }
       if (!st.carry || !sc.player) return;
       const p = sc.player;
       sc.actorSpace(g, p);
