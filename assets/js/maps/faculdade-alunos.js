@@ -482,6 +482,34 @@
     },
     // quem está à vista e pode abrir uma porta (para animarPortas)
     perto() { return V ? V.alunos.filter((a) => a.acao === 'anda' && !a.hidden) : []; },
+    // aluno mais próximo do jogador (para conversar com E)
+    pertoDoJogador(p, maxDist) {
+      if (!V || !p) return null;
+      let best = null, bd = maxDist || 22;
+      for (const a of V.alunos) {
+        if (a.hidden || a.estado === 'sai') continue;
+        const d = Math.hypot(a.x - p.x, a.y - p.y);
+        if (d < bd) { bd = d; best = a; }
+      }
+      return best;
+    },
+    conversar(game, a) {
+      if (!a) return;
+      const falas = [
+        'Já bebeu água no bebedouro do corredor?',
+        'O quadro de giz do corredor dá pra desenhar de verdade!',
+        'Alguém deixou um violão ali no lounge, bora tocar!',
+        'O Lab de ADS tá com código rodando no VS Code.',
+        'Canaã dos Carajás hoje tá com um clima ótimo!',
+        'Foca nos estudos, daqui a pouco tem intervalo!',
+      ];
+      const msg = falas[Math.floor(Math.random() * falas.length)];
+      a.dir = DL.dirOf(game.player.x - a.x, game.player.y - a.y);
+      if (a.acao === 'anda') { a.estado = 'para'; a.t = 2.2; a.moving = false; }
+      if (DL.sfx) DL.sfx.blip();
+      if (DL.fx) DL.fx.burst(a.x, a.y, 26, 'spark');
+      game.toast('Aluno: “' + msg + '”');
+    },
     // o "..." em cima de quem está falando
     desenharFalas(g, sc) {
       if (!V) return;

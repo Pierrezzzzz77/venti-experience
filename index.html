@@ -84,6 +84,52 @@
     </div>
   </div>
 
+  <!-- quadro de giz interativo (corredor da faculdade) -->
+  <div id="quadroPanel" class="panel" role="dialog" aria-label="Quadro de giz">
+    <div class="panel__box quadro">
+      <header class="panel__head">
+        <b>Quadro de giz · corredor</b>
+        <button id="quadroClose" class="btn btn--ghost" type="button">Fechar <kbd>Esc</kbd></button>
+      </header>
+      <div class="quadro__board">
+        <canvas id="quadroCanvas" width="520" height="220"></canvas>
+      </div>
+      <footer class="panel__foot quadro__bar">
+        <div class="quadro__colors" id="quadroColors"></div>
+        <div class="quadro__sign">
+          <input id="quadroName" type="text" maxlength="18" placeholder="Assinar seu nome..." autocomplete="off" spellcheck="false">
+          <button id="quadroStamp" class="btn" type="button">Assinar</button>
+        </div>
+        <button id="quadroClear" class="btn btn--ghost" type="button">Apagar</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- área de trabalho do notebook (sala de ADS / faculdade) -->
+  <div id="notebookPanel" class="panel" role="dialog" aria-label="Área de trabalho do notebook">
+    <div class="panel__box nb">
+      <div class="nb__bezel">
+        <div class="nb__cam"></div>
+        <div class="nb__screen">
+          <header class="nb__topbar">
+            <span><b>Serra Dourada OS</b> · Lab ADS</span>
+            <span class="nb__status"><i class="nb__wifi"></i> SerraDourada-5G · <span id="nbClock">20:15</span></span>
+            <button id="nbClose" class="btn btn--ghost nb__power" type="button">Desligar <kbd>Esc</kbd></button>
+          </header>
+          <div class="nb__desktop">
+            <aside class="nb__icons" id="nbIcons">
+              <button type="button" class="nb__icon is-on" data-app="code"><span>{ }</span><small>VS Code</small></button>
+              <button type="button" class="nb__icon" data-app="term"><span>&gt;_</span><small>Terminal</small></button>
+              <button type="button" class="nb__icon" data-app="notes"><span>≡</span><small>Notas.txt</small></button>
+              <button type="button" class="nb__icon" data-app="portal"><span>◎</span><small>Portal ADS</small></button>
+            </aside>
+            <section class="nb__win" id="nbWin"></section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- A ordem importa (igual ao DataLab): motor → jogo → interface → mapas → início -->
   <script src="assets/js/engine/sprites.js"></script>
   <script src="assets/js/engine/scene.js"></script>

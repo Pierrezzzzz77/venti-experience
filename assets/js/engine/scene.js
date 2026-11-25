@@ -17,6 +17,9 @@
       this.dir = dir || 'down';
       this.dist = 0;
       this.moving = false;
+      this.pose = null;
+      this.z = 0;
+      this.sitting = null;
       this.blinkIn = 1.5 + Math.random() * 3;
       this.blinkT = 0;
     }
@@ -29,6 +32,13 @@
       if (this.blinkT > 0) this.blinkT -= dt;
     }
     frame() {
+      if (!this.moving && this.pose && DL.charFrame) {
+        const k = this.dir + '|' + this.pose + '|' + (this.blinkT > 0 ? 1 : 0);
+        this._poseCache = this._poseCache || new Map();
+        let img = this._poseCache.get(k);
+        if (!img) { img = DL.charFrame(this.look, this.dir, this.pose, this.blinkT > 0); this._poseCache.set(k, img); }
+        return img;
+      }
       const f = this.sheet[this.dir];
       if (!this.moving) return this.blinkT > 0 ? f.blink : f.idle;
       return f.walk[Math.floor(this.dist / 6.5) % 4];

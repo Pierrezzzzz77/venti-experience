@@ -584,11 +584,27 @@
         F.esconderMissao(true);
         F.afastarCamera(game.scene);
         colisaoFina(game.scene);
-        for (const e of game.world.items) if (e.ponto) { e.ix = e.ponto[0]; e.iy = e.ponto[1]; }
+        for (const e of game.world.items) {
+          if (e.ponto) { e.ix = e.ponto[0]; e.iy = e.ponto[1]; }
+          else if (e.kind === 'cadeira-preta' || e.kind === 'banqueta') { e.ix = e.tx * T + 8; e.iy = e.ty * T + 8; }
+        }
         game.toast(nome);
         DL.FacAlunos.iniciar(game, 'sala' + n);
       },
-      leave() { F.esconderMissao(false); },
+      leave(game) {
+        F.esconderMissao(false);
+        const np = document.getElementById('notebookPanel');
+        if (np) np.classList.remove('is-open');
+        if (game) game.locked = false;
+      },
+      key(game, ev) {
+        const np = document.getElementById('notebookPanel');
+        if (np && np.classList.contains('is-open')) {
+          if (ev.key === 'Escape') { np.classList.remove('is-open'); game.locked = false; ev.preventDefault(); }
+          return true;
+        }
+        return false;
+      },
       update(game, dt) {
         ajustarParedes(game.scene, o);
         DL.FacAlunos.atualizar(game, dt);

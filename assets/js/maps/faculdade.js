@@ -515,7 +515,8 @@
   }
   // violão encostado na parede (parede-verde.jpg)
   function violao(g, e) {
-    const { c, b } = chao(e), mad = '#c98a4a', esc = '#8f5a2c';
+    const vib = e.shake > 0 ? Math.round(Math.sin(e.shake * 48) * 1.3) : 0;
+    const { c: c0, b } = chao(e), c = c0 + vib, mad = '#c98a4a', esc = '#8f5a2c';
     R(g, c, b - 30, 2, 3, '#3a2616');
     R(g, c, b - 27, 2, 14, '#5a3a22');
     R(g, c - 3, b - 13, 8, 4, mad); R(g, c - 2, b - 14, 6, 1, mad);
@@ -766,6 +767,13 @@
     R(g, x0 + 22, y0 + H - 1, 3, 1, giz[1]);
     R(g, x0 + 58, y0 + H - 1, 3, 1, giz[3]);
     R(g, x0 + 84, y0 + H - 1, 4, 1, giz[2]);
+    // desenho feito pelo jogador no quadro interativo (miniatura em tempo real)
+    if (quadroUserCanvas) {
+      g.save();
+      g.globalAlpha = 0.92;
+      g.drawImage(quadroUserCanvas, x0 + 2, y0 + 2, W - 4, H - 4);
+      g.restore();
+    }
   }
 
   // parede verde-acinzentada com a frase e os veios de madeira em linhas brancas (parede-verde.jpg)
@@ -1486,16 +1494,248 @@
         const cx = dg ? e.px + T : v ? e.px + (e.dx || 0) + 2 : e.px + e.tw * 8, cy = dg ? e.py : v ? e.py + 16 : e.kind === 'porta-vidro' || e.front ? e.py + 2 : e.py + 14;
         alvo = !e.travada && alguem(todos, cx, cy, 34) ? 1 : 0;
       }
-      e.open = (e.open || 0) + (alvo - (e.open || 0)) * Math.min(1, dt * 7);
+      if (e.rattle > 0) {
+        e.rattle = Math.max(0, e.rattle - dt);
+        e.open = Math.sin(e.rattle * 45) * 0.14;
+      } else {
+        e.open = (e.open || 0) + (alvo - (e.open || 0)) * Math.min(1, dt * 7);
+      }
     }
+    const v = game.world.byId.VIOLAO;
+    if (v && v.shake > 0) v.shake = Math.max(0, v.shake - dt);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Quadro de giz interativo (desenho + assinatura salvos localmente)   */
+  /* ------------------------------------------------------------------ */
+  const QUADRO_KEY = 'venti_quadro_giz_v1';
+  const GIZ_CORES = ['#eef2ef', '#f2e59a', '#9fd3e8', '#e8a8b8', '#a8e0b8'];
+  let quadroUserCanvas = null;
+  function carregarQuadro() {
+    if (quadroUserCanvas) return quadroUserCanvas;
+    const c = document.createElement('canvas');
+    c.width = 520; c.height = 220;
+    quadroUserCanvas = c;
+    try {
+      const saved = localStorage.getItem(QUADRO_KEY);
+      if (saved) {
+        const img = new Image();
+        img.onload = () => { c.getContext('2d').drawImage(img, 0, 0); };
+        img.src = saved;
+      }
+    } catch (_) {}
+    return c;
+  }
+  carregarQuadro();
+
+  let quadroWired = false;
+  function abrirQuadroGiz(game) {
+    const panel = $('quadroPanel'), cv = $('quadroCanvas');
+    if (!panel || !cv) return;
+    const g = cv.getContext('2d'), userCv = carregarQuadro(), ug = userCv.getContext('2d');
+    let cor = GIZ_CORES[0], apagando = false, desenhando = false, last = null;
+
+    const redesenhar = () => {
+      g.fillStyle = '#1d2221';
+      g.fillRect(0, 0, cv.width, cv.height);
+      g.drawImage(userCv, 0, 0);
+    };
+    const salvar = () => {
+      try { localStorage.setItem(QUADRO_KEY, userCv.toDataURL('image/png')); } catch (_) {}
+    };
+    const pos = (ev) => {
+      const r = cv.getBoundingClientRect();
+      const pt = ev.touches ? ev.touches[0] : ev;
+      return [(pt.clientX - r.left) * (cv.width / r.width), (pt.clientY - r.top) * (cv.height / r.height)];
+    };
+    const traco = (a, b) => {
+      ug.save();
+      ug.lineCap = 'round';
+      ug.lineJoin = 'round';
+      if (apagando) {
+        ug.globalCompositeOperation = 'destination-out';
+        ug.lineWidth = 22;
+        ug.strokeStyle = '#000';
+      } else {
+        ug.strokeStyle = cor;
+        ug.lineWidth = 3.2;
+      }
+      ug.beginPath(); ug.moveTo(a[0], a[1]); ug.lineTo(b[0], b[1]); ug.stroke();
+      ug.restore();
+      redesenhar();
+    };
+
+    if (!quadroWired) {
+      quadroWired = true;
+      const box = $('quadroColors');
+      GIZ_CORES.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'quadro__swatch' + (i === 0 ? ' is-on' : '');
+        b.style.background = c;
+        b.title = 'Giz';
+        b.onclick = () => {
+          cor = c; apagando = false;
+          box.querySelectorAll('.quadro__swatch').forEach((s) => s.classList.remove('is-on'));
+          b.classList.add('is-on');
+        };
+        box.appendChild(b);
+      });
+      const er = document.createElement('button');
+      er.type = 'button';
+      er.className = 'quadro__swatch quadro__swatch--erase';
+      er.textContent = '⌫';
+      er.title = 'Apagador';
+      er.onclick = () => {
+        apagando = true;
+        box.querySelectorAll('.quadro__swatch').forEach((s) => s.classList.remove('is-on'));
+        er.classList.add('is-on');
+      };
+      box.appendChild(er);
+
+      const start = (ev) => { desenhando = true; last = pos(ev); traco(last, last); if (DL.sfx) DL.sfx.chalk(); ev.preventDefault(); };
+      const move = (ev) => { if (!desenhando) return; const p = pos(ev); traco(last, p); last = p; ev.preventDefault(); };
+      const end = () => { if (desenhando) { desenhando = false; salvar(); } };
+      cv.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+      cv.addEventListener('touchstart', start, { passive: false }); cv.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end);
+
+      $('quadroStamp').onclick = () => {
+        const inp = $('quadroName'), txt = (inp.value || '').trim();
+        if (!txt) return;
+        ug.save();
+        ug.font = 'bold 20px monospace';
+        ug.fillStyle = cor;
+        ug.textBaseline = 'middle';
+        const x = 24 + Math.random() * (cv.width - 180), y = 28 + Math.random() * (cv.height - 56);
+        ug.translate(x, y);
+        ug.rotate((Math.random() - 0.5) * 0.16);
+        ug.fillText(txt, 0, 0);
+        ug.restore();
+        inp.value = '';
+        redesenhar();
+        salvar();
+        if (DL.sfx) DL.sfx.chalk();
+      };
+      $('quadroName').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') $('quadroStamp').click(); ev.stopPropagation(); });
+      $('quadroClear').onclick = () => { ug.clearRect(0, 0, cv.width, cv.height); redesenhar(); salvar(); };
+      $('quadroClose').onclick = () => { panel.classList.remove('is-open'); game.locked = false; };
+    }
+    redesenhar();
+    game.locked = true;
+    panel.classList.add('is-open');
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Área de trabalho do notebook (VS Code, Terminal, Notas, Portal)     */
+  /* ------------------------------------------------------------------ */
+  const NB_NOTAS_KEY = 'venti_ads_notas_v1';
+  let nbWired = false, nbApp = 'code', nbCode = '// Aula de Lógica de Programação - ADS\nfunction saudacao(nome) {\n  return "Bem-vindo ao Lab ADS, " + nome + "!";\n}\n\nfor (let i = 1; i <= 3; i++) {\n  console.log(i + ".", saudacao("Serra Dourada"));\n}\n';
+  function abrirNotebook(game) {
+    const panel = $('notebookPanel'), win = $('nbWin'), icons = $('nbIcons'), clk = $('nbClock');
+    if (!panel || !win) return;
+    if (clk) {
+      const d = new Date();
+      clk.textContent = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    }
+    const render = () => {
+      icons.querySelectorAll('.nb__icon').forEach((b) => b.classList.toggle('is-on', b.dataset.app === nbApp));
+      if (nbApp === 'code') {
+        win.innerHTML =
+          '<div class="nb__whead"><b>VS Code · aula_logica.js</b><button id="nbRun" class="btn" type="button">▶ Executar</button></div>' +
+          '<div class="nb__wbody"><textarea id="nbCode" class="nb__code" spellcheck="false"></textarea>' +
+          '<div id="nbOut" class="nb__out">Clique em ▶ Executar para rodar o código.</div></div>';
+        const ta = $('nbCode'), out = $('nbOut');
+        ta.value = nbCode;
+        ta.oninput = () => { nbCode = ta.value; };
+        ta.onkeydown = (ev) => ev.stopPropagation();
+        $('nbRun').onclick = () => {
+          if (DL.sfx) DL.sfx.blip();
+          const logs = [];
+          try {
+            const fn = new Function('console', nbCode);
+            fn({ log: (...a) => logs.push(a.map((v) => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(' ')) });
+            out.style.color = '#7ee0a1';
+            out.textContent = logs.length ? logs.join('\n') : '(executado sem saída)';
+          } catch (err) {
+            out.style.color = '#ffb3bc';
+            out.textContent = 'Erro: ' + err.message;
+          }
+        };
+      } else if (nbApp === 'term') {
+        win.innerHTML =
+          '<div class="nb__whead"><b>Terminal · bash</b><span>student@ads-lab</span></div>' +
+          '<div class="nb__wbody"><div id="nbTermOut" class="nb__termout">Serra Dourada OS 2.4 LTS (ads-lab)\nDigite "help" para ver os comandos.\n</div>' +
+          '<label class="term__line"><span class="p">student@ads-lab:~$</span><input id="nbTermIn" type="text" autocomplete="off" spellcheck="false"></label></div>';
+        const out = $('nbTermOut'), inp = $('nbTermIn');
+        const cmds = {
+          help: 'Comandos: ls, whoami, cat notas.txt, ping, date, clear',
+          ls: 'aula_logica.js   notas.txt   projeto-venti/',
+          whoami: 'student (Curso: Análise e Desenv. de Sistemas)',
+          'cat notas.txt': 'Prova de Lógica na próxima semana · revisar laços e funções!',
+          ping: 'PING serradourada.edu.br: 64 bytes · time=8.4 ms (online)',
+          date: new Date().toLocaleString('pt-BR'),
+        };
+        inp.onkeydown = (ev) => {
+          ev.stopPropagation();
+          if (ev.key !== 'Enter') return;
+          const v = inp.value.trim();
+          inp.value = '';
+          if (v === 'clear') { out.textContent = ''; return; }
+          const resp = cmds[v] || (v ? 'bash: ' + v + ': comando não encontrado' : '');
+          out.textContent += '\n$ ' + v + (resp ? '\n' + resp : '');
+          out.scrollTop = out.scrollHeight;
+          if (DL.sfx) DL.sfx.blip();
+        };
+        setTimeout(() => inp.focus(), 20);
+      } else if (nbApp === 'notes') {
+        let saved = 'Anotações da Aula de ADS:\n- Lógica de programação com JS\n- Sala 1 · Laboratório de Informática\n- Lembrete: beber água no bebedouro do corredor!\n';
+        try { saved = localStorage.getItem(NB_NOTAS_KEY) || saved; } catch (_) {}
+        win.innerHTML =
+          '<div class="nb__whead"><b>Notas.txt</b><span>Salvo automaticamente</span></div>' +
+          '<div class="nb__wbody"><textarea id="nbNotes" class="nb__notes" spellcheck="false"></textarea></div>';
+        const ta = $('nbNotes');
+        ta.value = saved;
+        ta.oninput = () => { try { localStorage.setItem(NB_NOTAS_KEY, ta.value); } catch (_) {} };
+        ta.onkeydown = (ev) => ev.stopPropagation();
+      } else {
+        win.innerHTML =
+          '<div class="nb__whead"><b>Portal ADS · Intranet</b><span>Canaã dos Carajás</span></div>' +
+          '<div class="nb__wbody"><div class="nb__cards">' +
+          '<div class="nb__card"><b>Aula Atual</b><p>Lógica de Programação · Sala 1 (ADS)</p></div>' +
+          '<div class="nb__card"><b>Próxima Aula</b><p>Banco de Dados · 20:40</p></div>' +
+          '<div class="nb__card"><b>Wi-Fi do Campus</b><p>SerraDourada-5G · Sinal Excelente</p></div>' +
+          '<div class="nb__card"><b>Projeto em Destaque</b><p>Venti Experience · Mapa Interativo</p></div>' +
+          '</div></div>';
+      }
+    };
+    if (!nbWired) {
+      nbWired = true;
+      icons.querySelectorAll('.nb__icon').forEach((b) => {
+        b.onclick = () => { nbApp = b.dataset.app; if (DL.sfx) DL.sfx.blip(); render(); };
+      });
+      $('nbClose').onclick = () => { panel.classList.remove('is-open'); game.locked = false; };
+    }
+    render();
+    game.locked = true;
+    panel.classList.add('is-open');
   }
 
   /* ------------------------------------------------------------------ */
   /* O que dá para fazer com E                                           */
   /* ------------------------------------------------------------------ */
+  const ACORDES = ['Am7', 'Fmaj7', 'C', 'G'];
+  const ASSENTOS_OK = { 'cadeira-preta': 1, cadeira: 1, 'banco-pedra': 1, banqueta: 1, 'poltrona-vermelha': 1, 'poltrona-cinza': 1, 'poltrona-madeira': 1, puff: 1 };
+  let acordeIdx = 0;
+
   function useLabel(game, e) {
+    if (e.id === 'ALUNO-PROXIMO') return e.aluno ? 'Conversar com aluno' : null;
+    if (ASSENTOS_OK[e.kind]) return game.player && game.player.sitting === e ? 'Levantar' : 'Sentar';
+    if (e.kind === 'notebook' || e.kind === 'notebook-ads') return 'Abrir notebook';
     if (e.dica) return e.dica;
     if (e.kind === 'placa') return 'Ler a placa';
+    if (e.kind === 'ar-parede') return 'Sentir o ar-condicionado';
+    if (e.kind === 'extintor') return 'Ver o extintor';
+    if (e.kind === 'hidrante') return 'Ver o hidrante';
     if (e.id === 'LOGO') return 'Ver o logo';
     if (e.id === 'FRASE') return 'Ler a parede';
     if (e.kind === 'quadro') return 'Ler o quadro';
@@ -1504,13 +1744,42 @@
     return null;
   }
   function use(game, e) {
-    if (e.dica) return game.toast(e.texto);
-    if (e.kind === 'placa') return game.toast(e.text);
-    if (e.id === 'LOGO') return game.toast('Faculdade Serra Dourada · Canaã dos Carajás');
-    if (e.id === 'FRASE') return game.toast('“Estudar aqui é dar um passo a mais rumo aos seus sonhos!”');
-    if (e.kind === 'quadro') return game.toast('O quadro ainda está em branco (sala provisória).');
-    if (e.id === 'ENTRADA') return game.loadMap(SAIDA);
-    if (e.kind === 'porta') return e.to ? game.loadMap(e.to, e.toSpawn) : game.toast('Sala ' + e.sala + ' · fechada');
+    const cx = e.px + (e.tw || 1) * 8, cy = e.py + (e.th || 1) * 8;
+    if (ASSENTOS_OK[e.kind]) return game.player.sitting === e ? game.stand() : game.sit(e);
+    if (e.kind === 'notebook' || e.kind === 'notebook-ads') { if (DL.sfx) DL.sfx.blip(); return abrirNotebook(game, e); }
+    if (e.id === 'ALUNO-PROXIMO' && e.aluno && DL.FacAlunos) return DL.FacAlunos.conversar(game, e.aluno);
+    if (e.id === 'QUADRO-GIZ') { if (DL.sfx) DL.sfx.blip(); return abrirQuadroGiz(game); }
+    if (e.id === 'BEBEDOURO') {
+      if (DL.sfx) DL.sfx.water();
+      if (DL.fx) DL.fx.burst(cx, cy + 4, 20, 'drop');
+      return game.toast('Bebedouro · água geladinha! (+10 energia)', 'ok');
+    }
+    if (e.id === 'VIOLAO') {
+      const nome = ACORDES[acordeIdx % ACORDES.length];
+      if (DL.sfx) DL.sfx.chord(acordeIdx++);
+      if (DL.fx) DL.fx.burst(cx, cy, 24, 'note');
+      e.shake = 0.45;
+      return game.toast('♪ Tocando ' + nome + ' no violão...');
+    }
+    if (e.kind === 'ar-parede') {
+      if (DL.sfx) DL.sfx.blip();
+      if (DL.fx) DL.fx.burst(cx, cy + 4, 28, 'mist');
+      return game.toast('Ar-condicionado · 21°C, ventinho gelado!');
+    }
+    if (e.kind === 'extintor') { if (DL.sfx) DL.sfx.blip(); return game.toast('Extintor · validade em dia.'); }
+    if (e.kind === 'hidrante') { if (DL.sfx) DL.sfx.blip(); return game.toast('Hidrante · pressão OK.'); }
+    if (e.kind === 'porta' && !e.to) {
+      if (DL.sfx) DL.sfx.door();
+      e.rattle = 0.35;
+      return game.toast(e.texto || ('Sala ' + e.sala + ' · fechada'));
+    }
+    if (e.dica) { if (DL.sfx) DL.sfx.blip(); return game.toast(e.texto); }
+    if (e.kind === 'placa') { if (DL.sfx) DL.sfx.blip(); return game.toast(e.text); }
+    if (e.id === 'LOGO') { if (DL.sfx) DL.sfx.blip(); return game.toast('Faculdade Serra Dourada · Canaã dos Carajás'); }
+    if (e.id === 'FRASE') { if (DL.sfx) DL.sfx.blip(); return game.toast('“Estudar aqui é dar um passo a mais rumo aos seus sonhos!”'); }
+    if (e.kind === 'quadro') { if (DL.sfx) DL.sfx.blip(); return game.toast('O quadro ainda está em branco (sala provisória).'); }
+    if (e.id === 'ENTRADA') { if (DL.sfx) DL.sfx.door(); return game.loadMap(SAIDA); }
+    if (e.kind === 'porta') { if (DL.sfx) DL.sfx.door(); return game.loadMap(e.to, e.toSpawn); }
   }
 
   // os alunos (bots): faculdade-alunos.js, carregado antes deste arquivo
@@ -1751,7 +2020,7 @@
   //    (parede e degrau 2 tiles mais para a esquerda; o violão logo depois do degrau, onde aparece)
   naParede({ id: 'FRASE', kind: 'parede-verde', tx: 17, ty: 5, tw: 6 });
   add({ kind: 'degrau', tx: 17, ty: 5, tw: 5, drawIso: desenharDegrau, isoRect: [17 * T, 5 * T, 22 * T, 6 * T], isoH: 20 });
-  add({ kind: 'violao', tx: 22, ty: 5 });
+  add({ id: 'VIOLAO', kind: 'violao', tx: 22, ty: 5, dica: 'Tocar violão' });
   add({ kind: 'tapete', rug: true, tx: 21, ty: 6, tw: 4, th: 3, solid: false });
   add({ kind: 'luz-chao', rug: true, tx: 20, ty: 6, tw: 5, th: 3, solid: false, forca: 0.13 });
   add({ id: 'MESA-VERDE', kind: 'table', variant: 'small', color: '#c49261', tx: 22, ty: 7, tw: 2, drawIso: desenharMesinhaCentro, isoH: 16 });
@@ -1795,7 +2064,7 @@
   }
   // Corredor da Sala 2: quadro preto bem largo com assinaturas/desenhos de giz, bebedouro logo depois,
   // depois a porta da Sala 2 e, no fim, o banheiro e o corredor para a esquerda
-  naParede({ id: 'QUADRO-GIZ', kind: 'quadro-giz', tx: 4, ty: 17, tw: 7, dica: 'Ver o quadro de giz', texto: 'Quadro preto cheio de assinaturas, nomes e desenhos feitos com giz.' });
+  naParede({ id: 'QUADRO-GIZ', kind: 'quadro-giz', tx: 4, ty: 17, tw: 7, dica: 'Desenhar no quadro de giz', texto: 'Quadro preto cheio de assinaturas, nomes e desenhos feitos com giz.' });
   add({ id: 'BEBEDOURO', kind: 'bebedouro', tx: 3, ty: 17, solid: true, drawIso: desenharBebedouro, isoRect: [3 * T + 2, 17 * T + 1, 3 * T + 14, 17 * T + 9], isoH: 24, dica: 'Beber água', texto: 'Bebedouro · água gelada.' });
   // Sala 2: porta na parede do fundo do corredor de baixo, depois do bebedouro (dá para entrar andando)
   add({ id: 'PORTA-2', kind: 'porta', sala: 2, tx: 0, ty: 16, solid: false, drawIso: desenharPorta, isoRect: [0, 16 * T + 12, 16, 16 * T + 16], isoH: 48, to: 'faculdade-sala2' });
@@ -1854,6 +2123,7 @@
   // Banheiro no final do corredor do quadro (parede da esquerda, col 0) e porta no fim do corredor à esquerda (linha 27).
   add({ id: 'PORTA-BANHEIRO', kind: 'porta', lado: 'o', tx: 0, ty: 18, solid: false, drawIso: desenharPortaLado, isoRect: [T, 18 * T, T + 0.5, 20.9 * T], isoH: 36, dica: 'Banheiro', texto: 'Banheiro · fechado.' });
   add({ id: 'PORTA-CORREDOR-ESQ', kind: 'porta', front: true, tx: 2, ty: 27, solid: false, drawIso: desenharPorta, isoRect: [2 * T, 27 * T, 3 * T, 27 * T + 4], isoH: 36, dica: 'Porta', texto: 'Porta · fechada.' });
+  add({ id: 'ALUNO-PROXIMO', kind: 'ponto', tx: 0, ty: 0, solid: false, drawIso: () => null, isoH: 32 });
 
   // 4. Coordenação (em coordenadas finais), como na foto: a sala aberta ao lado do painel do logo (colunas 14 a 18,
   // linhas 21 a 24). A frente é o saguão, sem parede.
@@ -1929,7 +2199,10 @@
       for (const o of SALAS_ESTUDO) { const s = w.byId['ESTUDO-' + o.n]; s.ix = o.x + 26; s.iy = s.py + 12; } // (na frente da porta de vidro)
       const tx = Math.floor(game.player.x / T), ty = Math.floor(game.player.y / T);
       // portas dos lados do corredor das salas: a dica aparece do lado de dentro do corredor
-      for (const e of w.items) if (e.lado) { e.ix = e.lado === 'l' ? e.px - 7 : e.px + T + 7; e.iy = e.py + 10; }
+      for (const e of w.items) {
+        if (e.lado) { e.ix = e.lado === 'l' ? e.px - 7 : e.px + T + 7; e.iy = e.py + 10; }
+        else if (ASSENTOS_OK[e.kind] && e.ix == null) { e.ix = e.px + (e.tw || 1) * 8; e.iy = e.py + (e.th || 1) * 8; }
+      }
       const pEsq = w.byId['PORTA-CORREDOR-ESQ'];
       if (pEsq) { pEsq.ix = pEsq.px + 8; pEsq.iy = pEsq.py - 6; }
       if (tx === VOLTA[1][0] && ty === VOLTA[1][1]) game.player.dir = 'left'; // voltou da sala de ADS
@@ -1937,8 +2210,34 @@
       else game.toast('Faculdade Serra Dourada · em frente, as mesas; à direita, o logo, a coordenação e o corredor das salas');
       alunos.iniciar(game, 'faculdade');
     },
-    leave() { esconderMissao(false); },
-    update(game, dt) { ajustarFachada(game.scene); alunos.atualizar(game, dt); animarPortas(game, dt); },
+    leave(game) {
+      esconderMissao(false);
+      for (const id of ['quadroPanel', 'notebookPanel']) { const el = $(id); if (el) el.classList.remove('is-open'); }
+      if (game) game.locked = false;
+    },
+    key(game, ev) {
+      for (const id of ['quadroPanel', 'notebookPanel']) {
+        const el = $(id);
+        if (el && el.classList.contains('is-open')) {
+          if (ev.key === 'Escape') { el.classList.remove('is-open'); game.locked = false; ev.preventDefault(); }
+          return true;
+        }
+      }
+      return false;
+    },
+    update(game, dt) {
+      ajustarFachada(game.scene);
+      alunos.atualizar(game, dt);
+      animarPortas(game, dt);
+      const al = game.world.byId['ALUNO-PROXIMO'];
+      if (al && alunos.pertoDoJogador) {
+        const a = alunos.pertoDoJogador(game.player, 22);
+        al.aluno = a;
+        al.ix = a ? a.x : null;
+        al.iy = a ? a.y : null;
+        if (a) { al.px = a.x - 8; al.py = a.y - 8; }
+      }
+    },
     overlay(g, sc) { alunos.desenharFalas(g, sc); },
     useLabel,
     use,
