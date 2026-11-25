@@ -15,6 +15,10 @@ O jogo abre no menu inicial ("Bem-vindo(a) ao Data Experience"): ao apertar **Jo
 (no lago e na viagem, `&t=20` começa no segundo 20 — ex.: `?mapa=abertura&t=32` cai na curva da rotatória;`&debug=1` põe a foto 13 (o lago visto de cima) deitada por cima do mapa, 50% transparente, para comparar — F2 liga/desliga; as formas ficam em `assets/js/maps/lago-forma.js`).
 
 Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o monitor, **Esc** fecha o painel.
+**Zoom**: roda do mouse ou **+** / **−** (também os do teclado numérico) aproximam e afastam; **0** volta ao normal.
+Vai de 1× a 3×, em passos de 1 pixel da tela (cada pixel do jogo vira sempre um número inteiro de pixels: a pixel art
+fica nítida). O zoom continua igual ao trocar de mapa; fica desligado com painel aberto, no menu e durante os filmes
+(lago, viagem de carro e a chegada na rua) e volta sozinho na parte jogável.
 
 ## Partes do jogo
 
@@ -38,6 +42,23 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
    O DataLab fica colado na faculdade, com o letreiro de néon aceso; a porta dele leva à sala do DataLab (parte 4).
 4. DataLab: colocar servidor e switch no rack, ligar o cabo e deixar o servidor online pelo terminal — **pronto**
    (`ip addr` → `sudo ip link set eth0 up` → `ping 10.0.1.1`)
+   Estética cyberpunk roxo + ciano: paredes grafite-violeta com filete ciano aceso e rodapé neon (com o reflexo no
+   chão), piso de placas escuras com frestas violeta, carpete azul-noite, luminárias de tubo neon, relógio digital,
+   letreiros neon pequenos, tapetes com contorno neon e móveis escuros (as cores abaixo foram trocadas por essas).
+   A planta segue o print do DataLab original (`referencias/datalab-original-sala.png`): paredes claras com acabamento
+   cinza e porta verde com a plaquinha DATALAB acesa (volta para a rua); escritório de piso de madeira com 5 estações
+   (mesa, 2 monitores acesos, teclado, mouse e cadeira), café, bebedouro, quadro branco com um diagrama de rede,
+   luminárias (com o círculo de luz quente no chão), plantas e, nas paredes, o quadro da Faculdade Serra Dourada,
+   relógio, quadrinhos, tomadas e interruptor; meia-parede de alvenaria clara com tampo de madeira entre o escritório
+   e o carpete; a sala técnica com parede inteira, porta (abre sozinha quando alguém chega perto) e uma janelinha:
+   1 fileira de 5 racks com porta de grade, servidores 1U/2U, etiquetas e LEDs azuis e verdes em ritmos diferentes,
+   calha de cabos fina por cima, piso perfurado na frente, ar de precisão, o indicador "19,7 °C" e luz fria; e a sala
+   de carpete azul com sofá, estante e 3 tapetes de tecido (um deles terracota com a faísca, estilo Claude).
+   O rack da missão é o **RACK-01**, o primeiro depois da porta da sala técnica (etiqueta verde em cima).
+   3 funcionários (Ana, Lucas e Bia) digitam nas mesas, vão ao café, checam os racks e conversam, com balões de
+   fala curtos; **E** perto de um deles = uma dica do passo atual da missão. Som baixinho dos servidores e do teclado
+   (o mesmo botão "Som" do lago).
+   Sem placas grandes e sem barra de cima: só o painel da missão e a dica de teclas.
 
 ## Organização
 
@@ -69,7 +90,12 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 | `assets/js/maps/faculdade.js` | Parte 2: a faculdade por dentro (mesas, saguão com o logo, coordenação, corredor). |
 | `assets/js/maps/faculdade-salas.js` | Parte 2: as 2 salas, feitas pelas fotos (pasta `foto sala`): Sala 1 = ADS (`faculdade-sala1`) e Sala 2 = saúde (`faculdade-sala2`). Carregado depois de `faculdade.js`. |
 | `assets/js/maps/rua.js` | Parte 3: a rua da Serra Dourada e do DataLab (isométrica, noite): prédios e chão pintados uma vez, carro parado, pedestres, as portas da faculdade e do DataLab. |
-| `assets/js/maps/datalab.js` | Parte 4: a sala do DataLab e a missão. |
+| `assets/js/engine/moveis.js` | Móveis de escritório copiados do DataLab original (mesa com monitores, cadeira, estante, bebedouro, café, quadro branco, tapete, luminária, vaso), o tapete estilo Claude e o rack escuro com LED ciano. |
+| `assets/js/maps/datalab-arte.js` | Parte 4: as peças desenhadas da sala (meia-parede, janelinha, porta verde, quadros, relógio, tomadas, sofá, calha dos racks, luz fria e quente, tapetes de tecido). |
+| `assets/js/maps/datalab-sala.js` | Parte 4: a sala do DataLab (planta em texto no começo do arquivo, pisos de madeira e carpete, paredes, móveis, porta da sala técnica) e o `validarMapa()` dela. |
+| `assets/js/maps/datalab-gente.js` | Parte 4: os 3 funcionários (rotina, caminho pelos tiles livres, balões de fala, dica com E). Carregado depois de `faculdade-alunos.js`. |
+| `assets/js/maps/datalab-som.js` | Parte 4: zumbido dos servidores e teclado (Web Audio), com o botão Som do lago. |
+| `assets/js/maps/datalab.js` | Parte 4: a missão (bancada → RACK-01 → cabo → terminal) e o monitor. |
 
 ### Como acrescentar um mapa novo (faculdade, rua, abertura)
 

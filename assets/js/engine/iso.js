@@ -92,6 +92,8 @@
   }
   // the same drawing tools for other modules (street.js), in iso-pixel space after DL.isoKit.isoT(g, sc)
   DL.isoKit = { box, poly, line, isoT: (g, sc) => isoT(g, sc), setMap, drawActor: (g, sc, a, ghost) => drawActor(g, sc, a, ghost) };
+  // (a caixa padrão de um item, para quem desenha por cima dela com drawIso: os racks do DataLab)
+  DL.isoKit.drawBox = (g, sc, e, t) => drawBox(g, sc, e, t);
   // screen silhouette of a box (convex hexagon, iso pixels)
   function hull(x0, y0, x1, y1, z0, z1) {
     return [[x0, y0, z1], [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y1, z1]].map((p) => [IX(p[0], p[1]), IY(p[0], p[1], p[2])]);
@@ -1118,6 +1120,47 @@
     const sH = Math.floor(this.canvas.height / (this.o.minTilesHigh * T * 0.95));
     this.autoS = Math.max(this.o.minS || 2, Math.min(sW, sH || sW));
     this.S = Math.max(this.o.minS || 2, this.autoS + (this.o.zoom || 0));
+    // (Venti) o zoom do jogador (roda do mouse, + e −), igual em todos os mapas
+    if (this.o.pixelH) DL.zoomAplicar(this, r, Math.max(1, Math.round(r.height / this.o.pixelH)), this.S, true);
+    else DL.zoomAplicar(this, r, 1, this.S, false);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* (Venti) Zoom do jogador                                             */
+  /* ------------------------------------------------------------------ */
+  // DL.zoom.z = quanto o jogador aproximou (1 = normal, até 3); vale para todos os mapas.
+  // Para a pixel art nunca borrar, cada pixel do jogo vira sempre um número INTEIRO de pixels da tela:
+  // P = pixels da tela por pixel do mundo (sem zoom: P0 = k × S, k = quanto o CSS amplia a tela interna).
+  // Com zoom, P = P0 × z arredondado; S fica o menor inteiro ≥ o S de antes que divide P, e k = P / S.
+  // (S nunca diminui: o desenho continua com o mesmo detalhe; a tela interna é que encolhe.)
+  DL.zoom = DL.zoom || { z: 1, MAX: 3 };
+  // sem zoom durante os filmes (lago, viagem, chegada na rua) e com o menu inicial na tela
+  DL.zoomAtivo = () => !document.body.classList.contains('in-cutscene') && !(DL.Menu && DL.Menu.aberto);
+  DL.zoomAplicar = function (sc, r, k0, S0, pixel) {
+    sc.baseP = k0 * S0;
+    sc._zoomAtivo = DL.zoomAtivo();
+    const z = sc._zoomAtivo ? DL.zoom.z : 1;
+    sc.zoomP = sc.baseP;
+    if (z <= 1.001) return;
+    const P = Math.max(sc.baseP, Math.round(sc.baseP * z));
+    sc.zoomP = P;
+    if (!pixel) { sc.S = P; return; } // tela na resolução do monitor: S já é "pixels da tela por pixel do mundo"
+    let S = Math.max(1, S0);
+    while (P % S) S++;
+    const k = P / S;
+    sc.canvas.width = Math.max(1, Math.ceil(r.width / k));
+    sc.canvas.height = Math.max(1, Math.ceil(r.height / k));
+    sc.dpr = sc.canvas.width / Math.max(1, r.width);
+    sc.canvas.classList.add('is-pixel');
+    sc.S = S;
+  };
+  // um passo de zoom (d = +1 aproxima, −1 afasta, 0 volta ao normal): um pixel da tela a mais ou a menos
+  DL.zoomPasso = function (sc, d) {
+    if (!sc || !sc.baseP) return;
+    const P0 = sc.baseP, Pmax = Math.max(P0, Math.round(P0 * DL.zoom.MAX));
+    const P = d === 0 ? P0 : Math.max(P0, Math.min(Pmax, (sc.zoomP || P0) + d));
+    DL.zoom.z = P / P0;
+    sc.resize();
   };
   SP.screenToWorld = function (sx, sy, z) {
     const X = (sx * this.dpr + this.ox) / this.S, Y = (sy * this.dpr + this.oy) / this.S + (z || 0);
