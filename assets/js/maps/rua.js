@@ -330,19 +330,33 @@
   items.push({ id: 'PORTA', kind: 'rua-porta', tx: Math.floor(PORTA.x / T), ty: Math.floor(PORTA.y / T), tw: 1, th: 1, solid: false, isoH: 2, drawIso: (g, sc) => luzDaPorta(g, sc) });
   // a porta do DataLab, que também desenha o brilho do néon a cada quadro (pulsa de leve e, às vezes, pisca)
   items.push({ id: 'PORTA-DL', kind: 'rua-porta', tx: Math.floor(DL_PORTA.x / T), ty: Math.floor(DL_PORTA.y / T) - 1, tw: 1, th: 1, solid: false, isoH: 2, drawIso: desenhaNeon });
-  // Barraca de pastel na calçada em frente à faculdade.
-  items.push({ id: 'MESA-PASTEL', kind: 'table', variant: 'office', color: '#f4f1e8', tx: 24, ty: 54, tw: 1, th: 1, solid: false });
-  items.push({ id: 'PASTEIS', kind: 'rua-pasteis', host: 'MESA-PASTEL', tx: 24, ty: 54, tw: 1, th: 1, solid: false, drawIso: (g, sc, e) => {
-    // (em coordenadas de tela isométrica, em cima do tampo da mesa: senão os pastéis apareciam longe dela)
-    const x = e.px + 8, y = e.py + 8, X = Math.round(x - y) - 8, Y = Math.round((x + y) / 2) - 12 + 5;
+  // Barraca de pastel na calçada em frente à faculdade (mesa arrumada, estufa iluminada, caixa térmica e toldo).
+  items.push({ id: 'MESA-PASTEL', kind: 'table', variant: 'office', color: '#f4f1e8', tx: 24, ty: 54, tw: 1, th: 1, solid: false, glow: 'rgba(255,196,110,0.22)' });
+  items.push({ id: 'PASTEIS', kind: 'rua-pasteis', host: 'MESA-PASTEL', tx: 24, ty: 54, tw: 1, th: 1, solid: false, isoH: 38, drawIso: (g, sc, e) => {
+    const x0 = e.px, y0 = e.py, x1 = x0 + T, y1 = y0 + T;
     K.isoT(g, sc);
-    R(g, X + 1, Y - 6, 14, 4, '#d8dce1');
-    R(g, X + 2, Y - 7, 12, 1, '#ffffff');
-    R(g, X + 3, Y - 5, 4, 2, '#e8c477');
-    R(g, X + 8, Y - 5, 4, 2, '#e8c477');
-    R(g, X + 4, Y - 4, 2, 1, '#b96d32');
-    R(g, X + 9, Y - 4, 2, 1, '#b96d32');
-    return { rect: [X, Y - 8, X + 16, Y] };
+    // saia xadrez vermelha e creme em volta da mesa
+    K.poly(g, [[x0 + 1, y1 - 1, 2], [x1 - 1, y1 - 1, 2], [x1 - 1, y1 - 1, 10], [x0 + 1, y1 - 1, 10]], '#c8322c');
+    K.poly(g, [[x1 - 1, y1 - 1, 2], [x1 - 1, y0 + 1, 2], [x1 - 1, y0 + 1, 10], [x1 - 1, y1 - 1, 10]], '#a42621');
+    for (let i = 0; i < 3; i++) {
+      K.poly(g, [[x0 + 2 + i * 4, y1 - 1, 3], [x0 + 4 + i * 4, y1 - 1, 3], [x0 + 4 + i * 4, y1 - 1, 9], [x0 + 2 + i * 4, y1 - 1, 9]], '#f4efe2');
+    }
+    // caixa térmica azul do lado direito da mesa (caldo de cana e refrigerante)
+    K.box(g, x1 - 4, y0 + 2, x1 + 2, y0 + 9, 0, 8, { s: '#2962b8', e: '#1e4a8c', t: '#eef3f8' });
+    // estufa de vidro iluminada em cima do tampo (pastéis e coxinhas douradas)
+    K.box(g, x0 + 2, y0 + 2, x0 + 11, y0 + 10, 12, 18, { s: 'rgba(255,226,155,0.45)', e: 'rgba(220,185,115,0.4)', t: 'rgba(255,245,215,0.65)' });
+    K.box(g, x0 + 3, y0 + 4, x0 + 6, y0 + 7, 13, 15, { s: '#d98a36', e: '#b46b22', t: '#f0b654' }); // pastéis
+    K.box(g, x0 + 7, y0 + 5, x0 + 10, y0 + 8, 13, 15, { s: '#cf7d2b', e: '#a65d1a', t: '#eab04c' }); // coxinhas
+    // frascos de ketchup, mostarda e guardanapo na frente
+    K.box(g, x0 + 11, y0 + 9, x0 + 13, y0 + 11, 12, 16, { s: '#d23a32', e: '#9e2620', t: '#ee6a5e' });
+    K.box(g, x0 + 13, y0 + 7, x0 + 15, y0 + 9, 12, 16, { s: '#e6b83a', e: '#b88e22', t: '#fae078' });
+    // haste e toldo listrado vermelho/creme em cima da barraca
+    K.line(g, [x0 + 8, y0 + 4, 12], [x0 + 8, y0 + 4, 32], '#6b7078', 1.4);
+    K.box(g, x0 - 1, y0 - 1, x1 + 1, y1 + 1, 31, 34, { s: '#c8322c', e: '#9a221d', t: '#f4efe2' });
+    K.poly(g, [[x0 - 1, y0 - 1, 34], [x0 + 7, y0 - 1, 34], [x0 + 7, y1 + 1, 34], [x0 - 1, y1 + 1, 34]], '#d23a32');
+    const X = Math.round((x0 + 8) - (y0 + 8));
+    const Y = Math.round(((x0 + 8) + (y0 + 8)) / 2);
+    return { rect: [X - 16, Y - 38, X + 16, Y + 4] };
   } });
 
   /* ------------------------------------------------------------------ */
@@ -400,11 +414,53 @@
     { look: { skin: '#e0ac7e', hair: '#2a1c16', hairStyle: 'curly', shirt: '#f2c14e', pants: '#1f2430', shoes: '#c8262e' }, x: 38.2, a: 3, b: 60, v: -21, y: 20 },
     { look: { skin: '#a86f4c', hair: '#1a1210', hairStyle: 'short', shirt: '#4a7ac8', pants: '#2a2f38', shoes: '#eceff3' }, eixo: 'x', y: 60.4, a: 2, b: 21, v: 16, x: 9 },
   ];
-  const st = { t: 0, fase: 'jogo', gente: [], msg: 0, vendedora: null };
+  const st = { t: 0, fase: 'jogo', gente: [], clientes: [], msg: 0, vendedora: null, falaT: 0, falaIdx: 0 };
   const VENDEDORA = {
-    look: { skin: '#f5d3b3', hair: '#b8864a', hairStyle: 'long', shirt: '#f0a5b8', pants: '#6b5a45', shoes: '#eceff3', body: 'f' },
-    x: 25.5, y: 55.2,
+    look: { skin: '#f5d3b3', hair: '#b8864a', hairStyle: 'long', shirt: '#f0a5b8', pants: '#6b5a45', shoes: '#eceff3', body: 'f', apron: '#ffffff' },
+    x: 25.35, y: 54.6,
   };
+  const CLIENTES_CFG = [
+    { look: { skin: '#d8a47f', hair: '#1d1612', hairStyle: 'short', shirt: '#7c3aed', pants: '#232a36', shoes: '#eceff3' }, espera: [23.4, 54.6], fora: [23.4, 46.5], fase: 0 },
+    { look: { skin: '#a86f4c', hair: '#2a1c16', hairStyle: 'curly', shirt: '#2f9a5c', pants: '#2b2f3a', shoes: '#eceff3' }, espera: [23.6, 55.4], fora: [23.6, 59.2], fase: 4.5 },
+  ];
+  const FALAS_VENDEDORA = ['Pastel quentinho!', 'Coxinha e caldo de cana!', 'Saindo na hora!'];
+  const CARDAPIO_LANCHE = [
+    { id: 'pastel', nome: 'Pastel de Carne / Queijo', preco: 'R$ 7,00', desc: 'Crocante e quentinho, frito na hora.' },
+    { id: 'coxinha', nome: 'Coxinha de Frango', preco: 'R$ 5,00', desc: 'Clássica da porta da faculdade.' },
+    { id: 'caldo', nome: 'Caldo de Cana 300ml', preco: 'R$ 4,00', desc: 'Geladinho com um toque de limão.' },
+    { id: 'combo', nome: 'Combo Estudante', preco: 'R$ 10,00', desc: 'Pastel + Caldo de Cana pra aula inteira.' },
+  ];
+  let lancheWired = false;
+  function abrirLanche(game) {
+    const panel = $('lanchePanel'), grid = $('lancheGrid');
+    if (!panel || !grid) return;
+    if (!lancheWired) {
+      lancheWired = true;
+      grid.innerHTML = '';
+      for (const item of CARDAPIO_LANCHE) {
+        const card = document.createElement('div');
+        card.className = 'lanche__item';
+        card.innerHTML =
+          '<div class="lanche__top"><b>' + item.nome + '</b><span class="lanche__price">' + item.preco + '</span></div>' +
+          '<small>' + item.desc + '</small>' +
+          '<button type="button" class="btn">Pedir</button>';
+        card.querySelector('button').onclick = () => {
+          panel.classList.remove('is-open');
+          game.locked = false;
+          if (game.giveSnack) game.giveSnack(item.id, item.nome);
+          if (DL.sfx) DL.sfx.blip();
+          if (DL.fx) DL.fx.burst(24 * T + 8, 54 * T + 8, 22, 'spark');
+          st.falaT = 2.6;
+          st.falaIdx = 2;
+          game.toast('Tia do Pastel: “Saindo ' + item.nome + '!” · Aperte F para comer', 'ok');
+        };
+        grid.appendChild(card);
+      }
+      $('lancheClose').onclick = () => { panel.classList.remove('is-open'); game.locked = false; };
+    }
+    game.locked = true;
+    panel.classList.add('is-open');
+  }
 
   /* ------------------------------------------------------------------ */
   /* validarMapa() também vale aqui                                      */
@@ -569,7 +625,7 @@
       const sc = game.scene, w = game.world, Pr = prepara(), L = DL.Lago && DL.Lago.L;
       const deDentro = !DL.chegada && st.deDentro;  // voltou da faculdade pela porta de vidro
       const doLab = !DL.chegada && st.doLab;        // voltou do DataLab
-      Object.assign(st, { t: 0, fase: DL.chegada ? 'chegada' : 'jogo', gente: [], msg: 0, deDentro: false, doLab: false, luzPorta: 0 });
+      Object.assign(st, { t: 0, fase: DL.chegada ? 'chegada' : 'jogo', gente: [], clientes: [], falaT: 1.5, falaIdx: 0, msg: 0, deDentro: false, doLab: false, luzPorta: 0 });
       DL.chegada = false;
       pintaChao(sc.floor);
       let v = 0;
@@ -589,6 +645,8 @@
       porta.ix = PORTA.x; porta.iy = PORTA.y;
       const pdl = w.byId['PORTA-DL'];
       pdl.ix = DL_PORTA.x; pdl.iy = DL_PORTA.y;
+      const mp = w.byId['MESA-PASTEL'];
+      if (mp) { mp.ix = mp.px + 8; mp.iy = mp.py + 8; }
       // gente passeando pelas calçadas (vai e volta)
       for (const p of GENTE) {
         const a = new DL.Actor(p.look, p.x * T, p.y * T, 'down');
@@ -596,10 +654,17 @@
         sc.drawables.push(a);
         st.gente.push({ a, p, v: p.v });
       }
-      const vendedora = new DL.Actor(VENDEDORA.look, VENDEDORA.x * T, VENDEDORA.y * T, 'down');
+      const vendedora = new DL.Actor(VENDEDORA.look, VENDEDORA.x * T, VENDEDORA.y * T, 'left');
       vendedora.moving = false;
       sc.drawables.push(vendedora);
       st.vendedora = vendedora;
+      // clientes que vão até a barraca comprar lanche e depois saem
+      for (const c of CLIENTES_CFG) {
+        const a = new DL.Actor(c.look, c.fora[0] * T, c.fora[1] * T, 'down');
+        a.moving = true;
+        sc.drawables.push(a);
+        st.clientes.push({ a, c, t: c.fase, estado: 'indo' });
+      }
       // a caixa de missão
       const box = $('mission'), txt = box.querySelector('p');
       if (missaoAntes == null) missaoAntes = txt.textContent;
@@ -631,6 +696,33 @@
       if (st.vendedora) {
         st.vendedora.moving = false;
         st.vendedora.tick(dt);
+        st.falaT -= dt;
+        if (st.falaT <= 0) { st.falaT = 4.2; st.falaIdx = (st.falaIdx + 1) % FALAS_VENDEDORA.length; }
+        const comprando = st.clientes.some((k) => k.estado === 'comprando');
+        const perto = Math.hypot(pl.x - st.vendedora.x, pl.y - st.vendedora.y) < 34;
+        st.vendedora.dir = perto ? DL.dirOf(pl.x - st.vendedora.x, pl.y - st.vendedora.y) : 'left';
+        st.vendedora.pose = (comprando || perto) && Math.floor(t * 4) % 2 ? 'talk' : null;
+      }
+      for (const k of st.clientes) {
+        const a = k.a, dst = k.estado === 'indo' ? k.c.espera : k.estado === 'saindo' ? k.c.fora : null;
+        if (dst) {
+          const dx = dst[0] * T - a.x, dy = dst[1] * T - a.y, d = Math.hypot(dx, dy);
+          if (d < 2) {
+            a.moving = false;
+            if (k.estado === 'indo') { k.estado = 'comprando'; k.t = 3.8; a.dir = 'right'; }
+            else { k.estado = 'espera_fora'; k.t = 2.5; }
+          } else {
+            const sp = 22 * dt;
+            a.x += (dx / d) * sp; a.y += (dy / d) * sp;
+            a.dir = DL.dirOf(dx, dy); a.moving = true; a.dist += sp;
+          }
+        } else {
+          k.t -= dt;
+          a.moving = false;
+          a.pose = k.estado === 'comprando' && Math.floor(t * 3.5) % 2 ? 'talk' : null;
+          if (k.t <= 0) k.estado = k.estado === 'comprando' ? 'saindo' : 'indo';
+        }
+        a.tick(dt);
       }
       if (st.fase === 'chegada') {
         car.porta = t < CH.abre[0] ? 0 : t < CH.abre[1] ? 0.5 : t < CH.fecha[0] ? 1 : t < CH.fecha[1] ? 0.5 : 0;
@@ -648,6 +740,11 @@
 
     // durante a cena: Espaço, Enter ou Esc pulam para dentro da faculdade (as outras teclas não fazem nada)
     key(game, ev) {
+      const lp = $('lanchePanel');
+      if (lp && lp.classList.contains('is-open')) {
+        if (ev.key === 'Escape') { lp.classList.remove('is-open'); game.locked = false; ev.preventDefault(); }
+        return true;
+      }
       if (st.fase !== 'chegada') return false;
       if (ev.type === 'keydown' && !ev.repeat && (ev.code === 'Space' || ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.code === 'Escape')) pulaCena(game);
       ev.preventDefault();
@@ -656,9 +753,11 @@
 
     useLabel(game, e) {
       if (st.fase !== 'jogo') return null;
+      if (e.id === 'MESA-PASTEL') return 'Comprar lanche';
       return e.id === 'PORTA' ? 'Pressione E para entrar' : e.id === 'PORTA-DL' ? 'Pressione E para entrar no DataLab' : null;
     },
     use(game, e) {
+      if (e.id === 'MESA-PASTEL') { if (DL.sfx) DL.sfx.blip(); return abrirLanche(game); }
       if (e.id === 'PORTA-DL' && DL.MAPS.datalab) return game.goTo('datalab', [1, 5]); // a sala do DataLab (datalab.js), logo depois da porta
       if (e.id !== 'PORTA') return;
       st.entrou = true;
@@ -666,6 +765,27 @@
     },
 
     overlay(g, sc) {
+      if (st.vendedora && st.fase === 'jogo') {
+        const comprando = st.clientes.some((k) => k.estado === 'comprando');
+        if (comprando || st.falaT > 1.8) {
+          g.save();
+          K.isoT(g, sc);
+          const v = st.vendedora, X = Math.round(v.x - v.y), Y = Math.round((v.x + v.y) / 2) - 42;
+          const txt = FALAS_VENDEDORA[st.falaIdx];
+          g.font = '4px monospace';
+          const w = Math.max(46, txt.length * 2.5 + 8), h = 10, l = X - w / 2, t0 = Y - h;
+          g.fillStyle = '#fffdf6';
+          g.fillRect(l, t0, w, h);
+          g.strokeStyle = '#29313b';
+          g.lineWidth = 0.8;
+          g.strokeRect(l, t0, w, h);
+          g.fillStyle = '#29313b';
+          g.textAlign = 'center';
+          g.textBaseline = 'middle';
+          g.fillText(txt, X, t0 + h / 2);
+          g.restore();
+        }
+      }
       g.save();
       g.setTransform(1, 0, 0, 1, 0, 0);
       const cw = sc.canvas.width, ch = sc.canvas.height;
@@ -677,6 +797,8 @@
 
     leave() {
       document.body.classList.remove('in-cutscene');
+      const lp = $('lanchePanel');
+      if (lp) lp.classList.remove('is-open');
       if (missaoAntes != null) { $('mission').querySelector('p').textContent = missaoAntes; $('missionSteps').innerHTML = ''; }
     },
   });

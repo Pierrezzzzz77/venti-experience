@@ -6,6 +6,7 @@
   <title>Venti Experience</title>
   <link rel="stylesheet" href="assets/css/game.css">
   <link rel="stylesheet" href="assets/css/menu.css">
+  <link rel="stylesheet" href="assets/css/violao.css">
 </head>
 <body>
   <canvas id="game" aria-label="Sala do DataLab em pixel art isométrica"></canvas>
@@ -18,7 +19,8 @@
     <div id="carry" class="carry"></div>
   </section>
 
-  <div class="keys"><kbd>WASD</kbd> / setas andar · <kbd>E</kbd> interagir · <kbd>M</kbd> monitor · <kbd>Esc</kbd> fechar</div>
+  <div class="keys"><kbd>WASD</kbd> / setas andar · <kbd>E</kbd> interagir · <kbd>F</kbd> comer · <kbd>M</kbd> monitor</div>
+  <div id="heldHud" class="held" hidden></div>
 
   <div id="hint" class="hint"></div>
   <div id="toast" class="toast"></div>
@@ -130,6 +132,20 @@
     </div>
   </div>
 
+  <!-- barraca de lanche na porta da faculdade -->
+  <div id="lanchePanel" class="panel" role="dialog" aria-label="Barraca de lanches">
+    <div class="panel__box lanche">
+      <header class="panel__head">
+        <b>Barraca da Tia · Lanches</b>
+        <button id="lancheClose" class="btn btn--ghost" type="button">Fechar <kbd>Esc</kbd></button>
+      </header>
+      <div class="lanche__body">
+        <p class="lanche__sub">“Pastel feito na hora, coxinha e caldo de cana geladinho!”</p>
+        <div class="lanche__grid" id="lancheGrid"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- A ordem importa (igual ao DataLab): motor → jogo → interface → mapas → início -->
   <script src="assets/js/engine/sprites.js"></script>
   <script src="assets/js/engine/scene.js"></script>
@@ -139,6 +155,7 @@
   <script src="assets/js/ui/rack-panel.js"></script>
   <script src="assets/js/ui/terminal.js"></script>
   <script src="assets/js/ui/monitor.js"></script>
+  <script src="assets/js/ui/violao.js"></script>
   <script src="assets/js/maps/datalab.js"></script>
   <script src="assets/js/maps/arte.js"></script>
   <script src="assets/js/maps/abertura-pecas.js"></script>

@@ -568,6 +568,73 @@
     disc(g, 14, by - 25, 3, capacete); R(g, 15, by - 26, 3, 2, '#1c2733');
     return { r: c, l: espelho(c) };
   }
+  // moto parada, sem ninguém, apoiada no descanso (30 × 19; .r virada para a direita, .l espelhada)
+  function motoParada(cor, capacete) {
+    const [c, g] = mk(30, 19), by = 18;
+    for (const wx of [6, 23]) { disc(g, wx, by - 4, 4, '#121418'); disc(g, wx, by - 4, 2, '#5d6573'); }
+    R(g, 3, by - 8, 9, 2, '#9aa3b0'); R(g, 2, by - 5, 6, 1, '#c8ccd2');
+    R(g, 8, by - 10, 14, 5, cor); R(g, 8, by - 10, 14, 1, shade(cor, 0.3)); R(g, 13, by - 12, 7, 3, cor); R(g, 13, by - 12, 7, 1, shade(cor, 0.35)); // tanque
+    R(g, 5, by - 12, 8, 2, '#16181d'); R(g, 1, by - 11, 3, 2, '#c8262e');                                                                             // banco e lanterna
+    R(g, 21, by - 14, 2, 10, '#9aa3b0'); R(g, 19, by - 16, 5, 1, '#2a2f38'); R(g, 24, by - 13, 2, 3, '#fff1b0'); R(g, 20, by - 18, 1, 2, '#2a2f38');   // garfo, guidão, farol, espelho
+    R(g, 14, by - 4, 1, 4, '#5d6573');
+    if (capacete) { disc(g, 8, by - 15, 2, capacete); R(g, 9, by - 15, 2, 1, '#1c2733'); }
+    return { r: c, l: espelho(c) };
+  }
+  // barraquinha com toldo listrado (34 × 34)
+  function barraca(cor) {
+    const [c, g] = mk(34, 34);
+    R(g, 3, 8, 1, 26, '#c8ccd2'); R(g, 30, 8, 1, 26, '#c8ccd2');
+    for (let i = 0; i < 34; i++) R(g, i, 2 - (i > 2 && i < 31 ? 1 : 0), 1, 8 + (i % 6 < 3 ? 1 : 0), Math.floor(i / 4) % 2 ? '#f4f1e8' : cor);
+    R(g, 2, 20, 30, 13, '#e9ecef'); R(g, 2, 20, 30, 2, '#ffffff'); R(g, 2, 27, 30, 2, cor);
+    for (const x of [6, 12, 18, 24]) R(g, x, 18, 4, 2, '#e8b45f');
+    return c;
+  }
+  // a cidade ao longe, na linha do horizonte (uma faixa que se repete): telhados, prédios baixos, árvores e janelas
+  function cidadeLonge(semente, W) {
+    const H = 30, [c, g] = mk(W, H), [l, q] = mk(W, H);
+    for (let x = 0, i = 0; x < W; i++) {
+      const w = 7 + Math.round(hash(i * 3 + semente) * 12), alto = hash(i * 7 + semente) > 0.82, h = alto ? 12 + Math.round(hash(i * 5 + semente) * 8) : 5 + Math.round(hash(i * 11 + semente) * 5);
+      if (x + w > W) break;
+      const cor = ['#6f6a72', '#7d7068', '#5f6675', '#86766a', '#6a5f66'][Math.floor(hash(i * 13 + semente) * 5)];
+      R(g, x, H - h, w, h, cor); R(g, x, H - h, w, 1, shade(cor, 0.2));
+      if (!alto) { R(g, x - 1, H - h - 1, w + 2, 1, '#8a4a36'); if (w > 10) R(g, x + 2, H - h - 2, w - 4, 1, '#7a4030'); }
+      for (let wy = H - h + 2; wy < H - 2; wy += 3) for (let wx = x + 1; wx < x + w - 1; wx += 3) {
+        R(g, wx, wy, 1, 1, '#2a2f38');
+        if (hash(wx * 7 + wy * 13 + semente) > 0.55) R(q, wx, wy, 1, 1, hash(wx * 3 + wy) > 0.8 ? '#dfe9ff' : '#ffcf86');
+      }
+      x += w + 1;
+      if (hash(i * 17 + semente) > 0.45) { const r = 3 + Math.round(hash(i * 19 + semente) * 2); disc(g, x + r, H - r - 1, r, '#3c6146'); disc(g, x + r - 1, H - r - 2, r - 2, '#4b7653'); x += r + 2; }
+    }
+    return { c, luz: l };
+  }
+  // o morro do bairro, à direita da faculdade: encosta com mato, casinhas em degraus com as janelas acesas e postes
+  function morro(W, H) {
+    const [c, g] = mk(W, H), [l, q] = mk(W, H);
+    const topo = (x) => H - Math.round(Math.min(1, x / (W * 0.5)) * (H * 0.46) + 8 + 4 * Math.sin(x * 0.045) + 3 * Math.sin(x * 0.11 + 1));
+    for (let x = 0; x < W; x++) {
+      const t = topo(x), b = Math.round(Math.sin(x * 0.7) + Math.sin(x * 1.7) * 0.8);
+      R(g, x, t - 1 + b, 1, H - t + 2, '#2f4f3f'); R(g, x, t + 1 + b, 1, H - t, '#37594a');
+      if (x % 3 === 0) R(g, x, t + 6 + ((x * 7) % 11), 2, 2, '#41674f');
+    }
+    // da fileira de cima para a de baixo: as de baixo tapam as de cima
+    for (let fila = 0; fila < 6; fila++) for (let x = 6 + fila * 3, i = 0; x < W - 8; i++) {
+      const k = hash(fila * 31 + i * 7), w = 5 + Math.round(k * 5), t = topo(x + w / 2), y = t + 7 + fila * 7 + Math.round(hash(i * 3 + fila) * 3), h = 4 + Math.round(hash(i * 11 + fila) * 2);
+      if (y < H - 1) {
+        if (hash(i * 5 + fila * 9) > 0.3) {
+          const cor = ['#a08a78', '#8d8f98', '#b39b80', '#8a7a86', '#9aa08e'][Math.floor(hash(i * 13 + fila) * 5)];
+          q.clearRect(x - 1, y - h - 2, w + 2, h + 2);
+          R(g, x, y - h, w, h, cor); R(g, x - 1, y - h - 1, w + 2, 1, '#8a4a36'); R(g, x + 1, y - h - 2, w - 2, 1, '#7a4030');
+          for (let wx = x + 1; wx < x + w - 1; wx += 2) if (hash(wx * 7 + y * 3) > 0.35) R(q, wx, y - h + 1 + (wx % 2), 1, 1, hash(wx + y * 5) > 0.75 ? '#e6efff' : '#ffc878');
+        } else { const r = 2 + Math.round(k * 2); disc(g, x + 2, y - r, r, '#3f6a4c'); q.clearRect(x + 2 - r, y - 2 * r, 2 * r + 1, 2 * r + 1); R(g, x + 1, y - 2 * r + 1, 2, 1, '#57855f'); }
+      }
+      x += w + 2 + Math.round(hash(i * 17 + fila) * 5);
+      if (i % 4 === 2 && y < H - 2) { R(g, x - 1, y - 7, 1, 7, '#9aa3b0'); R(q, x - 1, y - 7, 1, 1, '#fff0c8'); }
+    }
+    // a torre de celular no alto (foto 05)
+    const tx = Math.round(W * 0.62), ty = topo(tx);
+    for (let y = 0; y < 22; y++) { const m = y >> 3; R(g, tx - m, ty - 22 + y, 1, 1, '#8d95a2'); R(g, tx + m, ty - 22 + y, 1, 1, '#8d95a2'); if (y % 4 === 3) R(g, tx - m, ty - 22 + y, 2 * m + 1, 1, '#8d95a2'); }
+    return { c, luz: l, torre: [tx, ty - 23] };
+  }
   // caminhão baú de lado (110 × 42)
   function caminhao(cor) {
     const [c, g] = mk(110, 42), by = 41;
@@ -633,5 +700,5 @@
     return c;
   }
 
-  DL.Pecas = { arvore, arvoreG, arvoreLonge, predioSil, palmeira, arbusto, capim, mata, predio, predioLonge, MODELOS, skyfit, bandeirola, carro, carroPonta, moto, caminhao, placaVel, placaDir, placaAzul, pontoOnibus };
+  DL.Pecas = { arvore, arvoreG, arvoreLonge, predioSil, palmeira, arbusto, capim, mata, predio, predioLonge, MODELOS, skyfit, bandeirola, carro, carroPonta, moto, motoParada, barraca, cidadeLonge, morro, caminhao, placaVel, placaDir, placaAzul, pontoOnibus };
 })();

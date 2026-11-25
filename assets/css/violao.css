@@ -1,0 +1,41 @@
+/* Venti Experience — o painel do violão (assets/js/ui/violao.js) */
+.vio { width: min(1180px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+.vio .panel__head { flex-wrap: wrap; }
+.vio__modos { display: flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 8px; }
+.vio button { font: 13px var(--font); cursor: pointer; }
+.vio__modos button { padding: 6px 16px; border: 0; border-radius: 6px; background: transparent; color: var(--dim); }
+.vio__modos button.is-on { background: #12301f; color: var(--ok); }
+.vio__vol { display: flex; align-items: center; gap: 8px; margin-left: auto; color: var(--dim); font-size: 12px; }
+.vio__vol input { width: 90px; accent-color: #7ee0a1; }
+.vio__corpo { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; overflow: auto; }
+.vio__lista { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-right: 1px solid var(--line); min-height: 0; overflow: auto; max-height: 560px; }
+.vio__generos { display: flex; flex-wrap: wrap; gap: 5px; }
+.vio__generos button, .vio__campos button { padding: 4px 9px; border: 1px solid #3a414c; border-radius: 999px; background: transparent; color: var(--dim); font-size: 12px; }
+.vio__generos button.is-on, .vio__campos button.is-on { border-color: #ffc95a; color: #ffc95a; }
+.vio__musicas { display: grid; gap: 5px; }
+.vio__musicas button { display: grid; gap: 1px; padding: 8px 10px; text-align: left; border: 1px solid var(--line); border-radius: 7px; background: #11141a; color: var(--text); }
+.vio__musicas button:hover { border-color: #3a414c; }
+.vio__musicas button.is-on { border-color: var(--ok); background: #12301f; }
+.vio__musicas i { color: #ffc95a; font-style: normal; }
+.vio__musicas small { color: var(--dim); font-size: 11px; }
+.vio__palco { display: grid; gap: 10px; padding: 12px; min-width: 0; align-content: start; }
+.vio__campos { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 28px; color: var(--dim); font-size: 12px; }
+.vio canvas { display: block; width: 100%; aspect-ratio: 3 / 1; border-radius: 10px; background: #15100b; cursor: pointer; touch-action: none; }
+.vio__trilha { display: flex; align-items: center; gap: 4px; min-height: 52px; overflow: hidden; }
+.vio__trilha span:not(.vio__vazio) { display: grid; justify-items: center; flex: 1 1 0; min-width: 34px; max-width: 58px; padding: 5px 2px; border: 1px solid var(--line); border-radius: 7px; background: #11141a; }
+.vio__trilha b { font-size: 15px; }
+.vio__trilha small { font-size: 10px; color: var(--dim); }
+.vio__trilha .is-ja { opacity: 0.35; }
+.vio__trilha .is-on { border-color: #ffc95a !important; background: #3a2c0c !important; color: #ffc95a; }
+.vio__trilha em { margin-left: 6px; color: var(--dim); font-size: 12px; font-style: normal; white-space: nowrap; }
+.vio__vazio { color: var(--dim); font-size: 13px; }
+.vio__botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.vio__esp { flex: 1; }
+.vio .is-rec { border-color: var(--bad); color: #ffb3bc; }
+.vio__msg { color: var(--ok); font-size: 13px; }
+.vio__ajuda { color: var(--dim); font-size: 12px; text-align: right; }
+@media (max-width: 860px) {
+  .vio__corpo { grid-template-columns: minmax(0, 1fr); }
+  .vio__lista { order: 2; border-right: 0; border-top: 1px solid var(--line); max-height: none; }
+  .vio__ajuda { display: none; }
+}

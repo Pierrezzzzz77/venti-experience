@@ -154,12 +154,28 @@
   // as camadas do meio e do fundo usam mais os prédios altos (aparecem por cima dos telhados da frente)
   const ORDEM_LONGE = [8, 4, 13, 19, 22, 1, 0, 14, 10, 5, 2, 7, 6, 17, 3, 21, 12, 9, 16, 11, 18, 20];
   // o plano de fundo (câmera atrás do carro)
-  const FV = 150, FDEC = 2.6, F_T0 = TL.fundo - MIX, F_DUR = TL.para - F_T0, F_TOTAL = FV * (F_DUR - FDEC) + (FV * FDEC) / 2, F_SERRA = F_TOTAL + 108;
+  const FV = 150, FDEC = 2.6, F_T0 = TL.fundo - MIX, F_DUR = TL.para - F_T0, F_TOTAL = FV * (F_DUR - FDEC) + (FV * FDEC) / 2, F_SERRA = F_TOTAL + 120, SERRA_X = 3.15;
   function fDist(tt) {
     tt = clamp(tt, 0, F_DUR);
     if (tt < F_DUR - FDEC) return FV * tt;
     const r = tt - (F_DUR - FDEC);
     return FV * (F_DUR - FDEC) + FV * (r - (r * r) / (2 * FDEC));
+  }
+
+  // a rua transversal que sobe o morro: uma curva no mundo [X (larguras de pista), D (distância), altura (px)]
+  function suavizar(P0) { // Catmull-Rom, 6 pedaços por trecho
+    const out = [], at = (i) => P0[clamp(i, 0, P0.length - 1)];
+    for (let i = 0; i < P0.length - 1; i++) for (let k = 0; k < 6; k++) {
+      const u = k / 6, a = at(i - 1), b = at(i), c = at(i + 1), d = at(i + 2);
+      out.push(b.map((_, j) => 0.5 * (2 * b[j] + (c[j] - a[j]) * u + (2 * a[j] - 5 * b[j] + 4 * c[j] - d[j]) * u * u + (3 * b[j] - a[j] - 3 * c[j] + d[j]) * u * u * u)));
+    }
+    out.push(P0[P0.length - 1].slice());
+    // a normal (no chão) de cada ponto
+    return out.map((p, i) => { const a = out[Math.max(0, i - 1)], b = out[Math.min(out.length - 1, i + 1)], tx = (b[0] - a[0]) * 65, td = b[1] - a[1], m = Math.hypot(tx, td) || 1; return [p, [td / m, -tx / m]]; });
+  }
+  function pontoSubida(u) { // u de 0 (avenida) a 1 (alto do morro)
+    const L = S.subida, f = clamp(u, 0, 1) * (L.length - 1), i = Math.min(L.length - 2, Math.floor(f)), k = f - i;
+    return [0, 1].map((q) => L[i][q].map((v, j) => lerp(v, L[i + 1][q][j], k)));
   }
 
   // A montagem é um gerador: cada "yield" é um ponto onde ela pode parar e continuar depois.
@@ -282,6 +298,7 @@
     for (let i = 0; i < 14; i++) gente.push({ look: i % 5, a: 1080 + i * 110, b: 1080 + i * 110 + 240, y: 123.5 + (i % 4) * 1.6, sp: 10 + hash(i * 3) * 9, ph: hash(i * 7) * 480 });
     const folhas = []; // uma folha de sprites por visual (fazer uma por pessoa custava segundos)
     for (const L of WALKERS) { folhas.push(DL.makeSheet(L)); yield; }
+    S.folhas = folhas;
     S.people = gente.map((p) => Object.assign(p, { sheet: folhas[p.look] }));
     S.dogWalker = folhas[4];
     S.hero = DL.makeSheet(DL.LOOKS.player);
@@ -304,8 +321,50 @@
     const poste2 = DL.mk(18, 106), pg = poste2.getContext('2d');
     R(pg, 2, 2, 3, 104, '#9aa3b0'); R(pg, 2, 2, 1, 104, '#c8ccd2'); R(pg, 2, 2, 14, 1, '#9aa3b0'); R(pg, 11, 3, 6, 2, '#fff3d6');
     const serra = A.serra();
-    fadd({ X: 3.35, D: F_SERRA, spr: serra.base, luz: serra.luz, serra: true });
-    const longe = (D) => D < F_SERRA - 170 || D > F_SERRA + 260; // em volta da faculdade nada tapa a fachada
+    fadd({ X: SERRA_X, D: F_SERRA, spr: serra.base, luz: serra.luz, serra: true });
+    /* a chegada: a esquina da faculdade (fotos 06 e 07), com a rua transversal que sobe o morro */
+    const F = F_SERRA;
+    S.cidade = P.cidadeLonge(3, 420); S.morro = P.morro(320, 96);
+    yield;
+    const cores = { prata: S.cars.silver, cinza: S.cars.gray, verm: S.cars.red, branco: S.cars.white, azul: P.carro('#2f5f95'), preto: P.carro('#2b2f37') };
+    // carros e motos parados no meio-fio da rua transversal (do lado da faculdade e do lado de cá)
+    fadd({ X: 3.95, D: F - 21, spr: cores.branco.r });
+    for (const [x, c, cap] of [[4.62, '#c8262e', '#16181d'], [4.98, '#23272f', null], [5.34, '#c8262e', '#e9ecef']]) fadd({ X: x, D: F - 20, spr: P.motoParada(c, cap).l });
+    fadd({ X: 3.05, D: F - 50, spr: cores.prata.r }); fadd({ X: 4.0, D: F - 50, spr: cores.verm.l });
+    fadd({ X: 4.62, D: F - 49, spr: P.motoParada('#1f6fb0', '#f2c14e').r }); fadd({ X: 4.96, D: F - 49, spr: P.motoParada('#2a2f38').r });
+    // carros parados mais adiante, no meio-fio da avenida, e do outro lado
+    for (const [d, c] of [[46, '#e9ecef'], [84, '#7d8590'], [150, '#b8333a'], [205, '#2f5f95']]) fadd({ X: 0.8, D: F + d, spr: P.carroPonta(c, false) });
+    for (const [d, c] of [[-30, '#c8ccd2'], [30, '#2f5f95'], [75, '#e9ecef']]) fadd({ X: -3.02, D: F + d, spr: P.carroPonta(c, true) });
+    // a barraca de pastel, as plantas na frente e as árvores
+    fadd({ X: 1.28, D: F - 12, spr: P.barraca('#d23a32'), brilho: [[0, 20, 26, [255, 200, 120, 0.5]]] });
+    for (let i = 0; i < 4; i++) fadd({ X: 4.05 + i * 0.22, D: F - 3, spr: P.capim(i + 60, 16) });
+    fadd({ X: 5.0, D: F + 60, spr: P.arvoreG(232, 90) }); fadd({ X: 4.95, D: F - 2, spr: P.palmeira(41, 60, 1.8) });
+    for (const [x, n, h] of [[2.2, 301, 14], [3.1, 302, 18], [4.1, 303, 15], [5.2, 304, 20]]) fadd({ X: x, D: F - 66, spr: n % 2 ? P.arbusto(n, h) : P.capim(n, h) });
+    fadd({ X: 5.5, D: F - 48, spr: poste2, lamp: -1 });
+    yield;
+    /* a rua que sobe: pontos [X, D, altura]; casas, postes, carros e motos dos dois lados */
+    S.subida = suavizar([[0.9, F - 36, 0], [2.6, F - 36, 0], [4.4, F - 36, 0], [6.0, F - 31, 0], [7.5, F - 8, 5], [9.2, F + 40, 26], [12.4, F + 118, 78], [18.2, F + 238, 170], [28.5, F + 430, 320], [50, F + 800, 640]]);
+    const naRua = (u, lado) => { const [a, n] = pontoSubida(u); return { X: a[0] + n[0] * lado * 62 / 65, D: a[1] + n[1] * lado * 14, h: a[2] }; };
+    for (const [u, lado, m] of [[0.565, -2.5, 4], [0.625, 2.6, 1], [0.655, -2.3, 12], [0.71, 2.3, 8], [0.74, -2.2, 0], [0.8, 2.2, 14], [0.835, -2.1, 6], [0.885, 2.1, 2], [0.92, -2, 9], [0.965, 2, 3]]) {
+      const pr = P.predio(ORDEM[m % ORDEM.length], Math.round(u * 900), lado > 0), e = naRua(u, lado);
+      fadd(Object.assign(e, { spr: pr.c, luz: pr.luz, esc: 0.8 }));
+      if (lado < 0) fadd(Object.assign(naRua(u + 0.012, lado * 1.35), { spr: P.arvoreG(Math.round(u * 300), 92) }));
+      yield;
+    }
+    for (const [u, lado] of [[0.47, 1.35], [0.58, -1.3], [0.68, 1.3], [0.78, -1.3], [0.87, 1.3], [0.95, -1.3]]) fadd(Object.assign(naRua(u, lado), { spr: poste2, lamp: -1 }));
+    for (const [u, lado, spr] of [[0.5, 0.72, P.carroPonta('#e9ecef', false)], [0.56, 0.72, P.carroPonta('#b8333a', false)], [0.545, -0.72, P.carroPonta('#3b4250', true)], [0.61, -0.72, P.carroPonta('#c8ccd2', true)],
+      [0.66, 0.72, P.carroPonta('#2f5f95', false)], [0.72, -0.72, P.carroPonta('#e9ecef', true)], [0.79, 0.72, P.carroPonta('#7d8590', false)], [0.45, 0.8, P.motoParada('#c8262e', '#f4f6fa').r], [0.465, 0.8, P.motoParada('#2a2f38').r]])
+      fadd(Object.assign(naRua(u, lado), { spr }));
+    S.frenteMoto = P.moto('#c8262e', '#3c6aa5', '#f4f6fa'); S.desce = { ponta: P.carroPonta('#c8ccd2', true), lado: S.cars.silver.l };
+    S.adiante = [P.carroPonta('#e9ecef', false), P.carroPonta('#b8333a', false)];
+    // gente: [folha, X de a até b, D, velocidade (px/s), fase] — sem velocidade: parado conversando
+    S.genteF = [
+      { f: 0, a: 1.6, b: 4.7, D: F - 15, v: 16, ph: 10 }, { f: 1, a: 1.7, b: 4.9, D: F - 13, v: 12, ph: 160 }, { f: 2, a: 1.15, b: 4.2, D: F - 55, v: 17, ph: 60 },
+      { f: 3, a: 2.0, D: F - 10, dir: 'right' }, { f: 4, a: 2.16, D: F - 10, dir: 'left' }, { f: 1, a: 1.28, D: F - 8, dir: 'up' }, { f: 2, a: 1.46, D: F - 14, dir: 'left' },
+      { f: 0, a: 3.0, D: F - 7, dir: 'down' }, { f: 3, a: 3.14, D: F - 8, dir: 'left' }, { f: 4, a: 4.8, D: F - 16, dir: 'left' }, { f: 1, a: 5.6, b: 6.6, D: F - 12, v: 10, ph: 30 },
+      { f: 2, a: -3.45, b: -3.45, D: F + 20, dir: 'down' }, { f: 4, a: -3.5, D: F - 10, dir: 'right' },
+    ];
+    const longe = (D) => D < F_SERRA - 240 || D > F_SERRA + 260; // em volta da faculdade nada tapa a fachada
     for (let D = 150, i = 0; D < F_TOTAL + 900; D += 96, i++) {
       const pr = P.predio(ORDEM[(i * 3 + 5) % ORDEM.length], i * 7 + 1, i % 2 === 0), pl = P.predio(ORDEM[(i * 5 + 2) % ORDEM.length], i * 3 + 4, i % 2 === 1);
       if (longe(D)) {
@@ -629,9 +688,31 @@
     g.setTransform(1, 0, 0, 1, 0, 0);
   }
 
+  // a lateral do prédio da faculdade, do lado da avenida (a fachada é uma placa de frente: com a lateral ele ganha
+  // volume): metal em cima, marquise, vidraça acesa e os painéis de propaganda. Coluna por coluna da tela.
+  function lateralSerra(proj, F, dist, VW) {
+    const X = SERRA_X - 1.62, D1 = F + 150, [xa, ya] = proj(X, F, 0), [xb] = proj(X, D1, 0), za = F - dist, zb = D1 - dist;
+    if (za < 40) return;
+    const i0 = Math.max(0, Math.floor(xb)), i1 = Math.min(VW, Math.ceil(xa));
+    for (let i = i0; i < i1; i++) {
+      const q = clamp((xa - i) / Math.max(1, xa - xb), 0, 1), iz = lerp(1 / za, 1 / zb, q), s = 60 * iz, D = (1 / iz - za) / (zb - za), base = proj(X, F + 150 * D, 0)[1];
+      const R2 = (h1, h0, col) => { const a = Math.round(base - h1 * s), b = Math.round(base - h0 * s); R(G, i, a, 1, Math.max(1, b - a), col); if (LON) LG.fillRect(i, a, 1, Math.max(1, b - a)); };
+      const nerv = Math.floor(D * 60) % 2, painel = D > 0.5;
+      R2(120, 52, painel ? (nerv ? '#7d858f' : '#858d97') : nerv ? '#8d95a2' : '#a2aab6');
+      R2(54, 43, '#9c5029'); R2(43, 0, '#b4b8be'); R2(5, 0, '#8a8f97');
+      if (!painel && D > 0.06) R2(38, 8, '#59606b');
+      if (painel && D < 0.94 && (D < 0.71 || D > 0.74)) { R2(100, 10, '#eef1f2'); R2(100, 62, D < 0.71 ? '#2f8a5a' : '#d8552f'); }
+      if (LON) {
+        const L2 = (h1, h0, col) => { const a = Math.round(base - h1 * s), b = Math.round(base - h0 * s); LG.globalCompositeOperation = 'source-over'; R(LG, i, a, 1, Math.max(1, b - a), col); LG.globalCompositeOperation = 'destination-out'; };
+        if (!painel && D > 0.06 && Math.floor(D * 100) % 12 > 1) L2(38, 10, '#e3c391');
+        if (painel && D < 0.94 && (D < 0.71 || D > 0.74)) { L2(100, 62, D < 0.71 ? '#2c7550' : '#b04a2a'); L2(62, 10, '#aab2b4'); }
+      }
+    }
+  }
+
   /* ---------------- plano 2: para o fundo (câmera atrás do carro) ---------------- */
   function fundo(g, VW, VH, oy, t, day, on, warm) {
-    const tt = t - F_T0, dist = fDist(tt), hy = oy + HZ - 2, DYC = VH - 18 - hy, K = 60 * DYC, WS = 65 / DYC, cx0 = (VW >> 1) - 30;
+    const tt = t - F_T0, dist = fDist(tt), hy = oy + HZ - 2, DYC = VH - 18 - hy, K = 60 * DYC, WS = 65 / DYC, cx0 = (VW >> 1) - 30 - Math.round(34 * smooth(F_DUR - 4.4, F_DUR - 0.8, tt)); // (na chegada a câmera abre para a direita, para a rua que sobe)
     const bend = (1 - smooth(0, 3.6, tt)) - 0.38 * smooth(4.2, 6, tt) * (1 - smooth(F_DUR - 3.6, F_DUR - 1.6, tt));
     const cAt = (dy) => { const p = Math.min(1, dy / DYC); return cx0 + bend * 84 * (1 - p) * (1 - p); };
     g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
@@ -639,10 +720,21 @@
     g.globalCompositeOperation = 'lighter';
     estrelas(g, VW, hy, day, t);
     g.globalCompositeOperation = 'source-over';
+    if (day > 0.6) { // a lua, com o halo e as nuvens finas passando
+      const la = (day - 0.6) / 0.4, lx = Math.round((VW >> 1) + 96 + bend * 20), ly = Math.round(hy - 84);
+      g.globalAlpha = la; glow(g, lx, ly, 34, [190, 200, 255, 0.22]); disc(g, lx, ly, 7, '#e9ecf6'); disc(g, lx - 2, ly - 1, 1, '#cfd5e6'); disc(g, lx + 2, ly + 3, 1, '#d3d9e8'); R(g, lx + 2, ly - 4, 2, 1, '#cfd5e6');
+      g.globalAlpha = la * 0.5;
+      for (let i = 0; i < 6; i++) { const w0 = 34 + Math.round(hash(i * 3) * 50), nx = ((i * 83 + t * (2 + i % 3) + bend * 60) % (VW + 160) + VW + 160) % (VW + 160) - 80, ny = hy - 66 + Math.round(hash(i * 7) * 40); R(g, Math.round(nx), ny, w0, 2, '#2c2c58'); R(g, Math.round(nx) + 8, ny - 1, w0 - 20, 1, '#37376a'); }
+      g.globalAlpha = 1;
+    }
 
     const w = mundoIni(VW, VH, on, 0, 0);
     // a mata no horizonte
     for (let i = 0; i < 2; i++) { const m = S.mata[i], off = Math.round(-((bend * 60 * (i + 1) + dist * 0.01 * (i + 1)) % m.width)); for (let x = off - m.width; x < VW; x += m.width) w.drawImage(m, x, hy + 2 + i * 2 - m.height + 6); }
+    // a cidade no horizonte e, à direita, o morro do bairro (com as janelas acesas e a luz da torre piscando)
+    { const c = S.cidade, off = Math.round(-((bend * 120 + dist * 0.03) % c.c.width)); for (let x = off - c.c.width; x < VW; x += c.c.width) { put(c.c, x, hy + 3 - c.c.height); putLuz(c.luz, x, hy + 3 - c.c.height); } }
+    const mx = Math.round((VW >> 1) + 36 + bend * 110), m0 = S.morro, myo = hy + 4 - m0.c.height;
+    put(m0.c, mx, myo); putLuz(m0.luz, mx, myo);
     // o chão, linha a linha (mais longe = mais perto do horizonte)
     for (let y = hy + 1; y < VH; y++) {
       const dy = y - hy, z = K / dy, d = z + dist, ws = dy * WS, c = cAt(dy), b = Math.floor(d / 46) & 1;
@@ -655,10 +747,53 @@
       seg(0.98, 1.05, '#d9dde3'); seg(1.05, 1.55, b ? '#b9b4ad' : '#aeaaa2');
       if (Math.floor(d / 30) & 1) { seg(-0.015, 0.015, '#e9ecef'); seg(-2.265, -2.235, '#e9ecef'); }
     }
-    // o que passa dos lados, do mais longe para o mais perto
     const lights = [], vis = [];
-    for (const o of S.fundo) { const z = o.D - dist; if (z > 34 && z < (o.serra ? 2600 : 1500)) vis.push([z, o]); }
+    if (Math.floor(t * 1.2) % 2) lights.push({ x: mx + m0.torre[0], y: myo + m0.torre[1], r: 4, c: [255, 60, 50, 0.9 * on] });
+    /* a esquina da faculdade: a rua transversal (que sobe à direita), as calçadas e o pátio de concreto */
+    const proj = (X, D, h) => { const z = Math.max(36, D - dist), dy = K / z; return [cAt(dy) + X * dy * WS, hy + dy - (h || 0) * 60 / z]; };
+    const poli = (pts, col) => { for (const q of LON ? [w, LG] : [w]) { q.beginPath(); pts.forEach((p, i) => (i ? q.lineTo(p[0], p[1]) : q.moveTo(p[0], p[1]))); q.closePath(); q.fillStyle = col; q.fill(); } };
+    const perto = F_SERRA - dist < 800;
+    if (perto) {
+      const faixa = (a, b, col, i0, dash) => {
+        const L = S.subida;
+        for (let i = L.length - 2; i >= (i0 || 0); i--) {
+          if (dash && i % 2) continue;
+          const [p, n] = L[i], [p2, n2] = L[i + 1];
+          if (p[1] - dist < 40 && p2[1] - dist < 40) continue;
+          const pt = (P1, N, k) => proj(P1[0] + N[0] * k * 62 / 65, P1[1] + N[1] * k * 14, P1[2]);
+          poli([pt(p, n, a), pt(p2, n2, a), pt(p2, n2, b), pt(p, n, b)], col);
+        }
+      };
+      const F = F_SERRA;
+      poli([proj(1.05, F - 60), proj(6.4, F - 60), proj(6.4, F - 49), proj(1.05, F - 49)], '#a9a49a');   // a calçada do lado de cá
+      faixa(-3.4, 3.4, '#5f7a4c', 22);                                                                  // barranco de grama
+      faixa(-1.5, 1.5, '#b4afa6', 0);                                                                   // calçadas
+      poli([proj(1.02, F - 24), proj(5.35, F - 24), proj(5.1, F + 1), proj(1.05, F + 1)], '#c6b79c');      // o pátio de concreto
+      for (const x of [1.9, 2.7, 3.5, 4.3]) poli([proj(x, F - 24), proj(x + 0.03, F - 24), proj(x + 0.03, F), proj(x, F)], '#b0a186');
+      poli([proj(3.95, F - 9), proj(5.2, F - 9), proj(5.1, F + 1), proj(3.95, F + 1)], '#5c8a4a');         // o canteiro
+      faixa(-1, 1, '#4b505b', 0);                                                                       // asfalto
+      faixa(-0.06, 0.06, '#e0b24a', 3, true);                                                           // a faixa amarela (foto 07)
+      for (let k = 0; k < 6; k++) { const d0 = F - 47 + k * 4; poli([proj(1.08, d0), proj(1.4, d0), proj(1.4, d0 + 2), proj(1.08, d0 + 2)], '#e4e6ea'); } // a faixa de pedestre
+    }
+    // o que passa dos lados, do mais longe para o mais perto
+    for (const o of S.fundo) { const z = o.D - dist; if (z > 34 && z < (o.serra ? 2600 : 1500)) vis.push([o.serra ? z + 0.5 : z, o]); }
     S.frenteCar.forEach((spr, i) => { const z = 300 + i * 950 - (FV * 0.9 + 60) * tt + dist * 0; if (z > 34 && z < 2600) vis.push([z, { X: -2.25, spr, farol: true }]); });
+    if (perto) {
+      // gente andando e conversando na frente da faculdade
+      S.genteF.forEach((p, i) => {
+        const sh = S.folhas[p.f]; let X = p.a, fr;
+        if (p.v) { const L = (p.b - p.a) * 65, q = (t * p.v + p.ph) % (2 * L), ida = q < L; X = p.a + (ida ? q : 2 * L - q) / 65; fr = walkFrame(sh, ida ? 'right' : 'left', q); }
+        else fr = Math.floor(t * 0.7 + i * 1.7) % 6 === 0 ? sh[p.dir].blink : sh[p.dir].idle;
+        const z = p.D - dist; if (z > 40) vis.push([z, { X, spr: fr, esc: 0.8, sombra: true }]);
+      });
+      // um carro desce o morro e vem parar na esquina; uma moto sobe
+      const u = 0.97 - 0.895 * smooth(F_DUR - 7.4, F_DUR + 0.1, tt), [a, n] = pontoSubida(u);
+      vis.push([a[1] - 4 - dist, { X: a[0] - n[0] * 0.45, D: 0, h: a[2], spr: u > 0.44 ? S.desce.ponta : S.desce.lado, farol: u > 0.44, farolE: u <= 0.44 }]);
+      const um = 0.12 + 0.8 * clamp((tt - (F_DUR - 5)) / 6.4, 0, 1), [am, nm] = pontoSubida(um);
+      if (am[1] - dist > 44) vis.push([am[1] - dist, { X: am[0] + nm[0] * 0.4, h: am[2], spr: S.frenteMoto.r, lanterna: true }]);
+    }
+    // carros indo na frente, na mesma mão
+    S.adiante.forEach((spr, i) => { const z = 330 + i * 360 + FV * (0.96 + i * 0.05) * tt - dist; if (z > 70 && z < 1500) vis.push([z, { X: 0.36, spr, lanternas: true }]); });
     vis.sort((a, b) => b[0] - a[0]);
     const carX2 = lerp(0.44, 0.76, smooth(F_DUR - 4.2, F_DUR - 0.8, tt)), yc = hy + DYC, carPx = cAt(DYC) + carX2 * 65;
     let carDone = false;
@@ -673,15 +808,24 @@
     };
     for (const [z, o] of vis) {
       if (!carDone && z < 60) heroi();
-      const dy = K / z, y = hy + dy, s = 60 / z, x = cAt(dy) + o.X * dy * WS, sw = o.spr.width * s, sh = o.spr.height * s;
-      if (x + sw < -20 || x - sw > VW + 20) continue;
+      const dy = K / z, s = 60 / z, y = hy + dy - (o.h || 0) * s, x = cAt(dy) + o.X * dy * WS, sw = o.spr.width * s * (o.esc || 1), sh = o.spr.height * s * (o.esc || 1);
+      if (x + sw < -20 || x - sw > VW + 20 || (o.h && !perto)) continue;
       // (de longe, o que é pequeno não precisa tapar as janelas acesas: metade dos desenhos)
       const lon = LON; if (s < 0.3 && !o.luz) LON = false;
+      if (o.serra) lateralSerra(proj, F_SERRA, dist, VW);
+      if (o.sombra) R(w, Math.round(x - sw * 0.3), Math.round(y) - 1, Math.max(2, Math.round(sw * 0.6)), 1, 'rgba(0,0,0,0.3)');
+      // (a fachada é reduzida com suavização: o letreiro continua legível)
+      if (o.serra) { G.imageSmoothingEnabled = LG.imageSmoothingEnabled = true; G.imageSmoothingQuality = LG.imageSmoothingQuality = 'high'; }
       put(o.spr, x - sw / 2, y - sh, sw, sh);
       LON = lon;
       if (o.luz && s > 0.07) putLuz(o.luz, x - sw / 2, y - sh, sw, sh);
-      if (o.lamp && on > 0.01 && s > 0.1) { const lx = x + (o.lamp < 0 ? 4 : 4) * s, ly = y - 58 * s; lights.push({ x: lx, y: ly, r: 10 * s + 2, c: [255, 214, 150, 0.9 * on] }, { x: lx, y: y + 6 * s, r: 50 * s, c: [255, 196, 120, 0.2 * on], flat: true }); }
+      if (o.serra) G.imageSmoothingEnabled = LG.imageSmoothingEnabled = false;
+      if (o.brilho && on > 0.01) for (const [bx, by, r, c] of o.brilho) lights.push({ x: x + bx * s, y: y - by * s, r: r * s + 2, c: [c[0], c[1], c[2], c[3] * on] });
+      if (o.lamp && on > 0.01 && s > 0.1) { const lx = x + 5 * s, ly = y - 101 * s; lights.push({ x: lx, y: ly, r: 10 * s + 2, c: [255, 214, 150, 0.9 * on] }, { x: lx, y: y + 6 * s, r: 50 * s, c: [255, 196, 120, 0.2 * on], flat: true }); }
       if (o.farol && s > 0.06) for (const dx of [-9, 9]) lights.push({ x: x + dx * s, y: y - 10 * s, r: 7 * s + 2, c: [255, 240, 190, 0.5 + 0.4 * on] });
+      if (o.farolE) { lights.push({ x: x - 24 * s, y: y - 10 * s, r: 8 * s + 2, c: [255, 240, 190, 0.5 + 0.4 * on] }); lights.push({ x: x - 44 * s, y: y - 2 * s, r: 34 * s, c: [255, 236, 180, 0.3 * on], flat: true }); }
+      if (o.lanternas && s > 0.06) for (const dx of [-9, 9]) lights.push({ x: x + dx * s, y: y - 10 * s, r: 5 * s + 1.5, c: [255, 50, 40, 0.35 + 0.4 * on] });
+      if (o.lanterna) { lights.push({ x: x - 12 * s, y: y - 9 * s, r: 4 * s + 1.5, c: [255, 50, 40, 0.8 * on] }, { x: x + 13 * s, y: y - 12 * s, r: 6 * s + 1.5, c: [255, 240, 190, 0.8 * on] }); }
       if (o.serra) { // a luz quente da recepção e da marquise, e o letreiro
         const al = 0.25 + 0.75 * on;
         lights.push({ x: x - 22 * s, y: y - 20 * s, r: 60 * s, c: [255, 190, 120, 0.3 * al] }, { x, y: y - 86 * s, r: 90 * s, c: [225, 235, 255, 0.14 * al] }, { x: x - 22 * s, y: y + 10 * s, r: 70 * s, c: [255, 190, 120, 0.22 * al], flat: true });

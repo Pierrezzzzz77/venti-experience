@@ -90,6 +90,20 @@
       o.connect(g); g.connect(c.destination);
       o.start(t); o.stop(t + 0.035);
     },
+    crunch() {
+      const c = audio(); if (!c) return;
+      const t = c.currentTime;
+      for (let i = 0; i < 3; i++) {
+        const o = c.createOscillator(), g = c.createGain(), s = t + i * 0.055;
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(220 + i * 70, s);
+        o.frequency.exponentialRampToValueAtTime(95, s + 0.04);
+        g.gain.setValueAtTime(0.035, s);
+        g.gain.exponentialRampToValueAtTime(0.001, s + 0.045);
+        o.connect(g); g.connect(c.destination);
+        o.start(s); o.stop(s + 0.05);
+      }
+    },
     chord(idx) {
       const c = audio(); if (!c) return;
       const chords = [
@@ -195,6 +209,50 @@
         g.textAlign = 'center';
         g.fillText('E', sx, sy + 0.5);
       }
+      const p = DL.game && DL.game.player, held = DL.game && DL.game.held;
+      if (p && !p.hidden) {
+        const px = p.x - p.y, py = (p.x + p.y) / 2 - (p.z || 0), anim = p.anim;
+        g.globalAlpha = 1;
+        if (anim && anim.kind === 'guitar') {
+          const vib = Math.sin(sc.t * 24) * 0.8;
+          const gx = px - 5, gy = py - 14 + vib;
+          // violão atravessado na mão do personagem
+          g.fillStyle = '#5a3a22'; g.fillRect(gx + 8, gy - 4, 6, 2);
+          g.fillStyle = '#3a2616'; g.fillRect(gx + 13, gy - 5, 2, 3);
+          g.fillStyle = '#c98a4a'; g.fillRect(gx, gy - 2, 9, 6);
+          g.fillStyle = '#8f5a2c'; g.fillRect(gx + 1, gy + 3, 7, 1);
+          g.fillStyle = '#2a1a10'; g.fillRect(gx + 4, gy, 2, 2);
+        } else if (anim && anim.kind === 'drink') {
+          const sip = Math.sin(sc.t * 14) * 1;
+          const cx = px + (p.dir === 'left' ? -5 : 4), cy = py - 18 + sip;
+          // copinho de água levantado até a boca
+          g.fillStyle = '#e8f4fc'; g.fillRect(cx, cy, 3, 4);
+          g.fillStyle = '#4a9fd8'; g.fillRect(cx, cy + 1, 3, 2);
+        } else if (held) {
+          const eating = anim && anim.kind === 'eat';
+          const phase = eating ? ((anim.total - anim.t) % 0.7) / 0.7 : 0;
+          const lift = eating ? Math.sin(phase * Math.PI) : 0;
+          const baseDx = p.dir === 'left' ? -6 : p.dir === 'right' ? 4 : 4;
+          const dx = baseDx * (1 - lift);
+          const dy = (-11 + (p.moving ? Math.sin(p.dist * 0.5) * 0.7 : 0)) * (1 - lift) + (-21) * lift;
+          const hx = Math.round(px + dx), hy = Math.round(py + dy);
+          const bites = Math.max(1, held.bites || 3);
+          if (held.id === 'caldo') {
+            const h = bites + 2;
+            g.fillStyle = '#d9f0ff'; g.fillRect(hx, hy - 3, 3, 5);
+            g.fillStyle = '#7ec850'; g.fillRect(hx, hy + 2 - h, 3, h);
+            g.fillStyle = '#ffffff'; g.fillRect(hx + 1, hy - 5, 1, 2);
+          } else if (held.id === 'coxinha') {
+            const w = bites >= 2 ? 3 : 2, h = bites >= 3 ? 3 : 2;
+            g.fillStyle = '#cf7d2b'; g.fillRect(hx, hy - 1, w, h);
+            if (bites >= 2) { g.fillStyle = '#f0b654'; g.fillRect(hx + 1, hy - 2, 1, 2); }
+          } else {
+            const w = bites === 3 ? 5 : bites === 2 ? 3 : 2;
+            g.fillStyle = '#e8c477'; g.fillRect(hx - 1, hy - 1, w, 3);
+            g.fillStyle = '#b96d32'; g.fillRect(hx, hy, Math.max(1, w - 2), 1);
+          }
+        }
+      }
       g.restore();
     },
   };
@@ -208,6 +266,26 @@
     keys: new Set(),
     locked: false,  // true enquanto um painel está aberto (o jogador fica parado)
     near: null,     // objeto ao alcance agora
+    held: null,     // lanche/bebida na mão ({ id, nome, bites })
+
+    updateHeldHud() {
+      const el = $('heldHud');
+      if (!el) return;
+      if (!this.held) { el.hidden = true; el.textContent = ''; return; }
+      el.hidden = false;
+      const verbo = this.held.id === 'caldo' ? 'Beber' : 'Comer';
+      el.innerHTML = 'Na mão: <b>' + this.held.nome + '</b> · <kbd>F</kbd> ' + verbo;
+    },
+    giveSnack(id, nome) {
+      this.held = { id, nome, bites: 3 };
+      this.updateHeldHud();
+    },
+    eatSnack() {
+      if (this.locked || !this.held || !this.player) return;
+      if (this.player.anim && this.player.anim.kind === 'eat') return;
+      const total = this.held.bites * 0.7;
+      this.player.anim = { kind: 'eat', t: total, total, nextBite: total - 0.35 };
+    },
 
     loadMap(id, spawn) {
       const def = DL.MAPS[id];
@@ -360,6 +438,41 @@
           if (!(ax > 0.01 && ay > 0.01 && Math.abs(ax - ay) < 0.2 && (p.dir === horiz || p.dir === vert))) p.dir = ax > ay ? horiz : vert;
         }
       }
+      if (p.anim) {
+        p.anim.t -= dt;
+        if (p.anim.kind === 'guitar') {
+          p.pose = Math.floor(sc.t * 6) % 2 ? 'danceA' : 'danceB';
+          p.anim.fxT = (p.anim.fxT || 0) - dt;
+          if (p.anim.fxT <= 0) { p.anim.fxT = 0.45; fx.burst(p.x, p.y, 24, 'note'); }
+          if (len > 0.1 || p.anim.t <= 0) {
+            if (p.anim.item) p.anim.item.hidden = false;
+            p.anim = null;
+            if (!p.sitting) p.pose = null;
+          }
+        } else if (p.anim.kind === 'drink') {
+          p.pose = 'talk';
+          p.anim.fxT = (p.anim.fxT || 0) - dt;
+          if (p.anim.fxT <= 0) { p.anim.fxT = 0.35; fx.burst(p.x, p.y, 22, 'drop'); }
+          if (len > 0.1 || p.anim.t <= 0) { p.anim = null; if (!p.sitting) p.pose = null; }
+        } else if (p.anim.kind === 'eat') {
+          p.pose = Math.floor(sc.t * 8) % 2 ? 'talk' : null;
+          if (this.held && p.anim.t <= p.anim.nextBite) {
+            p.anim.nextBite -= 0.7;
+            if (this.held.id === 'caldo') sfx.water(); else sfx.crunch();
+            fx.burst(p.x, p.y, 24, this.held.id === 'caldo' ? 'drop' : 'spark');
+            this.held.bites -= 1;
+            if (this.held.bites <= 0) {
+              const nome = this.held.nome;
+              this.held = null;
+              this.updateHeldHud();
+              this.toast('Terminou ' + nome + '! (+energia)', 'ok');
+            } else {
+              this.updateHeldHud();
+            }
+          }
+          if (len > 0.1 || p.anim.t <= 0) { p.anim = null; if (!p.sitting) p.pose = null; }
+        }
+      }
       fx.update(dt);
 
       // a câmera segue o jogador, suave (um pouco acima dos pés)
@@ -402,6 +515,7 @@
     const k = KEYMAP[ev.code];
     if (k) { game.keys.add(k); ev.preventDefault(); }
     else if (USE_KEYS[ev.code] && !ev.repeat) { game.use(); ev.preventDefault(); }
+    else if (ev.code === 'KeyF' && !ev.repeat) { game.eatSnack(); ev.preventDefault(); }
   });
   window.addEventListener('keyup', (ev) => { const k = KEYMAP[ev.code]; if (k) game.keys.delete(k); });
   window.addEventListener('blur', () => game.keys.clear());

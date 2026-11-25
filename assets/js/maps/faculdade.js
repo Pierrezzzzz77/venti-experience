@@ -517,6 +517,11 @@
   function violao(g, e) {
     const vib = e.shake > 0 ? Math.round(Math.sin(e.shake * 48) * 1.3) : 0;
     const { c: c0, b } = chao(e), c = c0 + vib, mad = '#c98a4a', esc = '#8f5a2c';
+    if (e.hidden) {
+      R(g, c - 3, b - 1, 6, 1, '#1e2024');
+      R(g, c, b - 10, 1, 9, '#2b2e34');
+      return;
+    }
     R(g, c, b - 30, 2, 3, '#3a2616');
     R(g, c, b - 27, 2, 14, '#5a3a22');
     R(g, c - 3, b - 13, 8, 4, mad); R(g, c - 2, b - 14, 6, 1, mad);
@@ -1723,9 +1728,7 @@
   /* ------------------------------------------------------------------ */
   /* O que dá para fazer com E                                           */
   /* ------------------------------------------------------------------ */
-  const ACORDES = ['Am7', 'Fmaj7', 'C', 'G'];
   const ASSENTOS_OK = { 'cadeira-preta': 1, cadeira: 1, 'banco-pedra': 1, banqueta: 1, 'poltrona-vermelha': 1, 'poltrona-cinza': 1, 'poltrona-madeira': 1, puff: 1 };
-  let acordeIdx = 0;
 
   function useLabel(game, e) {
     if (e.id === 'ALUNO-PROXIMO') return e.aluno ? DL.FacAlunos.rotulo(e.aluno) : null;
@@ -1752,14 +1755,11 @@
     if (e.id === 'BEBEDOURO') {
       if (DL.sfx) DL.sfx.water();
       if (DL.fx) DL.fx.burst(cx, cy + 4, 20, 'drop');
+      game.player.anim = { kind: 'drink', t: 1.5, fxT: 0 };
       return game.toast('Bebedouro · água geladinha! (+10 energia)', 'ok');
     }
     if (e.id === 'VIOLAO') {
-      const nome = ACORDES[acordeIdx % ACORDES.length];
-      if (DL.sfx) DL.sfx.chord(acordeIdx++);
-      if (DL.fx) DL.fx.burst(cx, cy, 24, 'note');
-      e.shake = 0.45;
-      return game.toast('♪ Tocando ' + nome + ' no violão...');
+      return DL.Violao.abrir(game, e); // (assets/js/ui/violao.js)
     }
     if (e.kind === 'ar-parede') {
       if (DL.sfx) DL.sfx.blip();
@@ -2212,10 +2212,12 @@
     },
     leave(game) {
       esconderMissao(false);
+      if (DL.Violao) DL.Violao.fechar();
       for (const id of ['quadroPanel', 'notebookPanel']) { const el = $(id); if (el) el.classList.remove('is-open'); }
       if (game) game.locked = false;
     },
     key(game, ev) {
+      if (DL.Violao && DL.Violao.key(ev)) return true;
       for (const id of ['quadroPanel', 'notebookPanel']) {
         const el = $(id);
         if (el && el.classList.contains('is-open')) {

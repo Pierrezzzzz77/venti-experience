@@ -52,6 +52,7 @@ Controles: **WASD** ou setas para andar, **E** para interagir, **M** abre o moni
 | `assets/js/ui/rack-panel.js` | Painel do rack para ligar o cabo (versão simples do cabling.js). |
 | `assets/js/ui/terminal.js` | Terminal do servidor com 3 comandos (versão simples do terminal.js do DataLab). |
 | `assets/js/ui/menu.js` + `assets/css/menu.css` | Menu inicial: céu de pôr do sol, nuvens em 4 camadas, título pixel e botão Jogar; as nuvens se abrem para o filme do lago. |
+| `assets/js/ui/violao.js` + `assets/css/violao.css` | O violão do lounge: notas no braço, roda de acordes, músicas prontas por gênero (ouvir e aprender) e gravação. Som sintetizado. |
 | `assets/js/ui/monitor.js` | Monitor (tecla M): gráficos de CPU, rede, disponibilidade e problemas (versão simples do monitor.js do DataLab). |
 | `assets/js/maps/lago-paleta.js` | Parte 0: a paleta fixa (39 cores de pôr do sol); tudo que é pintado uma vez passa por ela. |
 | `assets/js/maps/lago-cenario.js` | Parte 0: o mapa do lago (tiles, pisos, árvores, postes, prédios, carro do jogador). |
