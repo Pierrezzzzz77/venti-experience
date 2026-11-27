@@ -12,8 +12,8 @@
   --font: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.4 var(--font); overflow: hidden; }
-#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+html, body { margin: 0; height: 100%; height: 100dvh; background: var(--bg); color: var(--text); font: 14px/1.4 var(--font); overflow: hidden; }
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; touch-action: none; }
 
 kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border-bottom-width: 2px; border-radius: 4px; background: #14171c; font: 12px var(--font); color: var(--text); }
 
@@ -33,6 +33,7 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
 
 .keys { position: fixed; right: 16px; bottom: 16px; /* (embaixo à direita: em cima, tampava a porta das salas) */ max-width: 250px; line-height: 1.8; /* (em 2 linhas: não encosta na dica do meio) */ padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--dim); font-size: 12px; }
 .held { position: fixed; left: 16px; bottom: 16px; padding: 7px 12px; background: var(--panel); border: 1px solid rgba(242, 229, 154, 0.45); border-radius: 8px; color: #f2e59a; font-size: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35); }
+.touch-controls { display: none; }
 
 /* dica "E · ..." e mensagens */
 .hint, .toast { position: fixed; left: 50%; transform: translateX(-50%) translateY(6px); padding: 7px 12px; border-radius: 6px; background: var(--panel); border: 1px solid var(--line); opacity: 0; pointer-events: none; transition: opacity 0.18s ease, transform 0.18s ease; white-space: nowrap; max-width: calc(100vw - 32px); }
@@ -53,7 +54,7 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
 .done__box span { color: var(--dim); }
 
 /* painel do rack */
-.panel { position: fixed; inset: 0; display: none; place-items: center; background: rgba(4, 5, 9, 0.6); padding: 16px; }
+.panel { position: fixed; z-index: 10; inset: 0; display: none; place-items: center; background: rgba(4, 5, 9, 0.6); padding: 16px; }
 .panel.is-open { display: grid; }
 .panel__box { width: min(760px, 100%); background: #0b0d11; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .panel__head, .panel__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; }
@@ -214,10 +215,67 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
   .term__guide { border-left: 0; border-top: 1px solid var(--line); }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 640px), (pointer: coarse), (any-pointer: coarse) {
   .keys { display: none; }
-  .mission { padding: 10px 12px; }
-  .done { top: auto; bottom: 120px; }
+  .mission { top: calc(8px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); width: min(320px, calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right))); max-height: 27vh; max-height: 27dvh; overflow-y: auto; padding: 10px 12px; }
+  .mission p, .mission li { font-size: 12px; }
+  .done { top: auto; bottom: calc(120px + env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); }
+  .done__box { padding: 16px 18px; }
+  .done__box strong { font-size: clamp(18px, 5vw, 26px); }
+  .hint { bottom: calc(84px + env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); white-space: normal; text-align: center; }
+  .toast { bottom: calc(132px + env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); }
+  .held { left: 8px; bottom: calc(78px + env(safe-area-inset-bottom)); max-width: calc(100vw - 16px); }
+  .panel { padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+  .panel__box { max-height: calc(100vh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; }
+  .panel__head, .panel__foot { flex-wrap: wrap; }
+}
+
+@media (pointer: coarse), (any-pointer: coarse), (max-width: 640px) {
+  .touch-controls {
+    --control-size: clamp(42px, 12vw, 56px);
+    position: fixed;
+    z-index: 6;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 max(12px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .touch-controls__pad {
+    display: grid;
+    grid-template: repeat(3, var(--control-size)) / repeat(3, var(--control-size));
+    gap: 3px;
+    pointer-events: auto;
+  }
+  .touch-controls__move, .touch-controls__action {
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(230, 232, 236, 0.45);
+    border-radius: 12px;
+    background: rgba(13, 15, 20, 0.78);
+    color: var(--text);
+    font: 700 22px/1 var(--font);
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .touch-controls__move { width: var(--control-size); height: var(--control-size); }
+  .touch-controls__up { grid-area: 1 / 2; }
+  .touch-controls__left { grid-area: 2 / 1; }
+  .touch-controls__down { grid-area: 2 / 2; }
+  .touch-controls__right { grid-area: 2 / 3; }
+  .touch-controls__actions { display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+  .touch-controls__action { min-width: 76px; min-height: 52px; padding: 8px 10px; font-size: 12px; }
+  .in-cutscene .touch-controls { display: none; }
+}
+
+@media (max-height: 420px) and (pointer: coarse), (max-height: 420px) and (any-pointer: coarse) {
+  .touch-controls { --control-size: 42px; }
+  .touch-controls__action { min-height: 44px; }
 }
 
 /* Lago (parte 0): botão de som, no canto de baixo (acima da faixa preta do filme) */

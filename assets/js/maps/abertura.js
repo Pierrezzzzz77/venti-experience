@@ -129,14 +129,23 @@
     for (const c of lista) { c.w = c.spr.r.width; c.s = new Float32Array(N); c.on = false; c.d = 0; c.v = c.v0; }
     for (let i = 0; i < N; i++) {
       const t = T0 + i * DT;
-      lista.forEach((c, j) => {
-        const ld = j > 0 ? lista[j - 1] : null;
+      lista.forEach((c) => {
+        let entrouAgora = false;
         if (!c.on) {
           if (t < c.t0) { c.s[i] = NaN; return; }
           c.on = true; c.d = distX(c.x0); c.v = c.v0;
-          // se o da frente ainda está perto, entra mais atrás (fora da tela)
-          if (ld && ld.on && ld.d - c.d < (ld.w + c.w) / 2 + S0 + 30) { c.d = ld.d - (ld.w + c.w) / 2 - S0 - 30; c.v = Math.min(c.v, ld.v); }
+          entrouAgora = true;
         }
+        if (entrouAgora) {
+          let traseiro = null;
+          for (const other of lista) if (other !== c && other.on && (!traseiro || other.d < traseiro.d)) traseiro = other;
+          if (traseiro) {
+            const entradaD = traseiro.d - (traseiro.w + c.w) / 2 - S0 - 30;
+            if (c.d > entradaD) { c.d = entradaD; c.v = Math.min(c.v, traseiro.v); }
+          }
+        }
+        let ld = null;
+        for (const other of lista) if (other !== c && other.on && other.d > c.d && (!ld || other.d < ld.d)) ld = other;
         // o obstáculo à frente: o veículo da frente ou a linha de "dê a preferência"
         let gap = Infinity, vl = 0;
         if (ld && ld.on) { gap = ld.d - c.d - (ld.w + c.w) / 2; vl = ld.v; }
@@ -145,7 +154,17 @@
         let acc = AC * (1 - Math.pow(c.v / c.v0, 4) - Math.pow(Math.max(0, sStar) / Math.max(0.5, gap), 2));
         acc = Math.max(-BR * 2.2, acc);
         c.v = Math.max(0, c.v + acc * DT);
-        c.d += c.v * DT;
+        const maxD = Math.min(
+          ld && ld.on ? ld.d - (ld.w + c.w) / 2 - S0 : Infinity,
+          ceda(t) ? CEDA - c.w / 2 - S0 : Infinity,
+        );
+        const d0 = c.d, nextD = d0 + c.v * DT;
+        if (nextD > maxD) {
+          c.d = Math.max(d0, maxD);
+          c.v = Math.max(0, (c.d - d0) / DT);
+        } else {
+          c.d = nextD;
+        }
         c.s[i] = c.d;
       });
     }

@@ -528,5 +528,49 @@
   });
   window.addEventListener('keyup', (ev) => { const k = KEYMAP[ev.code]; if (k) game.keys.delete(k); });
   window.addEventListener('blur', () => game.keys.clear());
-  window.addEventListener('resize', () => game.scene && game.scene.resize());
+  document.addEventListener('visibilitychange', () => { if (document.hidden) game.keys.clear(); });
+
+  const touchControls = $('touchControls');
+  if (touchControls) {
+    touchControls.querySelectorAll('[data-move]').forEach((button) => {
+      const direction = button.dataset.move;
+      const pointers = new Set();
+      const release = (ev) => {
+        if (!pointers.delete(ev.pointerId)) return;
+        if (!pointers.size) game.keys.delete(direction);
+        if (button.hasPointerCapture(ev.pointerId)) button.releasePointerCapture(ev.pointerId);
+      };
+      button.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        if (game.locked) return;
+        button.setPointerCapture(ev.pointerId);
+        pointers.add(ev.pointerId);
+        game.keys.add(direction);
+      });
+      button.addEventListener('pointerup', release);
+      button.addEventListener('pointercancel', release);
+      button.addEventListener('lostpointercapture', (ev) => {
+        if (pointers.delete(ev.pointerId) && !pointers.size) game.keys.delete(direction);
+      });
+    });
+    touchControls.querySelectorAll('[data-action]').forEach((button) => {
+      button.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        if (button.dataset.action === 'use') game.use();
+        else if (button.dataset.action === 'eat') game.eatSnack();
+      });
+    });
+  }
+
+  let resizeFrame = 0;
+  const resizeScene = () => {
+    if (resizeFrame) return;
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = 0;
+      if (game.scene) game.scene.resize();
+    });
+  };
+  window.addEventListener('resize', resizeScene);
+  window.addEventListener('orientationchange', resizeScene);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeScene);
 })();
