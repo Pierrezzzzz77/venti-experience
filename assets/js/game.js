@@ -600,5 +600,14 @@
   };
   window.addEventListener('resize', resizeScene);
   window.addEventListener('orientationchange', resizeScene);
-  if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeScene);
+  window.addEventListener('pageshow', resizeScene);
+  document.addEventListener('fullscreenchange', resizeScene);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', resizeScene);
+    window.visualViewport.addEventListener('scroll', resizeScene);
+  }
+  if (window.ResizeObserver) {
+    const viewportObserver = new window.ResizeObserver(resizeScene);
+    viewportObserver.observe(document.documentElement);
+  }
 })();
