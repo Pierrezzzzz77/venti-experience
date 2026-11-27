@@ -109,7 +109,8 @@
         <button id="quadroClose" class="btn btn--ghost" type="button">Fechar <kbd>Esc</kbd></button>
       </header>
       <div class="quadro__board">
-        <canvas id="quadroCanvas" width="520" height="220"></canvas>
+        <canvas id="quadroCanvas" width="520" height="220" aria-label="Quadro de giz. Toque e arraste para desenhar."></canvas>
+        <small class="quadro__hint" aria-hidden="true">Toque e arraste no quadro para desenhar</small>
       </div>
       <footer class="panel__foot quadro__bar">
         <div class="quadro__colors" id="quadroColors"></div>

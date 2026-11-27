@@ -1598,11 +1598,34 @@
       };
       box.appendChild(er);
 
-      const start = (ev) => { desenhando = true; last = pos(ev); traco(last, last); if (DL.sfx) DL.sfx.chalk(); ev.preventDefault(); };
-      const move = (ev) => { if (!desenhando) return; const p = pos(ev); traco(last, p); last = p; ev.preventDefault(); };
-      const end = () => { if (desenhando) { desenhando = false; salvar(); } };
-      cv.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
-      cv.addEventListener('touchstart', start, { passive: false }); cv.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end);
+      if (window.PointerEvent) {
+        let pointerId = null;
+        const start = (ev) => {
+          if (!ev.isPrimary || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
+          pointerId = ev.pointerId;
+          cv.setPointerCapture(pointerId);
+          desenhando = true; last = pos(ev); traco(last, last);
+          if (DL.sfx) DL.sfx.chalk();
+          ev.preventDefault();
+        };
+        const move = (ev) => {
+          if (!desenhando || ev.pointerId !== pointerId) return;
+          const p = pos(ev); traco(last, p); last = p; ev.preventDefault();
+        };
+        const end = (ev) => {
+          if (!desenhando || ev.pointerId !== pointerId) return;
+          desenhando = false; pointerId = null; salvar();
+        };
+        cv.addEventListener('pointerdown', start);
+        cv.addEventListener('pointermove', move);
+        for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) cv.addEventListener(type, end);
+      } else {
+        const start = (ev) => { desenhando = true; last = pos(ev); traco(last, last); if (DL.sfx) DL.sfx.chalk(); ev.preventDefault(); };
+        const move = (ev) => { if (!desenhando) return; const p = pos(ev); traco(last, p); last = p; ev.preventDefault(); };
+        const end = () => { if (desenhando) { desenhando = false; salvar(); } };
+        cv.addEventListener('mousedown', start); window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+        cv.addEventListener('touchstart', start, { passive: false }); cv.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', end);
+      }
 
       $('quadroStamp').onclick = () => {
         const inp = $('quadroName'), txt = (inp.value || '').trim();

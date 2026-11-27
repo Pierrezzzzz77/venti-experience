@@ -159,6 +159,7 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
 .quadro { width: min(560px, 100%); }
 .quadro__board { padding: 14px; background: #14171d; display: grid; place-items: center; }
 .quadro__board canvas { width: 100%; height: auto; border: 6px solid #7a5434; border-radius: 4px; background: #1d2221; cursor: crosshair; touch-action: none; box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.4); }
+.quadro__hint { display: none; color: var(--dim); font-size: 11px; }
 .quadro__bar { flex-wrap: wrap; gap: 10px; }
 .quadro__colors { display: flex; align-items: center; gap: 6px; }
 .quadro__swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; background: #1d2221; transition: transform 0.12s; }
@@ -232,6 +233,9 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
 }
 
 @media (pointer: coarse), (any-pointer: coarse), (max-width: 640px) {
+  .quadro__hint { display: block; }
+  .quadro__swatch { min-width: 36px; min-height: 36px; touch-action: manipulation; }
+  .quadro__swatch--erase { width: 42px; }
   .mobile-close-panel:not([hidden]) {
     position: fixed;
     z-index: 12;
