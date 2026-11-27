@@ -532,34 +532,42 @@
 
   const touchControls = $('touchControls');
   if (touchControls) {
+    const activeMoves = new Map();
+    const releaseMove = (pointerId) => {
+      const active = activeMoves.get(pointerId);
+      if (!active) return;
+      activeMoves.delete(pointerId);
+      if (![...activeMoves.values()].some((move) => move.direction === active.direction)) game.keys.delete(active.direction);
+      if (active.button.hasPointerCapture(pointerId)) active.button.releasePointerCapture(pointerId);
+    };
+    const clearInputs = () => {
+      for (const pointerId of activeMoves.keys()) releaseMove(pointerId);
+      game.keys.clear();
+    };
     touchControls.querySelectorAll('[data-move]').forEach((button) => {
       const direction = button.dataset.move;
-      const pointers = new Set();
-      const release = (ev) => {
-        if (!pointers.delete(ev.pointerId)) return;
-        if (!pointers.size) game.keys.delete(direction);
-        if (button.hasPointerCapture(ev.pointerId)) button.releasePointerCapture(ev.pointerId);
-      };
       button.addEventListener('pointerdown', (ev) => {
         ev.preventDefault();
-        if (game.locked) return;
+        if (ev.button !== 0 || game.locked || activeMoves.has(ev.pointerId)) return;
         button.setPointerCapture(ev.pointerId);
-        pointers.add(ev.pointerId);
+        activeMoves.set(ev.pointerId, { direction, button });
         game.keys.add(direction);
       });
-      button.addEventListener('pointerup', release);
-      button.addEventListener('pointercancel', release);
-      button.addEventListener('lostpointercapture', (ev) => {
-        if (pointers.delete(ev.pointerId) && !pointers.size) game.keys.delete(direction);
-      });
+      for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+        button.addEventListener(type, (ev) => releaseMove(ev.pointerId));
+      }
     });
     touchControls.querySelectorAll('[data-action]').forEach((button) => {
-      button.addEventListener('pointerdown', (ev) => {
-        ev.preventDefault();
+      button.addEventListener('click', () => {
         if (button.dataset.action === 'use') game.use();
         else if (button.dataset.action === 'eat') game.eatSnack();
+        else if (button.dataset.action === 'zoom-in' && podeZoom()) DL.zoomPasso(game.scene, 1);
+        else if (button.dataset.action === 'zoom-out' && podeZoom()) DL.zoomPasso(game.scene, -1);
       });
     });
+    window.addEventListener('blur', clearInputs);
+    window.addEventListener('pagehide', clearInputs);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) clearInputs(); });
   }
 
   let resizeFrame = 0;

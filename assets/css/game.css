@@ -224,7 +224,7 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
   .done__box strong { font-size: clamp(18px, 5vw, 26px); }
   .hint { bottom: calc(84px + env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); white-space: normal; text-align: center; }
   .toast { bottom: calc(132px + env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); }
-  .held { left: 8px; bottom: calc(78px + env(safe-area-inset-bottom)); max-width: calc(100vw - 16px); }
+  .held { left: 8px; bottom: calc(190px + env(safe-area-inset-bottom)); max-width: calc(100vw - 16px); pointer-events: none; }
   .panel { padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
   .panel__box { max-height: calc(100vh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow: auto; }
   .panel__head, .panel__foot { flex-wrap: wrap; }
@@ -270,12 +270,15 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
   .touch-controls__right { grid-area: 2 / 3; }
   .touch-controls__actions { display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
   .touch-controls__action { min-width: 76px; min-height: 52px; padding: 8px 10px; font-size: 12px; }
-  .in-cutscene .touch-controls { display: none; }
+  .touch-controls__zoom { display: flex; justify-content: flex-end; gap: 6px; }
+  .touch-controls__zoom .touch-controls__action { min-width: 44px; min-height: 40px; padding: 6px; font-size: 20px; }
+  .menu-on .touch-controls, .in-cutscene .touch-controls { display: none; }
 }
 
 @media (max-height: 420px) and (pointer: coarse), (max-height: 420px) and (any-pointer: coarse) {
   .touch-controls { --control-size: 42px; }
   .touch-controls__action { min-height: 44px; }
+  .touch-controls__zoom .touch-controls__action { min-height: 36px; }
 }
 
 /* Lago (parte 0): botão de som, no canto de baixo (acima da faixa preta do filme) */

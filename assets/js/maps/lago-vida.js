@@ -197,8 +197,34 @@
   }
   function drawMover(g, sc, e) { K.isoT(g, sc); L.drawCarAt(g, e.cx, e.cy, e.ang, e.col, e); }
   const TIPO_RUA = [0, 1, 2, 0, 4, 3, 1, 0, 2, 4, 0, 1]; // sedã, hatch, SUV, picape e moto (lago-cenario.js)
+  function carOverlap(ax, ay, aa, a, b) {
+    const [al, aw] = a.tipo === 4 ? [13, 5] : [32, 15];
+    const [bl, bw] = b.tipo === 4 ? [13, 5] : [32, 15];
+    const dx = ax - b.cx, dy = ay - b.cy;
+    const axes = [[Math.cos(aa), Math.sin(aa)], [-Math.sin(aa), Math.cos(aa)],
+      [Math.cos(b.ang), Math.sin(b.ang)], [-Math.sin(b.ang), Math.cos(b.ang)]];
+    return axes.every(([x, y]) => {
+      const dist = Math.abs(dx * x + dy * y);
+      const ar = al * Math.abs(Math.cos(aa) * x + Math.sin(aa) * y) +
+        aw * Math.abs(-Math.sin(aa) * x + Math.cos(aa) * y);
+      const br = bl * Math.abs(Math.cos(b.ang) * x + Math.sin(b.ang) * y) +
+        bw * Math.abs(-Math.sin(b.ang) * x + Math.cos(b.ang) * y);
+      return dist < ar + br;
+    });
+  }
+  function collidesAt(e, u) {
+    const [x, y, ang] = pathAt(e.lane, u);
+    return V.cars.some((o) => o !== e && carOverlap(x, y, ang, e, o));
+  }
   function addCar(sc, lane, u, col, tipo) {
     const e = { kind: 'lg-traffic', tipo: tipo || 0, u, col, lane, v: 0, vmax: (lane.av ? 70 : 40) + Math.random() * 30, tw: 60 / T, th: 26 / T, isoH: 30, drawIso: drawMover };
+    const start = u;
+    let found = false;
+    for (let offset = 0; offset < lane.len; offset += 8) {
+      e.u = (start + offset) % lane.len;
+      if (!collidesAt(e, e.u)) { found = true; break; }
+    }
+    if (!found) throw new Error('Não foi possível posicionar um carro sem colisão na faixa.');
     place(e);
     sc.drawables.push(e);
     V.cars.push(e);
@@ -212,15 +238,27 @@
     for (const e of V.cars) {
       // distância livre à frente: o carro da frente na mesma faixa, ou a faixa de pedestre ocupada
       let free = 1e9;
-      for (const o of V.cars) if (o !== e && o.lane === e.lane) { const d = o.u - e.u; if (d > 0 && d < free) free = d - 66; }
+      for (const o of V.cars) if (o !== e && o.lane === e.lane) {
+        const d = (o.u - e.u + e.lane.len) % e.lane.len;
+        if (d > 0.01 && d < free) free = d - 66;
+      }
       if (V.cross && e.lane.av) {
         const d = e.lane.crossU - 3.5 * T - e.u - 30;
         if (d > -6 && d < free) free = d;
       }
       const want = free < 4 ? 0 : Math.min(e.vmax, free * 1.4);
       e.v += clamp(want - e.v, -160 * dt, 50 * dt);
-      e.u += e.v * dt;
-      if (e.u > e.lane.len) e.u -= e.lane.len; // saiu do mapa: volta pelo começo (lago-cidade.js continua a rua)
+      let move = e.v * dt;
+      const steps = Math.ceil(move / 3);
+      for (let i = 1; i <= steps; i++) {
+        const u = (e.u + move * i / steps) % e.lane.len;
+        if (collidesAt(e, u)) {
+          move *= (i - 1) / steps;
+          e.v = dt > 0 ? Math.min(e.v, move / dt) : 0;
+          break;
+        }
+      }
+      e.u = (e.u + move) % e.lane.len; // saiu do mapa: volta pelo começo (lago-cidade.js continua a rua)
       place(e);
     }
   }
