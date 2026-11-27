@@ -590,6 +590,25 @@
     document.addEventListener('visibilitychange', () => { if (document.hidden) clearInputs(); });
   }
 
+  const mobileClosePanel = $('mobileClosePanel');
+  if (mobileClosePanel) {
+    const updateMobileClosePanel = () => {
+      mobileClosePanel.hidden = !document.querySelector('.panel.is-open');
+    };
+    mobileClosePanel.addEventListener('click', () => {
+      const panel = document.querySelector('.panel.is-open');
+      const closeButton = panel && panel.querySelector('[data-a="fechar"], [id$="Close"]');
+      if (closeButton) closeButton.click();
+    });
+    new window.MutationObserver(updateMobileClosePanel).observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+      childList: true,
+      subtree: true,
+    });
+    updateMobileClosePanel();
+  }
+
   let resizeFrame = 0;
   const resizeScene = () => {
     if (resizeFrame) return;
