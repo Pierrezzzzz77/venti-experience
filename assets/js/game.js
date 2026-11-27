@@ -17,6 +17,7 @@
   const SPEED = 74;
   const FADE = 0.28;   // segundos de cada metade da transição entre mapas
   const USE_DIST = 20; // até quantos px dos pés o jogador alcança um objeto
+  let touchMove = { x: 0, y: 0 };
 
   /* ------------------------------------------------------------------ */
   /* Som procedural (Web Audio, sem arquivos externos)                   */
@@ -385,6 +386,8 @@
         if (this.keys.has('right')) ix += 1;
         if (this.keys.has('up')) iy -= 1;
         if (this.keys.has('down')) iy += 1;
+        ix += touchMove.x;
+        iy += touchMove.y;
       }
       const len = Math.hypot(ix, iy);
       if (len > 1) { ix /= len; iy /= len; }
@@ -532,31 +535,48 @@
 
   const touchControls = $('touchControls');
   if (touchControls) {
-    const activeMoves = new Map();
-    const releaseMove = (pointerId) => {
-      const active = activeMoves.get(pointerId);
-      if (!active) return;
-      activeMoves.delete(pointerId);
-      if (![...activeMoves.values()].some((move) => move.direction === active.direction)) game.keys.delete(active.direction);
-      if (active.button.hasPointerCapture(pointerId)) active.button.releasePointerCapture(pointerId);
+    const joystick = $('mobileJoystick');
+    const knob = joystick && joystick.querySelector('.touch-controls__joystick-knob');
+    let joystickPointer = null;
+    const moveJoystick = (ev) => {
+      if (!joystick || ev.pointerId !== joystickPointer) return;
+      const rect = joystick.getBoundingClientRect();
+      const radius = Math.max(1, Math.min(rect.width, rect.height) * 0.36);
+      const dx = ev.clientX - (rect.left + rect.width / 2);
+      const dy = ev.clientY - (rect.top + rect.height / 2);
+      const distance = Math.hypot(dx, dy);
+      const scale = distance > radius ? radius / distance : 1;
+      const x = dx * scale, y = dy * scale;
+      const magnitude = Math.min(1, distance / radius);
+      const deadZone = 0.14;
+      const strength = magnitude <= deadZone ? 0 : (magnitude - deadZone) / (1 - deadZone);
+      touchMove = distance > 0 ? { x: (x / radius) * strength, y: (y / radius) * strength } : { x: 0, y: 0 };
+      if (knob) knob.style.transform = 'translate(calc(-50% + ' + x + 'px), calc(-50% + ' + y + 'px))';
+    };
+    const releaseJoystick = (pointerId) => {
+      if (pointerId !== joystickPointer) return;
+      joystickPointer = null;
+      touchMove = { x: 0, y: 0 };
+      if (knob) knob.style.transform = 'translate(-50%, -50%)';
+      if (joystick && joystick.hasPointerCapture(pointerId)) joystick.releasePointerCapture(pointerId);
     };
     const clearInputs = () => {
-      for (const pointerId of activeMoves.keys()) releaseMove(pointerId);
+      if (joystickPointer !== null) releaseJoystick(joystickPointer);
       game.keys.clear();
     };
-    touchControls.querySelectorAll('[data-move]').forEach((button) => {
-      const direction = button.dataset.move;
-      button.addEventListener('pointerdown', (ev) => {
+    if (joystick) {
+      joystick.addEventListener('pointerdown', (ev) => {
         ev.preventDefault();
-        if (ev.button !== 0 || game.locked || activeMoves.has(ev.pointerId)) return;
-        button.setPointerCapture(ev.pointerId);
-        activeMoves.set(ev.pointerId, { direction, button });
-        game.keys.add(direction);
+        if (ev.button !== 0 || game.locked || joystickPointer !== null) return;
+        joystickPointer = ev.pointerId;
+        joystick.setPointerCapture(ev.pointerId);
+        moveJoystick(ev);
       });
+      joystick.addEventListener('pointermove', moveJoystick);
       for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
-        button.addEventListener(type, (ev) => releaseMove(ev.pointerId));
+        joystick.addEventListener(type, (ev) => releaseJoystick(ev.pointerId));
       }
-    });
+    }
     touchControls.querySelectorAll('[data-action]').forEach((button) => {
       button.addEventListener('click', () => {
         if (button.dataset.action === 'use') game.use();

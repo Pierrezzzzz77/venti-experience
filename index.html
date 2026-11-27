@@ -22,11 +22,8 @@
   <div class="keys"><kbd>WASD</kbd> / setas andar · <kbd>E</kbd> interagir · <kbd>F</kbd> comer · <kbd>M</kbd> monitor · Roda / <kbd>+</kbd> / <kbd>−</kbd> zoom</div>
   <div id="heldHud" class="held" hidden></div>
   <nav id="touchControls" class="touch-controls" aria-label="Controles do jogo">
-    <div class="touch-controls__pad" aria-label="Movimento">
-      <button class="touch-controls__move touch-controls__up" type="button" data-move="up" aria-label="Mover para cima">↑</button>
-      <button class="touch-controls__move touch-controls__left" type="button" data-move="left" aria-label="Mover para a esquerda">←</button>
-      <button class="touch-controls__move touch-controls__down" type="button" data-move="down" aria-label="Mover para baixo">↓</button>
-      <button class="touch-controls__move touch-controls__right" type="button" data-move="right" aria-label="Mover para a direita">→</button>
+    <div id="mobileJoystick" class="touch-controls__joystick" role="group" aria-label="Joystick virtual: arraste em qualquer direção para mover">
+      <span class="touch-controls__joystick-knob" aria-hidden="true"></span>
     </div>
     <div class="touch-controls__actions">
       <button class="touch-controls__action" type="button" data-action="use">Interagir</button>

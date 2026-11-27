@@ -232,7 +232,7 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
 
 @media (pointer: coarse), (any-pointer: coarse), (max-width: 640px) {
   .touch-controls {
-    --control-size: clamp(42px, 12vw, 56px);
+    --joystick-size: clamp(104px, 30vw, 136px);
     position: fixed;
     z-index: 6;
     right: 0;
@@ -246,13 +246,32 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
     user-select: none;
     -webkit-user-select: none;
   }
-  .touch-controls__pad {
-    display: grid;
-    grid-template: repeat(3, var(--control-size)) / repeat(3, var(--control-size));
-    gap: 3px;
+  .touch-controls__joystick {
+    position: relative;
+    width: var(--joystick-size);
+    height: var(--joystick-size);
+    flex: 0 0 var(--joystick-size);
+    border: 1px solid rgba(230, 232, 236, 0.45);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(28, 33, 42, 0.76) 0 42%, rgba(13, 15, 20, 0.82) 43% 100%);
     pointer-events: auto;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
   }
-  .touch-controls__move, .touch-controls__action {
+  .touch-controls__joystick-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 42%;
+    height: 42%;
+    border: 1px solid rgba(230, 232, 236, 0.65);
+    border-radius: 50%;
+    background: rgba(91, 112, 137, 0.82);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .touch-controls__action {
     display: grid;
     place-items: center;
     border: 1px solid rgba(230, 232, 236, 0.45);
@@ -263,11 +282,6 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
     touch-action: none;
     -webkit-tap-highlight-color: transparent;
   }
-  .touch-controls__move { width: var(--control-size); height: var(--control-size); }
-  .touch-controls__up { grid-area: 1 / 2; }
-  .touch-controls__left { grid-area: 2 / 1; }
-  .touch-controls__down { grid-area: 2 / 2; }
-  .touch-controls__right { grid-area: 2 / 3; }
   .touch-controls__actions { display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
   .touch-controls__action { min-width: 76px; min-height: 52px; padding: 8px 10px; font-size: 12px; }
   .touch-controls__zoom { display: flex; justify-content: flex-end; gap: 6px; }
@@ -276,7 +290,7 @@ kbd { display: inline-block; padding: 1px 6px; border: 1px solid #3a414c; border
 }
 
 @media (max-height: 420px) and (pointer: coarse), (max-height: 420px) and (any-pointer: coarse) {
-  .touch-controls { --control-size: 42px; }
+  .touch-controls { --joystick-size: 104px; }
   .touch-controls__action { min-height: 44px; }
   .touch-controls__zoom .touch-controls__action { min-height: 36px; }
 }
