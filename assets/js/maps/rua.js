@@ -529,7 +529,7 @@
     aPorta: [9.8, 11.4],  // anda até a porta
     luz: [10.6, 11.3],    // a luz da porta acende
     some: [11.4, 12.2],   // entra e some na luz
-    fim: 12.0,            // a tela escurece e troca de mapa
+    fim: 12.2,            // troca de mapa depois que o boneco some na luz
     barras: 0.7,          // as barras pretas entram (s)
   };
   const OLHA = { x: PORTA.x + 1.9 * T, y: PORTA.y + 1.9 * T }; // na calçada, de frente para a porta (onde ele para e olha)
